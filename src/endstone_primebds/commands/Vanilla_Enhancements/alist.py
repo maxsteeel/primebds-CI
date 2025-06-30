@@ -7,6 +7,7 @@ import time
 from endstone_primebds.utils.configUtil import load_config, save_config
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.prefixUtil import errorLog, infoLog
 
 from typing import TYPE_CHECKING
@@ -63,9 +64,22 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                     modified = False
                     for entry in data:
                         if entry.get("name") == player_name:
-                            entry["ignoresPlayerLimit"] = ignore_max_player
-                            entry["xuid"] = self.server.get_player(player_name).xuid
-                            modified = True
+                            db = UserDB("users.db")
+                            user = db.get_offline_user(player_name)
+                            player = self.server.get_player(player_name)
+
+                            xuid = None
+                            if player:
+                                xuid = player.xuid
+                            elif user is not None:
+                                xuid = user.xuid
+
+                            if xuid:
+                                entry["ignoresPlayerLimit"] = ignore_max_player
+                                entry["xuid"] = xuid
+                                modified = True
+                            else:
+                                sender.send_message(f"{infoLog()}§rThe player §b{player_name}§r does not have recorded xuid so the ignore_max_players variable could not be set")
                             break
 
                     if modified:
