@@ -22,6 +22,11 @@ command, permission = create_command(
 
 # ACTIVITY LIST COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
+
+    if not isinstance(sender, Player):
+        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        return False
+
     if len(args) < 1:
         filter_type = "highest"  # Default to 'highest' if no filter is provided
     else:

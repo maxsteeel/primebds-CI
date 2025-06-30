@@ -20,6 +20,11 @@ command, permission = create_command(
 
 # INSPECT COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
+
+    if not isinstance(sender, Player):
+        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        return False
+    
     config = load_config()
     is_gl_enabled = config["modules"]["grieflog"]["enabled"]
 

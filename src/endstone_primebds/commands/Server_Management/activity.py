@@ -1,4 +1,5 @@
 import time
+from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.prefixUtil import infoLog, errorLog, trailLog
@@ -20,6 +21,10 @@ command, permission = create_command(
 SESSIONS_PER_PAGE = 5
 
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
+    if not isinstance(sender, Player):
+        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        return False
+        
     if len(args) < 1:
         sender.sendMessage(f"{errorLog()} Usage: /activity <player> [page: int]")
         return True

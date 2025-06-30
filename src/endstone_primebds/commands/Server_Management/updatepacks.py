@@ -19,6 +19,11 @@ command, permission = create_command(
 
 # RELOADPACKS FUNCTIONALITY
 def handler(self, sender: CommandSender, args: list[str]) -> bool:
+
+    if not isinstance(sender, Player):
+        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        return False
+
     current_dir = os.path.dirname(endstone_primebds.__file__)
     while not os.path.exists(os.path.join(current_dir, 'worlds')):
         current_dir = os.path.dirname(current_dir)

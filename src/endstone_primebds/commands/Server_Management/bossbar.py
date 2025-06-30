@@ -28,6 +28,10 @@ command, permission = create_command(
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     global boss_bar_cache
 
+    if not isinstance(sender, Player):
+        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        return False
+
     if args[1] == "remove":
         # Check if there are any boss bars stored
         if not boss_bar_cache:
