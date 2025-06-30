@@ -1,8 +1,6 @@
 import importlib
-import json
 import pkgutil
 import os
-import time
 
 import endstone_primebds
 
@@ -82,8 +80,8 @@ def preload_settings():
         "combat": {
             "hit_cooldown_in_seconds": 0.0,
             "base_damage": 1.0,
-            "horizontal_knockback_modifier": 1.0,
-            "vertical_knockback_modifier": 1.0,
+            "horizontal_knockback_modifier": 0.0,
+            "vertical_knockback_modifier": 0.0,
             "horizontal_sprint_knockback_modifier": 0.0,
             "vertical_sprint_knockback_modifier": 0.0,
             "tag_modifiers": {
@@ -99,7 +97,7 @@ def preload_settings():
         },
         "allowlist": {
             "profile": "default",
-            "WARNING": "⚠️ DO NOT EDIT 'profile' AS IT CAN RESULT IN UNEXPECTED BEHAVIOR",
+            "WARNING": "DO NOT EDIT 'profile' AS IT CAN RESULT IN UNEXPECTED BEHAVIOR",
         }
     }
 
