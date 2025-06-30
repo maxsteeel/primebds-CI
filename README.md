@@ -3,7 +3,7 @@
 This is PrimeBDS, an essentials plugin for diagnostics, stability, and quality of life on Minecraft Bedrock Edition.
 
 This plugin is packed with various commands that build on BDS while retaining vanilla functionality. There are many optional settings that can be used for a wide variety of servers. A few systems include:
-- A punishment system that includes timed, bans, mutes, warnings, and logs
+- A punishment system that includes timed, bans, mutes, and logs
 - Numerous bug fixes
 - Discord logging
 - Vanilla command aliases
