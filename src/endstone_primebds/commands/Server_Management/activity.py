@@ -2,7 +2,7 @@ import time
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.prefixUtil import infoLog, errorLog, trailLog
-from endstone_primebds.utils.dbUtil import GriefLog, UserDB
+from endstone_primebds.utils.dbUtil import grieflog, UserDB
 from endstone_primebds.utils.timeUtil import TimezoneUtils
 from typing import TYPE_CHECKING
 
@@ -29,7 +29,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if page < 1:
         page = 1
 
-    dbgl = GriefLog("griefLog.db")
+    dbgl = grieflog("grieflog.db")
     db = UserDB("users.db")
     xuid = db.get_xuid_by_name(player_name)
     db.close_connection()

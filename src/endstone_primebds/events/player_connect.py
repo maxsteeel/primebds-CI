@@ -9,7 +9,7 @@ from datetime import datetime
 
 from endstone_primebds.utils.configUtil import load_config
 from endstone_primebds.utils.modUtil import format_time_remaining, ban_message
-from endstone_primebds.utils.dbUtil import UserDB, GriefLog
+from endstone_primebds.utils.dbUtil import UserDB, grieflog
 from endstone.util import Vector
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
             ev.join_message = ""  # Remove join message
         else:
             # User Log
-            dbgl = GriefLog("grieflog.db")
+            dbgl = grieflog("grieflog.db")
             dbgl.start_session(ev.player.xuid, ev.player.name, int(time.time()))
             rounded_coords = Vector(
                 round(ev.player.location.x),
@@ -96,7 +96,7 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
             ev.quit_message = ""  # Remove join message
         else:
             # User Log
-            dbgl = GriefLog("grieflog.db")
+            dbgl = grieflog("grieflog.db")
             dbgl.end_session(ev.player.xuid, int(time.time()))
             rounded_x = round(ev.player.location.x)
             rounded_y = round(ev.player.location.y)
@@ -110,7 +110,7 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
 
 def handle_kick_event(self: "PrimeBDS", ev: PlayerKickEvent):
     print(ev.player.name, ev.reason)
-    dbgl = GriefLog("grieflog.db")
+    dbgl = grieflog("grieflog.db")
     dbgl.end_session(ev.player.xuid, int(time.time()))
     dbgl.close_connection()
 

@@ -15,7 +15,7 @@ from endstone_primebds.events.intervalChecks import interval_function, stop_inte
 from endstone_primebds.commands.Server_Management.monitor import clear_all_intervals
 from endstone_primebds.utils.configUtil import load_config
 
-from endstone_primebds.utils.dbUtil import UserDB, GriefLog
+from endstone_primebds.utils.dbUtil import UserDB, grieflog
 from endstone_primebds.utils.internalPermissionsUtil import get_permissions
 from endstone_primebds.utils.prefixUtil import errorLog
 
@@ -118,7 +118,7 @@ class PrimeBDS(Plugin):
 
         if is_gl_enabled:
             if config["modules"]["grieflog_storage_auto_delete"]["enabled"]:
-                dbgl = GriefLog("grieflog.db")
+                dbgl = grieflog("grieflog.db")
                 dbgl.delete_logs_older_than_seconds(config["modules"]["grieflog_storage_auto_delete"]["removal_time_in_seconds"], True)
                 dbgl.close_connection()
 
@@ -135,7 +135,7 @@ class PrimeBDS(Plugin):
 
     def check_for_inactive_sessions(self):
         """Checks for players who have active sessions (NULL end_time) and are not online. Ends their session."""
-        dbgl = GriefLog("grieflog.db")
+        dbgl = grieflog("grieflog.db")
 
         # Fetch players with active sessions (where end_time is NULL)
         query = "SELECT xuid, name, start_time FROM sessions_log WHERE end_time IS NULL"

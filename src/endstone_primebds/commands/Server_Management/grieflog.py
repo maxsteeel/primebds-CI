@@ -4,9 +4,9 @@ from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.dbUtil import GriefLog
-from endstone_primebds.utils.loggingUtil import sendGriefLog
-from endstone_primebds.utils.prefixUtil import errorLog, griefLog
+from endstone_primebds.utils.dbUtil import grieflog
+from endstone_primebds.utils.loggingUtil import sendgrieflog
+from endstone_primebds.utils.prefixUtil import errorLog, grieflog
 
 from typing import TYPE_CHECKING
 
@@ -24,7 +24,7 @@ command, permission = create_command(
     ["gl"]
 )
 
-# GRIEFLOG COMMAND FUNCTIONALITY
+# grieflog COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     config = load_config()
     is_gl_enabled = config["modules"]["grieflog"]["enabled"]
@@ -37,7 +37,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         radius = 0
         action_filter = None
         player_name = None
-        dbgl = GriefLog("griefLog.db")
+        dbgl = grieflog("grieflog.db")
 
         if len(args) > 0:
             try:
@@ -63,14 +63,14 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             if len(args) == 2 and args[1].lower() == "all":
                 # Clear all logs
                 dbgl.delete_all_logs()
-                sender.send_message(f"{griefLog()}All grief logs have been cleared")
+                sender.send_message(f"{grieflog()}All grief logs have been cleared")
                 return True
 
             elif len(args) == 3 and args[1].lower() == "time" and args[2].isdigit():
                 # Clear logs from the last x minutes
                 minutes = int(args[2])
                 logs_cleared = dbgl.delete_logs_within_seconds(int(minutes * 60))
-                sender.send_message(f"{griefLog()}Cleared {logs_cleared} grief logs from the last {minutes} minutes have been cleared")
+                sender.send_message(f"{grieflog()}Cleared {logs_cleared} grief logs from the last {minutes} minutes have been cleared")
                 return True
 
             else:
@@ -91,10 +91,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         # If no logs were found
         if not logs:
-            sender.send_message(f"{griefLog()}No grief logs found for the given parameters")
+            sender.send_message(f"{grieflog()}No grief logs found for the given parameters")
             return True
 
-        sendGriefLog(logs, sender)
+        sendgrieflog(logs, sender)
         return True
     else:
         sender.send_error_message("This command can only be executed by a player")

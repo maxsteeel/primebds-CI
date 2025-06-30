@@ -2,8 +2,8 @@ from endstone import Player, ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.dbUtil import GriefLog
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog, griefLog
+from endstone_primebds.utils.dbUtil import grieflog
+from endstone_primebds.utils.prefixUtil import infoLog, errorLog, grieflog
 
 from typing import TYPE_CHECKING
 
@@ -28,7 +28,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     if isinstance(sender, Player):
-        dbgl = GriefLog("griefLog.db")
+        dbgl = grieflog("grieflog.db")
         player = self.server.get_player(sender.name)
 
         toggle = dbgl.get_user_toggle(player.xuid, player.name)[3]
@@ -37,9 +37,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         dbgl.set_user_toggle(player.xuid, player.name)
 
         if toggle:
-            sender.send_message(f"{griefLog()}Inspect mode {ColorFormat.GREEN}Enabled")
+            sender.send_message(f"{grieflog()}Inspect mode {ColorFormat.GREEN}Enabled")
         else:
-            sender.send_message(f"{griefLog()}Inspect mode {ColorFormat.RED}Disabled")
+            sender.send_message(f"{grieflog()}Inspect mode {ColorFormat.RED}Disabled")
 
         dbgl.close_connection()
 

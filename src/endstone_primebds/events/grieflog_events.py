@@ -4,8 +4,8 @@ from endstone.event import BlockPlaceEvent, BlockBreakEvent, PlayerInteractEvent
 from typing import TYPE_CHECKING
 
 from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.loggingUtil import sendGriefLog
-from endstone_primebds.utils.dbUtil import GriefLog
+from endstone_primebds.utils.loggingUtil import sendgrieflog
+from endstone_primebds.utils.dbUtil import grieflog
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -15,11 +15,11 @@ def handle_block_break(self: "PrimeBDS", ev: BlockBreakEvent):
     is_gl_enabled = config["modules"]["grieflog"]["enabled"]
 
     if is_gl_enabled:
-        dbgl = GriefLog("grieflog.db")
+        dbgl = grieflog("grieflog.db")
 
         if dbgl.get_user_toggle(ev.player.xuid, ev.player.name)[3]:
             logs = dbgl.get_logs_by_coordinates(ev.block.x, ev.block.y, ev.block.z)
-            sendGriefLog(logs, ev.player)
+            sendgrieflog(logs, ev.player)
             ev.is_cancelled = True
         else:
             block_states = list(ev.block.data.block_states.values())
@@ -35,11 +35,11 @@ def handle_block_place(self: "PrimeBDS", ev: BlockPlaceEvent):
     is_gl_enabled = config["modules"]["grieflog"]["enabled"]
 
     if is_gl_enabled:
-        dbgl = GriefLog("grieflog.db")
+        dbgl = grieflog("grieflog.db")
 
         if dbgl.get_user_toggle(ev.player.xuid, ev.player.name)[3]:
             logs = dbgl.get_logs_by_coordinates(ev.block.x, ev.block.y, ev.block.z)
-            sendGriefLog(logs, ev.player)
+            sendgrieflog(logs, ev.player)
             ev.is_cancelled = True
         else:
             placed_block = ev.block_placed_state
@@ -56,7 +56,7 @@ def handle_player_interact(self: "PrimeBDS", ev: PlayerInteractEvent):
     is_gl_enabled = config["modules"]["grieflog"]["enabled"]
 
     if is_gl_enabled:
-        dbgl = GriefLog("grieflog.db")
+        dbgl = grieflog("grieflog.db")
 
         current_time = time.time() 
         last_time = last_interaction_time.get(ev.player.xuid, 0)
@@ -71,7 +71,7 @@ def handle_player_interact(self: "PrimeBDS", ev: PlayerInteractEvent):
                           "grindstone", "anvil", "beacon"]  # List of types to check
         if dbgl.get_user_toggle(ev.player.xuid, ev.player.name)[3]:
             logs = dbgl.get_logs_by_coordinates(ev.block.x, ev.block.y, ev.block.z)
-            sendGriefLog(logs, ev.player)
+            sendgrieflog(logs, ev.player)
             ev.is_cancelled = True
         elif any(item in ev.block.data.type for item in types_to_check):
             block_states = list(ev.block.data.block_states.values())

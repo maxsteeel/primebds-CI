@@ -5,7 +5,7 @@ from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.formWrapperUtil import ActionFormResponse, ActionFormData
 from endstone_primebds.utils.prefixUtil import errorLog
-from endstone_primebds.utils.dbUtil import GriefLog
+from endstone_primebds.utils.dbUtil import grieflog
 
 from typing import TYPE_CHECKING
 
@@ -27,7 +27,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     else:
         filter_type = args[0].lower()  # Filter type (highest, lowest, recent)
 
-    dbgl = GriefLog("griefLog.db")
+    dbgl = grieflog("grieflog.db")
 
     # Fetch all users and their total playtimes
     playtimes = dbgl.get_all_playtimes()

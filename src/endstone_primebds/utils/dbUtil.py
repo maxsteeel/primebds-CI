@@ -639,7 +639,7 @@ class UserDB(DatabaseManager):
                     self.player_data_cache[value] = self.player_data_cache.pop(xuid)
                 break 
 
-class GriefLog(DatabaseManager):
+class grieflog(DatabaseManager):
     """Handles actions related to grief logs and session tracking."""
 
     def __init__(self, db_name: str):
@@ -987,7 +987,7 @@ class GriefLog(DatabaseManager):
 
         # Final Log Message
         if sendPrint:
-            print(f"[primebds - GriefLog] Purged {deleted_count} logs older than {time_string}")
+            print(f"[primebds - grieflog] Purged {deleted_count} logs older than {time_string}")
 
         return deleted_count
 

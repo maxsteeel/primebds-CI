@@ -1,7 +1,7 @@
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.prefixUtil import infoLog, errorLog, trailLog
-from endstone_primebds.utils.dbUtil import GriefLog
+from endstone_primebds.utils.dbUtil import grieflog
 
 from typing import TYPE_CHECKING
 
@@ -23,7 +23,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     player = self.server.get_player(player_name)
 
     if len(args) == 0:
-        dbgl = GriefLog("griefLog.db")
+        dbgl = grieflog("grieflog.db")
 
         # Fetch total playtime for the player
         total_playtime_seconds = dbgl.get_total_playtime(player.xuid)
@@ -57,7 +57,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         dbgl.close_connection()
     elif len(args) == 1 and args[0].lower() == 'true':
         # Display leaderboard
-        dbgl = GriefLog("griefLog.db")
+        dbgl = grieflog("grieflog.db")
         leaderboard = dbgl.get_all_playtimes()
         leaderboard = sorted(leaderboard, key=lambda x: x['total_playtime'], reverse=True)
 
