@@ -19,3 +19,7 @@ I currently have on the docket:
 - A way to start & stop the script profiler / likely will be merged with the /viewscriptprofiles command
 - OP list command
 - General performance improvements
+
+# NOTICE
+- If you are arriving from WMCTCORE, this version relocates database files to one folder inside bedrock_server/plugins. Please rename your wmctcore_users.db to users.db and your wmctcore_gl.db to grieflog.db. Then move these files to the new folder location bedrock_server/plugins/primebds_data 
+  - This change was made to keep everything in one place and for future updates to automate changes like these. I hope to avoid such breaking changes in the future.
