@@ -1,6 +1,6 @@
 import json
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from endstone import ColorFormat, Player
 from endstone._internal.endstone_python import DisplaySlot, ObjectiveSortOrder, Mob
@@ -46,16 +46,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     return False
 
 def save_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    while not (
-            os.path.exists(os.path.join(current_dir, 'plugins')) and
-            os.path.exists(os.path.join(current_dir, 'worlds'))
-    ):
-        current_dir = os.path.dirname(current_dir)
-
-    scoreboard_data_folder = os.path.join(current_dir, 'plugins/primebds_data', 'scoreboard_data')
-    os.makedirs(scoreboard_data_folder, exist_ok=True)
-
+    scoreboard_data_folder = get_scoreboard_directory()
     save_path = os.path.join(scoreboard_data_folder, f"{name}.json")
 
     objectives = self.server.scoreboard.objectives
@@ -75,7 +66,7 @@ def save_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
             "entries": {}
         }
 
-        for entry in list(self.server.scoreboard.entries):  # copy list to avoid mutation issues
+        for entry in list(self.server.scoreboard.entries):
             score = objective.get_score(entry)
 
             if isinstance(entry, str):
@@ -96,7 +87,6 @@ def save_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
 
         data[objective.name] = obj_data
 
-    # Saving to file
     with open(save_path, 'w') as f:
         json.dump(data, f, indent=4)
 
@@ -110,16 +100,7 @@ def save_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
     return True
 
 def load_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    while not (
-        os.path.exists(os.path.join(current_dir, 'plugins')) and
-        os.path.exists(os.path.join(current_dir, 'worlds'))
-    ):
-        current_dir = os.path.dirname(current_dir)
-
-    scoreboard_data_folder = os.path.join(current_dir, 'plugins/primebds_data', 'scoreboard_data')
-    os.makedirs(scoreboard_data_folder, exist_ok=True)
-
+    scoreboard_data_folder = get_scoreboard_directory()
     load_path = os.path.join(scoreboard_data_folder, f"{name}.json")
 
     if not os.path.exists(load_path):
@@ -133,7 +114,7 @@ def load_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
         data = json.load(f)
 
     new_profile = False
-    modified = False  # Track if we need to re-save the file
+    modified = False
 
     for obj_name, obj_data in data.items():
         objective = self.server.scoreboard.get_objective(obj_name)
@@ -143,7 +124,7 @@ def load_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
             objective = self.server.scoreboard.add_objective(obj_name, criteria, obj_data["display_name"])
             new_profile = True
 
-        all_entries_loaded = True  # Assume true, disprove if unloaded found
+        all_entries_loaded = True
 
         for entry_name, entry_data in obj_data["entries"].items():
             is_xuid = entry_name.isdigit() and len(entry_name) >= 12
@@ -156,7 +137,7 @@ def load_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
                         break
 
                 if player_obj is None:
-                    all_entries_loaded = False  # Found an unloaded entry
+                    all_entries_loaded = False
                     continue
 
                 score_key = player_obj
@@ -171,7 +152,6 @@ def load_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
                 entry_data["loaded"] = True
                 modified = True
 
-        # Update is_fully_loaded flag
         if obj_data.get("is_fully_loaded") != all_entries_loaded:
             obj_data["is_fully_loaded"] = all_entries_loaded
             modified = True
@@ -192,7 +172,10 @@ def delete_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
     delete_path = os.path.join(get_scoreboard_directory(), f"{name}.json")
 
     if not os.path.exists(delete_path):
-        player.send_message(f"{errorLog()}Scoreboard profile '{name}' not found!")
+        if isinstance(player, Player):
+            player.send_message(f"{errorLog()}Scoreboard profile '{name}' not found!")
+        else:
+            print(f"{errorLog()}Scoreboard profile '{name}' not found!")
         return False
 
     os.remove(delete_path)
@@ -204,7 +187,7 @@ def delete_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
         player.send_message(f"{infoLog()}Deleted scoreboard profile '{name}'")
     return True
 
-def list_scoreboard_profiles() -> list[str]:
+def list_scoreboard_profiles() -> List[str]:
     directory = get_scoreboard_directory()
     return [f[:-5] for f in os.listdir(directory) if f.endswith('.json')]
 
@@ -216,7 +199,6 @@ def get_scoreboard_directory() -> str:
     ):
         current_dir = os.path.dirname(current_dir)
 
-    scoreboard_dir = os.path.join(current_dir, 'plugins', 'scoreboard_data')
-    os.makedirs(scoreboard_dir, exist_ok=True)
-
-    return scoreboard_dir
+    scoreboard_data_folder = os.path.join(current_dir, 'plugins', 'primebds_data', 'scoreboard_data')
+    os.makedirs(scoreboard_data_folder, exist_ok=True)
+    return scoreboard_data_folder
