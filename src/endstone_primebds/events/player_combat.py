@@ -27,7 +27,7 @@ def handle_damage_event(self: "PrimeBDS", ev: ActorDamageEvent):
     # Get tag-aware values
     modifier = get_custom_tag(config, tags, "base_damage")
     kb_cooldown = get_custom_tag(config, tags, "hit_cooldown_in_seconds")
-
+    
     # Apply bonus damage
     if modifier != 1:
         ev.damage += modifier
@@ -50,9 +50,25 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
     kb_v_modifier = get_custom_tag(config, tags, "vertical_knockback_modifier")
     kb_sprint_h_modifier = get_custom_tag(config, tags, "horizontal_sprint_knockback_modifier")
     kb_sprint_v_modifier = get_custom_tag(config, tags, "vertical_sprint_knockback_modifier")
+    resisted_kb_modifier = get_custom_tag(config, tags, "resisted_knockback_modifier")
+    fishing_rod_h_pull_modifier = get_custom_tag(config, tags, "fishing_rod_horizontal_pull_modifier")
+    fishing_rod_v_pull_modifier = get_custom_tag(config, tags, "fishing_rod_vertical_pull_modifier")
+    fall_damage_height = get_custom_tag(config, tags, "fall_damage_height")
+    entity_targets = get_custom_tag(config, tags, "entity_targets")
+    affected_projectiles = get_custom_tag(config, tags, "affected_projectiles")
+    disable_shield_kb = get_custom_tag(config, tags, "disable_shield_knocback")
+    disable_fire_dmg = get_custom_tag(config, tags, "disable_fire_damage")
+    disable_explosion_dmg = get_custom_tag(config, tags, "disable_explosion_damage")
+    disable_self_dmg = get_custom_tag(config, tags, "disable_self_imposed_damage")
+    disable_sprint_hits = get_custom_tag(config, tags, "disable_sprint_hits")
+    allow_projectile_modifier = get_custom_tag(config, tags, "allow_projectile_modifier")
 
     # If base modifiers are 0, treat them as "do not modify"
     if kb_h_modifier == 0 and kb_v_modifier == 0 and kb_sprint_h_modifier == 0 and kb_sprint_v_modifier == 0:
+        return
+    
+    if source.is_sprinting and get_custom_tag(config, tags, "disable_sprint_hits") and ev.knockback.y <= 0:
+        ev.is_cancelled = True
         return
 
     kb_h_modifier = kb_h_modifier or 1.0
@@ -68,7 +84,7 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
         newx = source.velocity.x * kb_h_modifier
         newz = source.velocity.z * kb_h_modifier
 
-    if source.is_sprinting and kb_sprint_h_modifier != 1.0:
+    if source.is_sprinting and kb_sprint_h_modifier != 0.0:
         newx *= kb_sprint_h_modifier
         newz *= kb_sprint_h_modifier
 
@@ -78,7 +94,6 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
     new_kb = Vector(newx, abs(newy), newz)
     ev.knockback = new_kb
 
-
 def get_custom_tag(config, tags, key):
     """
     Returns the custom KB modifiers, prioritizing tag-specific modifiers.
@@ -86,7 +101,7 @@ def get_custom_tag(config, tags, key):
     """
     default = config["modules"]["combat"].get(key)
 
-    tag_mods = config["modules"]["combat"].get("tag_modifiers", {})
+    tag_mods = config["modules"]["combat"].get("tag_overrides", {})
     for tag in tags:
         if tag in tag_mods and key in tag_mods[tag]:
             return tag_mods[tag][key]

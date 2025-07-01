@@ -5,7 +5,7 @@ import os
 import endstone_primebds
 
 from endstone_primebds.utils.configUtil import load_config, save_config
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 # Global storage for preloaded commands
 moderation_commands = set() # MOD SYSTEM REQ
@@ -14,101 +14,138 @@ preloaded_permissions = {}
 preloaded_handlers = {}
 
 def preload_settings():
-    """Preload all plugin settings with defaults if missing."""
+    """Preload all plugin settings with defaults if missing, preserving key order."""
     config = load_config()
 
-    # Define default modules and settings
-    default_modules = {
-        "discord_logging": {
-            "embed": {
+    def merge_ordered(default: dict, actual: dict):
+        """Merge default into actual, preserving key order without overwriting existing keys."""
+        for key, value in default.items():
+            if key not in actual:
+                actual[key] = value
+            elif isinstance(value, dict) and isinstance(actual[key], dict):
+                merge_ordered(value, actual[key])
+        # Re-insert keys to maintain default order + existing keys
+        reordered = OrderedDict()
+        for k in list(default.keys()) + [k for k in actual.keys() if k not in default]:
+            if k in actual:
+                reordered[k] = actual[k]
+        actual.clear()
+        actual.update(reordered)
+
+    default_modules = OrderedDict({
+        "discord_logging": OrderedDict({
+            "embed": OrderedDict({
                 "color": 781919,
                 "title": "Logger"
-            },
-            "commands": {
+            }),
+            "commands": OrderedDict({
                 "enabled": False,
                 "webhook": ""
-            },
-            "moderation": {
+            }),
+            "moderation": OrderedDict({
                 "enabled": False,
                 "webhook": ""
-            },
-            "chat": {
+            }),
+            "chat": OrderedDict({
                 "enabled": False,
                 "webhook": ""
-            },
-            "griefing": {
+            }),
+            "griefing": OrderedDict({
                 "enabled": False,
                 "webhook": ""
-            }
-        },
-        "game_logging": {
+            })
+        }),
+        "game_logging": OrderedDict({
             "custom_tags": [],
-            "moderation": {
+            "moderation": OrderedDict({
                 "enabled": True
-            },
-            "commands": {
+            }),
+            "commands": OrderedDict({
                 "enabled": False
-            }
-        },
-        "spectator_check": {
+            })
+        }),
+        "spectator_check": OrderedDict({
             "check_gamemode": True,
             "check_tags": False,
             "allow_tags": [],
             "ignore_tags": []
-        },
-        "me_crasher_patch": {
+        }),
+        "me_crasher_patch": OrderedDict({
             "enabled": True,
             "ban": False
-        },
-        "grieflog": {
+        }),
+        "grieflog": OrderedDict({
             "enabled": False
-        },
-        "grieflog_storage_auto_delete": {
+        }),
+        "grieflog_storage_auto_delete": OrderedDict({
             "enabled": False,
             "removal_time_in_seconds": 1209600
-        },
-        "check_prolonged_death_screen": {
+        }),
+        "check_prolonged_death_screen": OrderedDict({
             "enabled": False,
             "kick": False,
             "time_in_seconds": 10
-        },
-        "check_afk": {
+        }),
+        "check_afk": OrderedDict({
             "enabled": False,
             "kick": False,
             "time_in_seconds": 180
-        },
-        "combat": {
+        }),
+        "combat": OrderedDict({
             "hit_cooldown_in_seconds": 0.0,
             "base_damage": 1.0,
             "horizontal_knockback_modifier": 0.0,
             "vertical_knockback_modifier": 0.0,
             "horizontal_sprint_knockback_modifier": 0.0,
             "vertical_sprint_knockback_modifier": 0.0,
-            "tag_modifiers": {
-                "example_tag": {
-                    "hit_cooldown_in_seconds": 2,
+            "resisted_knockback_modifier": 0.0,
+            "fishing_rod_horizontal_pull_modifier": 0.0,
+            "fishing_rod_vertical_pull_modifier": 0.0,
+            "fall_damage_height": 3.5,
+            "entity_targets": ["any"],
+            "affected_projectiles": ["any"],
+            "disable_fire_damage": False,
+            "disable_explosion_damage": False,
+            "disable_self_imposed_damage": False,
+            "disable_sprint_hits": False,
+            "disable_hits": False,
+            "allow_projectile_modifier": True,
+            "tag_overrides": OrderedDict({
+                "example_tag": OrderedDict({
+                    "hit_cooldown_in_seconds": 1,
                     "base_damage": 5,
                     "horizontal_knockback_modifier": 2,
-                    "vertical_knockback_modifier":2,
-                    "horizontal_sprint_knockback_modifier": 3,
-                    "vertical_sprint_knockback_modifier": 3
-                }
-            }
-        },
-        "allowlist": {
+                    "vertical_knockback_modifier": 2,
+                    "horizontal_sprint_knockback_modifier": 0,
+                    "vertical_sprint_knockback_modifier": 0,
+                    "resisted_knockback_modifier": 0.0,
+                    "fishing_rod_horizontal_pull_modifier": 0.0,
+                    "fishing_rod_vertical_pull_modifier": 0.0,
+                    "fall_damage_height": 7.0,
+                    "entity_targets": ["minecraft:villager", "minecraft:player"],
+                    "affected_projectiles": ["minecraft:snowball", "minecraft:hook"],
+                    "disable_fire_damage": True,
+                    "disable_explosion_damage": True,
+                    "disable_self_imposed_damage": True,
+                    "disable_sprint_hits": True,
+                    "disable_hits": False,
+                    "allow_projectile_modifier": False,
+                })
+            })
+        }),
+        "allowlist": OrderedDict({
             "profile": "default",
-            "WARNING": "DO NOT EDIT 'profile' AS IT CAN RESULT IN UNEXPECTED BEHAVIOR",
-        }
-    }
+            "WARNING": "DO NOT EDIT 'profile' AS IT CAN RESULT IN UNEXPECTED BEHAVIOR"
+        })
+    })
 
-    # Ensure 'modules' key exists in config
-    if "modules" not in config:
-        config["modules"] = {}
+    config.setdefault("modules", OrderedDict())
 
-    # Add missing modules with default settings
     for module, settings in default_modules.items():
         if module not in config["modules"]:
             config["modules"][module] = settings
+        else:
+            merge_ordered(settings, config["modules"][module])
 
     save_config(config)
 
