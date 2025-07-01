@@ -54,45 +54,41 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"{infoLog()}§rAdded §b{player_name}§r to allowlist.")
 
         if ignore_max_player is not None:
-            def modify_allowlist_after_delay():
-                time.sleep(1.5)  # Small delay to let Minecraft write the entry
-                allowlist_path = get_allowlist_path()
-                try:
-                    with open(allowlist_path, 'r') as f:
-                        data = json.load(f)
+            allowlist_path = get_allowlist_path()
+            try:
+                with open(allowlist_path, 'r') as f:
+                    data = json.load(f)
 
-                    modified = False
-                    for entry in data:
-                        if entry.get("name") == player_name:
-                            db = UserDB("users.db")
-                            user = db.get_offline_user(player_name)
-                            player = self.server.get_player(player_name)
+                modified = False
+                for entry in data:
+                    if entry.get("name") == player_name:
+                        db = UserDB("users.db")
+                        user = db.get_offline_user(player_name)
+                        player = self.server.get_player(player_name)
 
-                            xuid = None
-                            if player:
-                                xuid = player.xuid
-                            elif user is not None:
-                                xuid = user.xuid
+                        xuid = None
+                        if player:
+                            xuid = player.xuid
+                        elif user is not None:
+                            xuid = user.xuid
 
-                            if xuid:
-                                entry["ignoresPlayerLimit"] = ignore_max_player
-                                entry["xuid"] = xuid
-                                modified = True
-                            else:
-                                sender.send_message(f"{infoLog()}§rThe player §b{player_name}§r does not have recorded xuid so the ignore_max_players variable could not be set")
-                            break
+                        if xuid:
+                            entry["ignoresPlayerLimit"] = ignore_max_player
+                            entry["xuid"] = xuid
+                            modified = True
+                        else:
+                            sender.send_message(f"{infoLog()}§rThe player §b{player_name}§r does not have recorded xuid so the ignore_max_players variable could not be set")
+                        break
 
-                    if modified:
-                        with open(allowlist_path, 'w') as f:
-                            json.dump(data, f, indent=4)
-                        print(f"[PrimeBDS] Updated 'ignoresPlayerLimit' for {player_name} to {ignore_max_player}")
-                    else:
-                        print(f"[PrimeBDS] Could not find {player_name} in allowlist.json")
+                if modified:
+                    with open(allowlist_path, 'w') as f:
+                        json.dump(data, f, indent=4)
+                    print(f"[PrimeBDS] Updated 'ignoresPlayerLimit' for {player_name} to {ignore_max_player}")
+                else:
+                    print(f"[PrimeBDS] Could not find {player_name} in allowlist.json")
 
-                except Exception as e:
-                    print(f"[PrimeBDS] Failed to modify allowlist: {e}")
-
-            threading.Thread(target=modify_allowlist_after_delay, daemon=True).start()
+            except Exception as e:
+                print(f"[PrimeBDS] Failed to modify allowlist: {e}")
 
         self.server.dispatch_command(self.server.command_sender, f"whitelist reload")
 
@@ -129,7 +125,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         except Exception as e:
             sender.send_message(f"{errorLog()}§rFailed to read allowlist: {e}")
         return True
-
 
     elif subcommand == "check":
 
