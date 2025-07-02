@@ -27,6 +27,27 @@ def handle_damage_event(self: "PrimeBDS", ev: ActorDamageEvent):
     # Get tag-aware values
     modifier = get_custom_tag(config, tags, "base_damage")
     kb_cooldown = get_custom_tag(config, tags, "hit_cooldown_in_seconds")
+    fall_damage_height = get_custom_tag(config, tags, "fall_damage_height")
+    disable_fire_dmg = get_custom_tag(config, tags, "disable_fire_damage")
+    disable_explosion_dmg = get_custom_tag(config, tags, "disable_explosion_damage")
+
+    if ev.damage_source is not None:
+        actor = ev.actor
+
+        # Fire damage check
+        if disable_fire_dmg and ev.damage_source.type == "fire_tick" or ev.damage_source.type == "fire" or ev.damage_source.type == "lava":
+            ev.is_cancelled = True
+
+        # Explosion damage check
+        if disable_explosion_dmg and ev.damage_source.type == "entity_explosive":
+            ev.is_cancelled = True
+
+    if fall_damage_height != 3.5:
+        if ev.damage_source.type == "fall":
+            fall_height = ev.damage * 2
+            if fall_height < fall_damage_height:
+                ev.is_cancelled = True
+                return
     
     # Apply bonus damage
     if modifier != 1:
@@ -43,31 +64,21 @@ def handle_damage_event(self: "PrimeBDS", ev: ActorDamageEvent):
 def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
     config = load_config()
     source = self.server.get_player(ev.source.name)
-
     tags = source.scoreboard_tags or []
-
+        
     kb_h_modifier = get_custom_tag(config, tags, "horizontal_knockback_modifier")
     kb_v_modifier = get_custom_tag(config, tags, "vertical_knockback_modifier")
     kb_sprint_h_modifier = get_custom_tag(config, tags, "horizontal_sprint_knockback_modifier")
     kb_sprint_v_modifier = get_custom_tag(config, tags, "vertical_sprint_knockback_modifier")
-    resisted_kb_modifier = get_custom_tag(config, tags, "resisted_knockback_modifier")
-    fishing_rod_h_pull_modifier = get_custom_tag(config, tags, "fishing_rod_horizontal_pull_modifier")
-    fishing_rod_v_pull_modifier = get_custom_tag(config, tags, "fishing_rod_vertical_pull_modifier")
-    fall_damage_height = get_custom_tag(config, tags, "fall_damage_height")
-    entity_targets = get_custom_tag(config, tags, "entity_targets")
-    affected_projectiles = get_custom_tag(config, tags, "affected_projectiles")
-    disable_shield_kb = get_custom_tag(config, tags, "disable_shield_knocback")
-    disable_fire_dmg = get_custom_tag(config, tags, "disable_fire_damage")
-    disable_explosion_dmg = get_custom_tag(config, tags, "disable_explosion_damage")
-    disable_self_dmg = get_custom_tag(config, tags, "disable_self_imposed_damage")
     disable_sprint_hits = get_custom_tag(config, tags, "disable_sprint_hits")
-    allow_projectile_modifier = get_custom_tag(config, tags, "allow_projectile_modifier")
+    resisted_kb_percentage = get_custom_tag(config, tags, "resisted_knockback_percentage")
 
     # If base modifiers are 0, treat them as "do not modify"
     if kb_h_modifier == 0 and kb_v_modifier == 0 and kb_sprint_h_modifier == 0 and kb_sprint_v_modifier == 0:
         return
     
-    if source.is_sprinting and get_custom_tag(config, tags, "disable_sprint_hits") and ev.knockback.y <= 0:
+    # Sprint hits
+    if source.is_sprinting and disable_sprint_hits and ev.knockback.y <= 0:
         ev.is_cancelled = True
         return
 
@@ -90,6 +101,12 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
 
     if ev.knockback.y < 0:
         newy = (newy * kb_sprint_v_modifier) / 2
+
+    if resisted_kb_percentage != 0:
+        reduction = 1.0 - resisted_kb_percentage
+        newx *= reduction
+        newy *= reduction
+        newz *= reduction
 
     new_kb = Vector(newx, abs(newy), newz)
     ev.knockback = new_kb
