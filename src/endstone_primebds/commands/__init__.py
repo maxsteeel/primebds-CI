@@ -14,21 +14,41 @@ preloaded_permissions = {}
 preloaded_handlers = {}
 
 def preload_settings():
-    """Preload all plugin settings with defaults if missing, preserving key order."""
+    """Preload all plugin settings with defaults if missing, preserving key order and removing unknown keys."""
     config = load_config()
 
-    def merge_ordered(default: dict, actual: dict):
-        """Merge default into actual, preserving key order without overwriting existing keys."""
+    def merge_clean_ordered(default: dict, actual: dict, skip_keys: set = None):
+        """
+        Merge default into actual, preserving order, removing unknown keys,
+        but skips modifying inside 'worlds' and 'tag_overrides' subtrees.
+        """
+        if skip_keys is None:
+            skip_keys = set()
+
+        keys_to_remove = [key for key in actual if key not in default]
+        for key in keys_to_remove:
+            if key not in ('worlds', 'tag_overrides'):
+                del actual[key]
+
         for key, value in default.items():
+            if key in skip_keys:
+                continue
+
+            if key in ('worlds', 'tag_overrides'):
+                if key not in actual:
+                    actual[key] = value
+                continue
+
             if key not in actual:
                 actual[key] = value
             elif isinstance(value, dict) and isinstance(actual[key], dict):
-                merge_ordered(value, actual[key])
-        # Re-insert keys to maintain default order + existing keys
+                merge_clean_ordered(value, actual[key], skip_keys=set())
+
         reordered = OrderedDict()
-        for k in list(default.keys()) + [k for k in actual.keys() if k not in default]:
-            if k in actual:
-                reordered[k] = actual[k]
+        for key in default.keys():
+            if key in actual:
+                reordered[key] = actual[key]
+
         actual.clear()
         actual.update(reordered)
 
@@ -91,6 +111,10 @@ def preload_settings():
             "kick": False,
             "time_in_seconds": 180
         }),
+        "allowlist": OrderedDict({
+            "profile": "default",
+            "WARNING": "DO NOT EDIT 'profile' AS IT CAN RESULT IN UNEXPECTED BEHAVIOR"
+        }),
         "combat": OrderedDict({
             "hit_cooldown_in_seconds": 0.0,
             "base_damage": 1.0,
@@ -119,19 +143,47 @@ def preload_settings():
                 })
             })
         }),
-        "allowlist": OrderedDict({
-            "profile": "default",
-            "WARNING": "DO NOT EDIT 'profile' AS IT CAN RESULT IN UNEXPECTED BEHAVIOR"
+        "multiworld": OrderedDict({
+        "WARNING": "THIS IS AN EXPERIMENTAL IMPLEMENTATION AND IS NOT COMPLETE",
+        "enabled": False,
+        "ip_main": "127.0.0.1",
+        "worlds": OrderedDict({
+            "example_world_folder": OrderedDict({
+                    "ip": "127.0.0.1",
+                    "server-port": 19134,
+                    "server-portv6": 19135,
+                    "level-name": "Bedrock level",
+                    "server-name": "Dedicated Server",
+                    "gamemode": "survival",
+                    "difficulty": "easy",
+                    "default-player-permission-level": "member",
+                    "max-players": 10,
+                    "view-distance": 10,
+                    "tick-distance": 4,
+                    "max-threads": 8,
+                    "level-seed": "",
+                    "compression-threshold": 1,
+                    "texturepack-required": False,
+                    "allow-list": False,
+                    "allow-cheats": False,
+                })
+            })
         })
     })
 
     config.setdefault("modules", OrderedDict())
 
-    for module, settings in default_modules.items():
+    # Sync each module
+    for module, default_settings in default_modules.items():
         if module not in config["modules"]:
-            config["modules"][module] = settings
+            config["modules"][module] = default_settings
         else:
-            merge_ordered(settings, config["modules"][module])
+            merge_clean_ordered(default_settings, config["modules"][module])
+
+    # Remove obsolete modules
+    for module in list(config["modules"].keys()):
+        if module not in default_modules:
+            del config["modules"][module]
 
     save_config(config)
 

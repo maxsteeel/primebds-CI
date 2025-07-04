@@ -4,6 +4,8 @@ import shutil
 import threading
 import time
 
+from endstone import Player
+
 from endstone_primebds.utils.configUtil import load_config, save_config
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
@@ -213,46 +215,46 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         target_profile = args[1].strip()
         profiles_dir = get_allowlist_profiles_folder()
         target_path = os.path.join(profiles_dir, f"{target_profile}.json")
+
         if not os.path.exists(target_path):
             sender.send_message(f"{errorLog()}Profile '{target_profile}' does not exist.")
             return True
 
-        try:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            while not (
-                    os.path.exists(os.path.join(current_dir, 'plugins')) and
-                    os.path.exists(os.path.join(current_dir, 'worlds'))
-            ):
-                current_dir = os.path.dirname(current_dir)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        while not (
+            os.path.exists(os.path.join(current_dir, 'plugins')) and
+            os.path.exists(os.path.join(current_dir, 'worlds'))
+        ):
+            current_dir = os.path.dirname(current_dir)
 
-            current_allowlist = os.path.join(current_dir, "allowlist.json")
-            config = load_config()
-            current_profile = config.get("modules", {}).get("allowlist", {}).get("profile", "default")
-            current_profile_path = os.path.join(profiles_dir, f"{current_profile}.json")
-            if os.path.exists(current_allowlist):
-                with open(current_allowlist, "r") as f:
-                    current_data = f.read()
-                if not os.path.exists(current_profile_path) or open(current_profile_path, "r").read() != current_data:
-                    with open(current_profile_path, "w") as f:
-                        f.write(current_data)
-                    print(f"[PrimeBDS] Backed up allowlist.json to profile '{current_profile}'")
+        current_allowlist = os.path.join(current_dir, "allowlist.json")
+        config = load_config()
+        current_profile = config.get("modules", {}).get("allowlist", {}).get("profile", "default")
+        current_profile_path = os.path.join(profiles_dir, f"{current_profile}.json")
 
-            # Now apply the new profile
-            def delayed_apply():
-                time.sleep(1.0)  # short delay to avoid race conditions
-                print(f"[PrimeBDS] Activated allowlist profile '{target_profile}'")
-                sender.send_message(f"{infoLog()}Activated allowlist profile '{target_profile}'")
-                shutil.copyfile(target_path, current_allowlist)
-                config["modules"]["allowlist"]["profile"] = target_profile
-                save_config(config)
-                self.server.dispatch_command(self.server.command_sender, f"whitelist reload")
+        if os.path.exists(current_allowlist):
+            with open(current_allowlist, "r") as f:
+                current_data = f.read()
+            if not os.path.exists(current_profile_path) or open(current_profile_path, "r").read() != current_data:
+                with open(current_profile_path, "w") as f:
+                    f.write(current_data)
+                print(f"[PrimeBDS] Backed up allowlist.json to profile '{current_profile}'")
 
-            threading.Thread(target=delayed_apply, daemon=True).start()
-            sender.send_message(f"{infoLog()}Allowlist profile will switch to '{target_profile}' shortly.")
+        # Schedule the switch after 20 ticks (~1 second)
+        def apply_profile():
+            shutil.copyfile(target_path, current_allowlist)
+            config["modules"]["allowlist"]["profile"] = target_profile
+            save_config(config)
+            self.server.dispatch_command(self.server.command_sender, "whitelist reload")
 
-        except Exception as e:
-            sender.send_message(f"{errorLog()}Failed to use profile: {e}")
-        return True
+            msg = f"{infoLog()}Activated allowlist profile '{target_profile}'"
+            if isinstance(sender, Player):
+                sender.send_message(msg)
+            else:
+                print(msg)
+
+        self.server.scheduler.run_task(self, apply_profile, delay=20)
+        sender.send_message(f"{infoLog()}Allowlist profile will switch to '{target_profile}' shortly.")
 
     elif subcommand == "profiles":
         profiles_dir = get_allowlist_profiles_folder()

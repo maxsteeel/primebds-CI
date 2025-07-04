@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "monitor",
     "Monitor server performance in real time!",
-    ["/monitor (on|off)[toggle: toggle] [time_in_seconds: int] (tip|toast)[display: packet_type]"],
+    ["/monitor (on|off)[toggle: toggle] [time_in_seconds: int]"],
     ["primebds.command.monitor"]
 )
 
@@ -46,7 +46,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         # Parse the specification and time arguments
         time = int(args[1]) if len(args) > 1 else 1  # Default time interval if not provided
-        display = args[2] if len(args) > 2 else "tip"
 
         # Create a monitor function that calls itself recursively using the scheduler
         def monitor_interval():
@@ -117,8 +116,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 your_chunk_str = f"{ColorFormat.GREEN}x={player_chunk_x}, z={player_chunk_z}"
                 your_dim = f"{dim_color}{player.dimension.name}"
 
-                if display == "tip":
-                    player.send_tip(f"{ColorFormat.AQUA}Server Monitor{ColorFormat.RESET}\n"
+                player.send_tip(f"{ColorFormat.AQUA}Server Monitor{ColorFormat.RESET}\n"
                                     f"{ColorFormat.RESET}---------------------------\n"
                                     f"{ColorFormat.RESET}Level: {self.server.level.name} {ColorFormat.ITALIC}{ColorFormat.GRAY}(ver. {version_str}{ColorFormat.GRAY})\n"
                                     f"{ColorFormat.RESET}TPS: {tps_str} {ColorFormat.RESET}\n"
@@ -129,11 +127,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                                     f"{ColorFormat.RESET}Your Ping: {ping_str}\n"
                                     f"{ColorFormat.RESET}Current Chunk: {your_chunk_str}, {chunk_lag_str}\n"
                                     f"{ColorFormat.RESET}Current DIM: {your_dim}")
-                elif display == "toast":
-                    player.send_toast(
-                        f"{ColorFormat.AQUA}Server Monitor",
-                        f"{ColorFormat.RESET}TPS: {tps_str} {ColorFormat.GRAY}| {ColorFormat.RESET}Chunks: {chunk_str} {ColorFormat.GRAY}| {ColorFormat.RESET}Entities: {entity_str}"
-                    )
 
                 # Re-run the monitor_interval using the scheduler after the time delay
                 task_id = self.server.scheduler.run_task(
@@ -215,9 +208,14 @@ def clear_all_intervals(self: "PrimeBDS"):
     active_intervals.clear()
 
 def clear_invalid_intervals(self: "PrimeBDS"):
-    """Clear all active intervals for players who are no longer online."""
+    """Clear all active intervals for players who are no longer online or cannot be retrieved."""
     global active_intervals
     for player_name, task_id in list(active_intervals.items()):
-        if not any(player.name == player_name for player in self.server.online_players):
+        try:
+            player_exists = any(player.name == player_name for player in self.server.online_players)
+        except Exception:
+            player_exists = False
+
+        if not player_exists:
             self.server.scheduler.cancel_task(task_id)
             del active_intervals[player_name]
