@@ -1,9 +1,15 @@
+from collections import OrderedDict
 import os
+import shutil
+import subprocess
+import sys
+import threading
 import time
 import traceback
 from endstone import ColorFormat, Player
 from endstone.plugin import Plugin
 from endstone.command import Command, CommandSender
+import psutil
 
 from endstone_primebds.commands import (
     preloaded_commands,
@@ -57,6 +63,7 @@ class PrimeBDS(Plugin):
 
     def __init__(self):
         super().__init__()
+        self.multiworld_processes = {}
         self.entity_damage_cooldowns = {}
 
     # EVENT HANDLER
@@ -129,9 +136,155 @@ class PrimeBDS(Plugin):
 
         self.check_for_inactive_sessions()
 
+        if config["modules"]["multiworld"]["enabled"] and not self._is_nested_multiworld_instance():
+            self.start_additional_servers()
+
     def on_disable(self):
         clear_all_intervals(self)
         stop_interval(self)
+
+        config = load_config()
+        if config["modules"]["multiworld"]["enabled"] and not self._is_nested_multiworld_instance():
+            self.stop_additional_servers()
+
+    def start_additional_servers(self):
+        config = load_config()
+        multiworld = config["modules"].get("multiworld", {})
+        if not multiworld.get("enabled", False):
+            return
+
+        worlds = multiworld.get("worlds", OrderedDict())
+        current_profile = config["modules"]["allowlist"].get("profile", "default")
+
+        # Load default server.properties
+        default_path = os.path.join("endstone_primebds", "utils", "default_server.properties")
+        default_props = {}
+        if os.path.isfile(default_path):
+            with open(default_path, "r") as f:
+                for line in f:
+                    if "=" in line and not line.startswith("#"):
+                        key, val = line.strip().split("=", 1)
+                        default_props[key.strip()] = val.strip()
+
+        # Find project root (where plugins/ and worlds/ exist)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        while not (os.path.exists(os.path.join(current_dir, 'plugins')) and os.path.exists(os.path.join(current_dir, 'worlds'))):
+            parent_dir = os.path.dirname(current_dir)
+            if parent_dir == current_dir:
+                print("[PrimeBDS] Could not locate project root containing 'plugins' and 'worlds'.")
+                return
+            current_dir = parent_dir
+
+        root_plugins_dir = os.path.join(current_dir, "plugins")
+        root_bds_dir = current_dir  # This is where plugins/ and worlds/ exist, so also where those config files are
+
+        # Setup multiworld directories
+        DB_FOLDER = os.path.join(current_dir, 'plugins', 'primebds_data')
+        os.makedirs(DB_FOLDER, exist_ok=True)
+
+        multiworld_base_dir = os.path.join(DB_FOLDER, "multiworld")
+        os.makedirs(multiworld_base_dir, exist_ok=True)
+
+        for world_key, settings in worlds.items():
+            if world_key == current_profile:
+                continue
+
+            world_dir = os.path.join(multiworld_base_dir, world_key)
+            first_time_setup = not os.path.exists(os.path.join(world_dir, "server.properties"))
+
+            if first_time_setup:
+                os.makedirs(world_dir, exist_ok=True)
+
+                # Initialize Endstone directly in the world folder
+                process = subprocess.run(
+                    [sys.executable, "-m", "endstone", "--yes", f"--server-folder={world_key}"],
+                    cwd=multiworld_base_dir,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    env=os.environ.copy(),
+                    text=True,
+                    encoding='utf-8',
+                )
+
+                if process.returncode != 0:
+                    print(f"[PrimeBDS] Failed to initialize world '{world_key}' via endstone.")
+                    print(process.stdout)
+                    print(process.stderr)
+                    continue
+
+                time.sleep(1.5)
+
+            # Merge default + config properties
+            merged_props = default_props.copy()
+            for key, value in settings.items():
+                merged_props[key] = str(value).lower() if isinstance(value, bool) else str(value)
+
+            server_properties_path = os.path.join(world_dir, "server.properties")
+            with open(server_properties_path, "w", encoding="utf-8") as f:
+                for key, value in merged_props.items():
+                    f.write(f"{key}={value}\n")
+
+            # Launch Endstone server from multiworld_base_dir but target folder explicitly
+            process = subprocess.Popen(
+                [sys.executable, "-m", "endstone", "--yes", f"--server-folder={world_key}"],
+                cwd=multiworld_base_dir,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8',
+                env=os.environ.copy()
+            )
+
+            level_name = merged_props.get("level-name", world_key)
+            self.multiworld_processes[level_name] = process
+
+            def forward_output(stream, prefix):
+                while True:
+                    try:
+                        line = stream.readline()
+                        if not line:
+                            break
+                        print(f"{prefix}{line}", end='')
+                    except Exception as e:
+                        print(f"{prefix}[ReadError]: {e}")
+                        break
+
+            threading.Thread(target=forward_output, args=(process.stdout, f"[{level_name}] "), daemon=True).start()
+            threading.Thread(target=forward_output, args=(process.stderr, f"[{level_name}][ERR] "), daemon=True).start()
+
+            time.sleep(2)
+
+    def stop_additional_servers(self):
+        for name, process in self.multiworld_processes.items():
+            if process.poll() is None:  # still running
+                print(f"[PrimeBDS] Sending stop command to world '{name}' (PID {process.pid})")
+                try:
+                    process.stdin.write("stop\n")
+                    process.stdin.flush()
+                except Exception as e:
+                    print(f"[PrimeBDS] Failed to send stop command to world '{name}': {e}")
+
+                try:
+                    process.wait(timeout=10)
+                    print(f"[PrimeBDS] World '{name}' stopped gracefully.")
+                except subprocess.TimeoutExpired:
+                    print(f"[PrimeBDS] Timeout waiting for world '{name}' to stop, killing process tree.")
+                    try:
+                        parent = psutil.Process(process.pid)
+                        children = parent.children(recursive=True)
+                        for child in children:
+                            child.kill()
+                        parent.kill()
+                    except psutil.NoSuchProcess:
+                        pass
+            else:
+                print(f"[PrimeBDS] World '{name}' already exited.")
+
+        self.multiworld_processes.clear()
+    
+    def _is_nested_multiworld_instance(self):
+        return "plugins{}primebds_data{}multiworld".format(os.sep, os.sep) in os.path.abspath(__file__)
 
     def check_for_inactive_sessions(self):
         """Checks for players who have active sessions (NULL end_time) and are not online. Ends their session."""
