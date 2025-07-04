@@ -57,7 +57,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             return False
 
         try:
-            process.stdin.write(f"{command_to_run}\n")
+            process.stdin.write(f"{command_to_run}")
             process.stdin.flush()
             send_feedback(f"[PrimeBDS] Command sent to world '{world_name}': {command_to_run}")
             return True

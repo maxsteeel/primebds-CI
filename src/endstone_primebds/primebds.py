@@ -201,7 +201,6 @@ class PrimeBDS(Plugin):
                     cwd=multiworld_base_dir,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    env=os.environ.copy(),
                     text=True,
                     encoding='utf-8',
                 )
@@ -232,8 +231,7 @@ class PrimeBDS(Plugin):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                encoding='utf-8',
-                env=os.environ.copy()
+                encoding='utf-8'
             )
 
             level_name = merged_props.get("level-name", world_key)
@@ -260,7 +258,7 @@ class PrimeBDS(Plugin):
             if process.poll() is None:  # still running
                 print(f"[PrimeBDS] Sending stop command to world '{name}' (PID {process.pid})")
                 try:
-                    process.stdin.write("stop\n")
+                    process.stdin.write("stop")
                     process.stdin.flush()
                 except Exception as e:
                     print(f"[PrimeBDS] Failed to send stop command to world '{name}': {e}")
