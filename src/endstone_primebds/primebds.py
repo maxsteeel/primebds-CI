@@ -17,7 +17,7 @@ from endstone_primebds.commands import (
     preloaded_handlers
 )
 
-from endstone_primebds.utils.multiworldUtil import start_flask_server, MultiworldHttpClient, wait_for_flask_server
+# from endstone_primebds.utils.multiworldUtil import start_flask_server, MultiworldHttpClient, wait_for_flask_server
 
 from endstone_primebds.events.intervalChecks import interval_function, stop_interval
 from endstone_primebds.commands.Server_Management.monitor import clear_all_intervals
@@ -67,7 +67,7 @@ class PrimeBDS(Plugin):
         super().__init__()
         self.multiworld_processes = {}
         self.multiworld_ports = {}
-        self.multiworld_http_client = MultiworldHttpClient()
+        #self.multiworld_http_client = MultiworldHttpClient()
         self.base_port = 4000
         self.entity_damage_cooldowns = {}
 
@@ -142,7 +142,8 @@ class PrimeBDS(Plugin):
         self.check_for_inactive_sessions()
 
         if config["modules"]["multiworld"]["enabled"] and not self._is_nested_multiworld_instance():
-            self.start_additional_servers()
+            #self.start_additional_servers()
+            return
 
     def on_disable(self):
         clear_all_intervals(self)
@@ -150,8 +151,10 @@ class PrimeBDS(Plugin):
 
         config = load_config()
         if config["modules"]["multiworld"]["enabled"] and not self._is_nested_multiworld_instance():
-            self.stop_additional_servers()
+            #self.stop_additional_servers()
+            return
 
+    """
     def start_additional_servers(self):
         config = load_config()
         multiworld = config["modules"].get("multiworld", {})
@@ -287,7 +290,7 @@ class PrimeBDS(Plugin):
 
             time.sleep(2)
 
-    def stop_additional_servers(self):
+    #def stop_additional_servers(self):
         for level_name, process in list(self.multiworld_processes.items()):
             if process.poll() is None:  # still running
                 print(f"[PrimeBDS] Closing '{level_name}' (PID {process.pid})")
@@ -316,6 +319,7 @@ class PrimeBDS(Plugin):
 
     def _is_nested_multiworld_instance(self):
         return "plugins{}primebds_data{}multiworld".format(os.sep, os.sep) in os.path.abspath(__file__)
+    """
 
     def check_for_inactive_sessions(self):
         """Checks for players who have active sessions (NULL end_time) and are not online. Ends their session."""

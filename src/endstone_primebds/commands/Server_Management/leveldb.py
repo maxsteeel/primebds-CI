@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 # Register command
 command, permission = create_command(
     "levelscores",
-    "Save and load scoreboard profiles between worlds - USES NAME STRING OBJECTIVES",
+    "Save and load scoreboard profiles between worlds",
     ["/levelscores (save|load|list|delete)<action: file_action> [name: string]"],
     ["primebds.command.levelscores"]
 )

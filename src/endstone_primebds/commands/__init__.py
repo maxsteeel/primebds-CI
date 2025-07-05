@@ -144,6 +144,7 @@ def preload_settings():
             })
         }),
         "multiworld": OrderedDict({
+        "WARNING": "DO NOT ENABLE THIS AS THE FEATURE IS STILL UNDERGOING DEVELOPMENT",
         "enabled": False,
         "ip_main": "127.0.0.1",
         "worlds": OrderedDict({
