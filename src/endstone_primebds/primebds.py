@@ -17,6 +17,8 @@ from endstone_primebds.commands import (
     preloaded_handlers
 )
 
+from endstone_primebds.utils.multiworldUtil import start_flask_server, MultiworldHttpClient, wait_for_flask_server
+
 from endstone_primebds.events.intervalChecks import interval_function, stop_interval
 from endstone_primebds.commands.Server_Management.monitor import clear_all_intervals
 from endstone_primebds.utils.configUtil import load_config
@@ -64,6 +66,9 @@ class PrimeBDS(Plugin):
     def __init__(self):
         super().__init__()
         self.multiworld_processes = {}
+        self.multiworld_ports = {}
+        self.multiworld_http_client = MultiworldHttpClient()
+        self.base_port = 4000
         self.entity_damage_cooldowns = {}
 
     # EVENT HANDLER
@@ -160,7 +165,7 @@ class PrimeBDS(Plugin):
         default_path = os.path.join("endstone_primebds", "utils", "default_server.properties")
         default_props = {}
         if os.path.isfile(default_path):
-            with open(default_path, "r") as f:
+            with open(default_path, "r", encoding="utf-8") as f:
                 for line in f:
                     if "=" in line and not line.startswith("#"):
                         key, val = line.strip().split("=", 1)
@@ -176,7 +181,6 @@ class PrimeBDS(Plugin):
             current_dir = parent_dir
 
         root_plugins_dir = os.path.join(current_dir, "plugins")
-        root_bds_dir = current_dir  # This is where plugins/ and worlds/ exist, so also where those config files are
 
         # Setup multiworld directories
         DB_FOLDER = os.path.join(current_dir, 'plugins', 'primebds_data')
@@ -185,7 +189,9 @@ class PrimeBDS(Plugin):
         multiworld_base_dir = os.path.join(DB_FOLDER, "multiworld")
         os.makedirs(multiworld_base_dir, exist_ok=True)
 
-        for world_key, settings in worlds.items():
+        seen_level_names = {}
+
+        for idx, (world_key, settings) in enumerate(worlds.items()):
             if world_key == current_profile:
                 continue
 
@@ -211,7 +217,23 @@ class PrimeBDS(Plugin):
                     print(process.stderr)
                     continue
 
-                time.sleep(1.5)
+                target_plugins_dir = os.path.join(world_dir, "plugins")
+                os.makedirs(target_plugins_dir, exist_ok=True)
+
+                target_plugins_dir_norm = os.path.normpath(os.path.abspath(target_plugins_dir))
+                for item in os.listdir(root_plugins_dir):
+                    source_path = os.path.join(root_plugins_dir, item)
+                    if os.path.isfile(source_path) and item.endswith(".whl"):
+                        source_path_norm = os.path.normpath(os.path.abspath(source_path))
+                        if os.path.commonpath([source_path_norm, target_plugins_dir_norm]) == target_plugins_dir_norm:
+                            print(f"[PrimeBDS] Skipped plugin wheel '{item}' to avoid recursive copy.")
+                            continue
+
+                        try:
+                            shutil.copy2(source_path, target_plugins_dir)
+                            print(f"[PrimeBDS] Copied plugin wheel '{item}' to world '{world_key}'.")
+                        except Exception as e:
+                            print(f"[PrimeBDS] Failed to copy plugin wheel '{item}': {e}")
 
             # Merge default + config properties
             merged_props = default_props.copy()
@@ -223,7 +245,7 @@ class PrimeBDS(Plugin):
                 for key, value in merged_props.items():
                     f.write(f"{key}={value}\n")
 
-            # Launch Endstone server from multiworld_base_dir but target folder explicitly
+            # Launch Endstone server
             process = subprocess.Popen(
                 [sys.executable, "-m", "endstone", "--yes", f"--server-folder={world_key}"],
                 cwd=multiworld_base_dir,
@@ -235,7 +257,19 @@ class PrimeBDS(Plugin):
             )
 
             level_name = merged_props.get("level-name", world_key)
+            original_level_name = level_name
+            if level_name in seen_level_names:
+                seen_level_names[level_name] += 1
+                level_name = f"{original_level_name}_{seen_level_names[original_level_name]}"
+            else:
+                seen_level_names[level_name] = 0
+
             self.multiworld_processes[level_name] = process
+
+            # Assign port based on index offset
+            port = self.base_port + idx
+            self.multiworld_ports[level_name] = port
+            # self.multiworld_http_client.register_world(level_name, port)
 
             def forward_output(stream, prefix):
                 while True:
@@ -254,33 +288,32 @@ class PrimeBDS(Plugin):
             time.sleep(2)
 
     def stop_additional_servers(self):
-        for name, process in self.multiworld_processes.items():
+        for level_name, process in list(self.multiworld_processes.items()):
             if process.poll() is None:  # still running
-                print(f"[PrimeBDS] Sending stop command to world '{name}' (PID {process.pid})")
-                try:
-                    process.stdin.write("stop")
-                    process.stdin.flush()
-                except Exception as e:
-                    print(f"[PrimeBDS] Failed to send stop command to world '{name}': {e}")
+                print(f"[PrimeBDS] Closing '{level_name}' (PID {process.pid})")
 
                 try:
-                    process.wait(timeout=10)
-                    print(f"[PrimeBDS] World '{name}' stopped gracefully.")
+                    process.wait(timeout=3)
+                    print(f"[PrimeBDS] World '{level_name}' stopped gracefully.")
                 except subprocess.TimeoutExpired:
-                    print(f"[PrimeBDS] Timeout waiting for world '{name}' to stop, killing process tree.")
                     try:
                         parent = psutil.Process(process.pid)
-                        children = parent.children(recursive=True)
-                        for child in children:
-                            child.kill()
+                        for child in parent.children(recursive=True):
+                            try:
+                                child.kill()
+                            except psutil.NoSuchProcess:
+                                pass
                         parent.kill()
+                        print(f"[PrimeBDS] Killed process tree for world '{level_name}'.")
                     except psutil.NoSuchProcess:
-                        pass
+                        print(f"[PrimeBDS] Process for world '{level_name}' already exited.")
+                    except Exception as e:
+                        print(f"[PrimeBDS] Error killing process tree for world '{level_name}': {e}")
             else:
-                print(f"[PrimeBDS] World '{name}' already exited.")
+                print(f"[PrimeBDS] World '{level_name}' already exited.")
 
         self.multiworld_processes.clear()
-    
+
     def _is_nested_multiworld_instance(self):
         return "plugins{}primebds_data{}multiworld".format(os.sep, os.sep) in os.path.abspath(__file__)
 

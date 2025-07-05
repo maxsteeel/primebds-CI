@@ -41,6 +41,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         command_to_run = " ".join(args[2:])
 
+        # If targeting the main server
         if world_name == self.server.level.name:
             try:
                 self.server.dispatch_command(self.server.command_sender, command_to_run)
@@ -50,15 +51,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 send_feedback(f"[PrimeBDS] Failed to execute command on primary world '{world_name}': {e}")
                 return False
 
-        process = self.multiworld_processes.get(world_name)
-
-        if process is None:
-            send_feedback(f"[PrimeBDS] World '{world_name}' is not loaded or not found.")
+        # For additional servers via HTTP
+        if world_name not in self.multiworld_ports:
+            send_feedback(f"[PrimeBDS] World '{world_name}' is not loaded or registered.")
             return False
 
         try:
-            process.stdin.write(f"{command_to_run}")
-            process.stdin.flush()
+            self.multiworld_http_client.send_command(world_name, command_to_run)
             send_feedback(f"[PrimeBDS] Command sent to world '{world_name}': {command_to_run}")
             return True
         except Exception as e:
@@ -66,14 +65,31 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             return False
 
     elif subaction == "list":
-        # List loaded worlds (keys in multiworld_processes)
+        config = load_config()
+        multiworld = config["modules"].get("multiworld", {})
+        worlds = multiworld.get("worlds", {})
+        main_ip = multiworld.get("main_ip", "127.0.0.1")
+        main_port = self.server.port
+
         loaded_worlds = list(self.multiworld_processes.keys())
+        current_world = self.server.level.name
+
         if not loaded_worlds:
             send_feedback("[PrimeBDS] No additional worlds are currently loaded.")
         else:
-            send_feedback(f"[PrimeBDS] Loaded worlds: {self.server.level.name}, {', '.join(loaded_worlds)}")
+            lines = []
+            # Include main world first
+            lines.append(f"§8- §r{current_world} §o§8({main_ip}:{main_port}) §r§a[current]§r")
+            for lw in loaded_worlds:
+                # Find IP and port for each loaded world from config
+                target_world = worlds.get(lw, {})
+                ip = target_world.get("ip", main_ip)
+                port = target_world.get("server-port", 19132)
+                lines.append(f"§8- §r{lw} §o§8({ip}:{port})§r")
+
+            send_feedback("[PrimeBDS] Loaded worlds:\n" + "\n".join(lines))
         return True
-        
+
     elif subaction == "transfer":
         if len(args) < 3:
             send_feedback("[PrimeBDS] Usage: /world <world_name> transfer <player>")
@@ -89,22 +105,25 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         multiworld = config["modules"].get("multiworld", {})
         worlds = multiworld.get("worlds", {})
         main_ip = multiworld.get("main_ip", "127.0.0.1")
+        main_port = self.server.port
 
         if world_name == self.server.level.name:
             ip = main_ip
-            port = self.server.port
+            port = main_port
         else:
-            target_world = None
-            for key, data in worlds.items():
-                if key == world_name or data.get("level-name") == world_name:
-                    target_world = data
-                    break
+            target_world = worlds.get(world_name)
+            if not target_world:
+                # Try to find by level-name fallback
+                for key, data in worlds.items():
+                    if data.get("level-name") == world_name:
+                        target_world = data
+                        break
 
             if not target_world:
                 send_feedback(f"[PrimeBDS] World '{world_name}' not found in configuration.")
                 return False
 
-            ip = target_world.get("ip", "127.0.0.1")
+            ip = target_world.get("ip", main_ip)
             port = target_world.get("server-port", 19132)
 
         try:

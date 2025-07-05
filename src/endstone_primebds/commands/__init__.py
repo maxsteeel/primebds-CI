@@ -144,7 +144,6 @@ def preload_settings():
             })
         }),
         "multiworld": OrderedDict({
-        "WARNING": "THIS IS AN EXPERIMENTAL IMPLEMENTATION AND IS NOT COMPLETE",
         "enabled": False,
         "ip_main": "127.0.0.1",
         "worlds": OrderedDict({

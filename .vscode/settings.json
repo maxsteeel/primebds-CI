@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./src/endstone_primebds/utils"
+    ]
+}
