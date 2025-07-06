@@ -21,130 +21,122 @@ active_intervals = {}
 
 # MONITOR COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    if isinstance(sender, Player):
+    if not isinstance(sender, Player):
+        sender.send_error_message("This command can only be executed by a player")
+        return True
 
-        specification = args[0] if len(args) > 0 else "on" 
+    specification = args[0] if len(args) > 0 else "on"
 
-        # Check if the 'off' argument is passed to disable monitoring
-        if specification.lower() == 'off':
-            # Clear any active intervals for this player
-            if sender.name in active_intervals:
-                # Cancel the active task
-                task_id = active_intervals[sender.name]
-                self.server.scheduler.cancel_task(task_id)
-                del active_intervals[sender.name]  # Remove from the active intervals dictionary
-                sender.send_message(f"{infoLog()}Monitoring has been turned off")
-            else:
-                sender.send_message(f"{infoLog()}No active monitoring found")
-            return True
-
-        # If the player wants to enable or re-enable monitoring, clear existing intervals
+    if specification.lower() == 'off':
         if sender.name in active_intervals:
             task_id = active_intervals[sender.name]
-            self.server.scheduler.cancel_task(task_id) 
+            self.server.scheduler.cancel_task(task_id)
             del active_intervals[sender.name]
-
-        # Parse the specification and time arguments
-        time = int(args[1]) if len(args) > 1 else 1  # Default time interval if not provided
-
-        # Create a monitor function that calls itself recursively using the scheduler
-        def monitor_interval():
-            try:
-                player = self.server.get_player(sender.name)
-
-                # INFO PREP
-                dim_color = ColorFormat.GREEN
-                tps = self.server.average_tps
-                mspt = self.server.average_mspt  # Get the average MSTP
-                mspt_cur = self.server.current_mspt
-                tick_usage = self.server.average_tick_usage
-                tps_display = int(tps)  # Integer part
-                tps_fraction = int((tps - tps_display) * 10)  # First decimal place
-                entity_count = len(self.server.level.actors)
-                server_version = self.server.minecraft_version
-                overworld_chunks = len(self.server.level.get_dimension("Overworld").loaded_chunks)
-                nether_chunks = len(self.server.level.get_dimension("Nether").loaded_chunks)
-                the_end_chunks = len(self.server.level.get_dimension("TheEnd").loaded_chunks)
-                nearest_chunk, player_chunk_x, player_chunk_z = get_nearest_chunk(player, self.server.level)
-                is_laggy = check_entities_in_chunk(self, nearest_chunk.x, nearest_chunk.z)
-
-                ping_color = get_ping_color(player.ping)
-
-                if tps > 18:
-                    tps_color = ColorFormat.GREEN
-                elif 14 <= tps <= 18:
-                    tps_color = ColorFormat.YELLOW
-                else:
-                    tps_color = ColorFormat.RED
-
-                if mspt < 50:
-                    mspt_color = ColorFormat.GREEN
-                else:
-                    mspt_color = ColorFormat.RED
-
-                if mspt_cur < 50:
-                    mspt_cur_color = ColorFormat.GREEN
-                else:
-                    mspt_cur_color = ColorFormat.RED
-
-                if entity_count < 600:
-                    entity_color = ColorFormat.GREEN
-                elif 600 <= entity_count <= 800:
-                    entity_color = ColorFormat.YELLOW
-                else:
-                    entity_color = ColorFormat.RED
-
-                if player.dimension.name == "Overworld":
-                    dim_color = ColorFormat.GREEN
-                elif player.dimension.name == "Nether":
-                    dim_color = ColorFormat.Red
-                elif player.dimension.name == "TheEnd":
-                    dim_color = ColorFormat.MATERIAL_IRON
-
-                if not is_laggy:
-                    chunk_lag_str = f"§aO"
-                else:
-                    chunk_lag_str = f"§cX"
-
-                # FINAL STRINGS
-                tps_str = f"{tps_color}{tps_display}.{tps_fraction:1d} {ColorFormat.ITALIC}{ColorFormat.GRAY}({tick_usage:.1f})"
-                ping_str = f"{ping_color}{player.ping // 1}ms"
-                mspt_str = f"{mspt_color}{mspt:.1f}ms {ColorFormat.ITALIC}{ColorFormat.GRAY}(avg) {ColorFormat.RESET}{ColorFormat.GRAY}| {mspt_cur_color}{mspt_cur:.1f}ms {ColorFormat.ITALIC}{ColorFormat.GRAY}(cur)"
-                entity_str = f"{entity_color}{entity_count}"
-                version_str = f"{ColorFormat.GREEN}{server_version}"
-                chunk_str = f"{ColorFormat.GREEN}{overworld_chunks} {ColorFormat.GRAY}| {ColorFormat.RED}{nether_chunks} {ColorFormat.GRAY}| {ColorFormat.MATERIAL_IRON}{the_end_chunks}"
-                your_chunk_str = f"{ColorFormat.GREEN}x={player_chunk_x}, z={player_chunk_z}"
-                your_dim = f"{dim_color}{player.dimension.name}"
-
-                player.send_tip(f"{ColorFormat.AQUA}Server Monitor{ColorFormat.RESET}\n"
-                                    f"{ColorFormat.RESET}---------------------------\n"
-                                    f"{ColorFormat.RESET}Level: {self.server.level.name} {ColorFormat.ITALIC}{ColorFormat.GRAY}(ver. {version_str}{ColorFormat.GRAY})\n"
-                                    f"{ColorFormat.RESET}TPS: {tps_str} {ColorFormat.RESET}\n"
-                                    f"{ColorFormat.RESET}MSPT: {mspt_str}\n"
-                                    f"{ColorFormat.RESET}Loaded Chunks: {chunk_str}\n"
-                                    f"{ColorFormat.RESET}Loaded Entities: {entity_str}\n"
-                                    f"{ColorFormat.RESET}---------------------------\n"
-                                    f"{ColorFormat.RESET}Your Ping: {ping_str}\n"
-                                    f"{ColorFormat.RESET}Current Chunk: {your_chunk_str}, {chunk_lag_str}\n"
-                                    f"{ColorFormat.RESET}Current DIM: {your_dim}")
-
-                # Re-run the monitor_interval using the scheduler after the time delay
-                task_id = self.server.scheduler.run_task(
-                    self, monitor_interval, delay=time*20  # time*20 for 1 tick = 1 second
-                )
-
-                # Store the task id for future cancellation
-                active_intervals[sender.name] = task_id.task_id
-            except RuntimeError as e:
-                clear_invalid_intervals(self)
-
-        # Start the interval loop using the scheduler
-        monitor_interval()
-
-        sender.send_message(f"{infoLog()}Started monitoring on an interval of {time} seconds")
+            sender.send_message(f"{infoLog()}Monitoring has been turned off")
+        else:
+            sender.send_message(f"{infoLog()}No active monitoring found")
         return True
-    else:
-        sender.send_error_message("This command can only be executed by a player")
+
+    if sender.name in active_intervals:
+        task_id = active_intervals[sender.name]
+        self.server.scheduler.cancel_task(task_id)
+        del active_intervals[sender.name]
+
+    time = int(args[1]) if len(args) > 1 else 1
+
+    def monitor_interval():
+        try:
+
+            # If player has left, cleanup and exit
+            if sender.name not in [p.name for p in self.server.online_players]:
+                raise RuntimeError("Player has disconnected.")
+
+            player = self.server.get_player(sender.name)
+            if player is None or not player.is_online:
+                raise RuntimeError("Player is no longer online.")
+
+            # Safe defaults
+            player_location = getattr(player, "location", None)
+            player_dimension = getattr(player, "dimension", None)
+
+            if not player_location or not player_dimension:
+                raise RuntimeError("Player has no valid location or dimension.")
+
+            # INFO PREP
+            dim_color = ColorFormat.GREEN
+            tps = self.server.average_tps
+            mspt = self.server.average_mspt
+            mspt_cur = self.server.current_mspt
+            tick_usage = self.server.average_tick_usage
+            tps_display = int(tps)
+            tps_fraction = int((tps - tps_display) * 10)
+            entity_count = len(self.server.level.actors)
+            server_version = self.server.minecraft_version
+            overworld_chunks = len(self.server.level.get_dimension("Overworld").loaded_chunks)
+            nether_chunks = len(self.server.level.get_dimension("Nether").loaded_chunks)
+            the_end_chunks = len(self.server.level.get_dimension("TheEnd").loaded_chunks)
+
+            nearest_chunk, player_chunk_x, player_chunk_z = get_nearest_chunk(player, self.server.level)
+            is_laggy = check_entities_in_chunk(self, nearest_chunk.x, nearest_chunk.z)
+
+            ping_color = get_ping_color(player.ping)
+
+            tps_color = (
+                ColorFormat.GREEN if tps > 18 else
+                ColorFormat.YELLOW if 14 <= tps <= 18 else
+                ColorFormat.RED
+            )
+
+            mspt_color = ColorFormat.GREEN if mspt < 50 else ColorFormat.RED
+            mspt_cur_color = ColorFormat.GREEN if mspt_cur < 50 else ColorFormat.RED
+
+            entity_color = (
+                ColorFormat.GREEN if entity_count < 600 else
+                ColorFormat.YELLOW if entity_count <= 800 else
+                ColorFormat.RED
+            )
+
+            dim_color = {
+                "Overworld": ColorFormat.GREEN,
+                "Nether": ColorFormat.RED,
+                "TheEnd": ColorFormat.MATERIAL_IRON,
+            }.get(player.dimension.name, ColorFormat.GRAY)
+
+            chunk_lag_str = f"§aO" if not is_laggy else f"§cX"
+
+            tps_str = f"{tps_color}{tps_display}.{tps_fraction:1d} {ColorFormat.ITALIC}{ColorFormat.GRAY}({tick_usage:.1f})"
+            ping_str = f"{ping_color}{player.ping // 1}ms"
+            mspt_str = f"{mspt_color}{mspt:.1f}ms {ColorFormat.ITALIC}{ColorFormat.GRAY}(avg) {ColorFormat.RESET}{ColorFormat.GRAY}| {mspt_cur_color}{mspt_cur:.1f}ms {ColorFormat.ITALIC}{ColorFormat.GRAY}(cur)"
+            entity_str = f"{entity_color}{entity_count}"
+            version_str = f"{ColorFormat.GREEN}{server_version}"
+            chunk_str = f"{ColorFormat.GREEN}{overworld_chunks} {ColorFormat.GRAY}| {ColorFormat.RED}{nether_chunks} {ColorFormat.GRAY}| {ColorFormat.MATERIAL_IRON}{the_end_chunks}"
+            your_chunk_str = f"{ColorFormat.GREEN}x={player_chunk_x}, z={player_chunk_z}"
+            your_dim = f"{dim_color}{player.dimension.name}"
+
+            player.send_tip(f"{ColorFormat.AQUA}Server Monitor{ColorFormat.RESET}\n"
+                            f"{ColorFormat.RESET}---------------------------\n"
+                            f"{ColorFormat.RESET}Level: {self.server.level.name} {ColorFormat.ITALIC}{ColorFormat.GRAY}(ver. {version_str}{ColorFormat.GRAY})\n"
+                            f"{ColorFormat.RESET}TPS: {tps_str} {ColorFormat.RESET}\n"
+                            f"{ColorFormat.RESET}MSPT: {mspt_str}\n"
+                            f"{ColorFormat.RESET}Loaded Chunks: {chunk_str}\n"
+                            f"{ColorFormat.RESET}Loaded Entities: {entity_str}\n"
+                            f"{ColorFormat.RESET}---------------------------\n"
+                            f"{ColorFormat.RESET}Your Ping: {ping_str}\n"
+                            f"{ColorFormat.RESET}Current Chunk: {your_chunk_str}, {chunk_lag_str}\n"
+                            f"{ColorFormat.RESET}Current DIM: {your_dim}")
+
+            task_id = self.server.scheduler.run_task(
+                self, monitor_interval, delay=time * 20
+            )
+            active_intervals[sender.name] = task_id.task_id
+
+        except Exception as e:
+            if sender.name in active_intervals:
+                self.server.scheduler.cancel_task(active_intervals[sender.name])
+                del active_intervals[sender.name]
+
+    monitor_interval()
+    sender.send_message(f"{infoLog()}Started monitoring on an interval of {time} seconds")
     return True
 
 def get_ping_color(ping: int) -> str:

@@ -63,11 +63,14 @@ def handle_damage_event(self: "PrimeBDS", ev: ActorDamageEvent):
     return
 
 def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
+    if ev is None or ev.source is None or ev.knockback is None:
+        return
+
     config = load_config()
     source = ev.source
-    source_player = self.server.get_player(source.name) if source.name else None
+    source_player = self.server.get_player(source.name) if hasattr(source, "name") and source.name else None
 
-    tags = source_player.scoreboard_tags if source_player else []
+    tags = getattr(source_player, "scoreboard_tags", [])
 
     kb_h_modifier = get_custom_tag(config, tags, "horizontal_knockback_modifier")
     kb_v_modifier = get_custom_tag(config, tags, "vertical_knockback_modifier")
@@ -77,15 +80,19 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
     resisted_kb_percentage = get_custom_tag(config, tags, "resisted_knockback_percentage")
 
     # If all modifiers are 0, skip
-    if kb_h_modifier == 0 and kb_v_modifier == 0 and kb_sprint_h_modifier == 0 and kb_sprint_v_modifier == 0:
+    if all(
+        modifier in (0, None)
+        for modifier in (kb_h_modifier, kb_v_modifier, kb_sprint_h_modifier, kb_sprint_v_modifier)
+    ):
         return
 
+    # Use fallback default of 1.0 if not set
     kb_h_modifier = kb_h_modifier or 1.0
     kb_v_modifier = kb_v_modifier or 1.0
     kb_sprint_h_modifier = kb_sprint_h_modifier or 1.0
     kb_sprint_v_modifier = kb_sprint_v_modifier or 1.0
 
-    is_player_sprinting = isinstance(source_player, Player) and source_player.is_sprinting
+    is_player_sprinting = isinstance(source_player, Player) and getattr(source_player, "is_sprinting", False)
 
     # Sprint hit cancel logic (players only)
     if is_player_sprinting and disable_sprint_hits and ev.knockback.y <= 0:
@@ -96,6 +103,7 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
     newy = ev.knockback.y * kb_v_modifier
     newz = ev.knockback.z * kb_h_modifier
 
+    # Check for 0 kb on horizontal axes
     if ev.knockback.x == 0 or ev.knockback.z == 0:
         velocity = getattr(source_player or source, "velocity", Vector(0, 0, 0))
         newx = velocity.x * kb_h_modifier
@@ -108,7 +116,7 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
     if ev.knockback.y < 0:
         newy = (newy * kb_sprint_v_modifier) / 2
 
-    if resisted_kb_percentage != 0:
+    if resisted_kb_percentage:
         reduction = 1.0 - resisted_kb_percentage
         newx *= reduction
         newy *= reduction
