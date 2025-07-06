@@ -52,17 +52,15 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 raise RuntimeError("Player has disconnected.")
 
             player = self.server.get_player(sender.name)
-            if player is None or not player.is_online:
-                raise RuntimeError("Player is no longer online.")
+            if player is None:
+                raise RuntimeError("Player has disconnected.")
 
-            # Safe defaults
             player_location = getattr(player, "location", None)
             player_dimension = getattr(player, "dimension", None)
 
             if not player_location or not player_dimension:
                 raise RuntimeError("Player has no valid location or dimension.")
 
-            # INFO PREP
             dim_color = ColorFormat.GREEN
             tps = self.server.average_tps
             mspt = self.server.average_mspt
