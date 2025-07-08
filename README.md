@@ -21,10 +21,6 @@ I currently have on the docket:
 - OP list command
 - General performance improvements
 
-# NOTICE
-- If you are arriving from primebds, this version relocates database files to one folder inside bedrock_server/plugins. Please rename your primebds_users.db to users.db and your primebds_gl.db to grieflog.db. Then move these files to the new folder location bedrock_server/plugins/primebds_data 
-  - This change was made to keep everything in one place and for future updates to automate changes like these. I hope to avoid such breaking changes in the future.
-
  # Showcase
 ![showcase3](https://github.com/user-attachments/assets/4aad2468-c94a-45d1-abbd-30847eb20dce)
 ![showcase2](https://github.com/user-attachments/assets/748bb717-3258-4fa1-868c-fd9662c86fce)
