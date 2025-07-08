@@ -1,6 +1,7 @@
 # Hello!
 
 This is PrimeBDS, an essentials plugin for diagnostics, stability, and quality of life on Minecraft Bedrock Edition.
+This plugin runs on the Endstone mod loader: https://endstone.readthedocs.io/en/latest/
 
 This plugin is packed with various commands that build on BDS while retaining vanilla functionality. There are many optional settings that can be used for a wide variety of servers. A few systems include:
 - A punishment system that includes timed, bans, mutes, and logs
