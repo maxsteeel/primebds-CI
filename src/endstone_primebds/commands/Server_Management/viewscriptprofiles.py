@@ -1,6 +1,7 @@
 import json
 import os
 import glob
+import platform
 
 from endstone import Player, ColorFormat
 from endstone.command import CommandSender
@@ -38,11 +39,24 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
 # Get file paths based on OS
 def get_profiles_directory() -> str:
-    if os.name == 'nt':  # Windows
-        base_dir = os.path.expanduser("~")  # gives C:/Users/%USERNAME% on Windows
+    if platform.system() == 'Windows':
+        base_dir = os.path.expanduser("~")
         return os.path.join(base_dir, "AppData", "Roaming", "logs", "profiles")
-    else:  # Linux/macOS/Other
-        return os.path.join(os.path.expanduser("~"), ".config", "profiles")
+    else:
+        candidates = [
+            "/container/profiles",
+            "/home/container/profiles",
+            "/srv/container/profiles",
+            "/data/container/profiles",
+            os.path.join(os.getcwd(), "container", "profiles")  # relative fallback
+        ]
+
+        for path in candidates:
+            if os.path.isdir(path):
+                return path
+
+        # Fallback
+        return "/container/profiles"
 
 # List .cpuprofile files sorted by date
 def list_profiles() -> list[str]:
