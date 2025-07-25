@@ -6,7 +6,6 @@ from endstone_primebds.utils.configUtil import load_config
 from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.internalPermissionsUtil import check_internal_rank
 from endstone_primebds.utils.loggingUtil import log, discordRelay
-from endstone_primebds.utils.prefixUtil import modLog, errorLog, infoLog, noticeLog
 from endstone_primebds.commands import moderation_commands
 
 if TYPE_CHECKING:
@@ -19,7 +18,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
 
     config = load_config()
     if config["modules"]["game_logging"]["commands"]["enabled"]:
-        log(self, f"{noticeLog()}{ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}ran: {ColorFormat.AQUA}{command}", "cmd")
+        log(self, f"{ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}ran: {ColorFormat.AQUA}{command}", "cmd")
     if config["modules"]["discord_logging"]["commands"]["enabled"]:
         discordRelay(f"**{player.name}** ran: {command}", "cmd")
 
@@ -40,7 +39,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
             if config["modules"]["me_crasher_patch"]["ban"]:
                 self.server.dispatch_command(self.server.command_sender, f"tempban {player.name} 7 day Crasher Exploit")
             else:
-                log(self, f"{modLog()}Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was kicked due to {ColorFormat.YELLOW}Crasher Exploit", "mod")
+                log(self, f"Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was kicked due to {ColorFormat.YELLOW}Crasher Exploit", "mod")
                 player.kick("Crasher Detected")
 
     # Internal Permissions Handler
@@ -56,12 +55,12 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
             return True
 
         if len(args) < 2:
-            player.send_message(f"{errorLog()}Invalid usage: Not enough arguments")
+            player.send_message(f"Invalid usage: Not enough arguments")
             event.is_cancelled = True
             return False
 
         if any("@" in arg for arg in args):
-            player.send_message(f"{errorLog()}Invalid argument: @ symbols are not allowed for managed commands")
+            player.send_message(f"Invalid argument: @ symbols are not allowed for managed commands")
             event.is_cancelled = True
             return False
 
@@ -70,7 +69,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
             if target.xuid != player.xuid: # Allow you to punish OR remove a punishment from yourself
                 event.is_cancelled = True
                 event.player.send_message(
-                    f"{modLog()}Player {ColorFormat.YELLOW}{target.name} {ColorFormat.GOLD}has higher permissions")
+                    f"Player {ColorFormat.YELLOW}{target.name} {ColorFormat.GOLD}has higher permissions")
                 return True
 
         elif target:
@@ -81,7 +80,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                 is_valid = check_internal_rank(target_user.internal_rank, sender.internal_rank)
                 if is_valid and not player.is_op:
                     event.is_cancelled = True
-                    event.player.send_message(f"{modLog()}Player {ColorFormat.YELLOW}{target.name} {ColorFormat.GOLD}has higher permissions")
+                    event.player.send_message(f"Player {ColorFormat.YELLOW}{target.name} {ColorFormat.GOLD}has higher permissions")
 
         elif not target:
             target_user = db.get_offline_user(args[1])
@@ -92,10 +91,10 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                 if is_valid and not player.is_op:
                     event.is_cancelled = True
                     event.player.send_message(
-                        f"{modLog()}Player {ColorFormat.YELLOW}{target.name} {ColorFormat.GOLD}has higher permissions")
+                        f"Player {ColorFormat.YELLOW}{target.name} {ColorFormat.GOLD}has higher permissions")
 
     elif args and args[0].lstrip("/").lower() == "ban" or args[0].lstrip("/").lower() == "unban" or args[0].lstrip("/").lower() == "pardon":
-        player.send_message(f"{errorLog()}Hardcoded Endstone Moderation Commands are disabled by primebds")
+        player.send_message(f"Hardcoded Endstone Moderation Commands are disabled by primebds")
         event.is_cancelled = True
         return False
     elif args and args[0].lstrip("/").lower() == "op": # Disabled to handle PrimeBDS rank system
@@ -116,7 +115,7 @@ def handle_server_command_preprocess(self: "PrimeBDS", event: ServerCommandEvent
 
     if args and args[0].lstrip("/").lower() == "ban" or args[0].lstrip("/").lower() == "unban" or args[0].lstrip(
             "/").lower() == "pardon":
-        player.send_message(f"{errorLog()}Hardcoded Endstone Moderation Commands are disabled by primebds\n{infoLog()}Please use \"permban\" or \"removeban\"")
+        player.send_message(f"Hardcoded Endstone Moderation Commands are disabled by primebds\nPlease use \"permban\" or \"removeban\"")
         event.is_cancelled = True
         return False
     elif args and args[0].lstrip("/").lower() == "op":  # Disabled to handle PrimeBDS rank system

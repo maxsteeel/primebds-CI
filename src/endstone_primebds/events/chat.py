@@ -6,7 +6,6 @@ from endstone.event import PlayerChatEvent
 from endstone_primebds.utils.loggingUtil import discordRelay
 from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.modUtil import format_time_remaining
-from endstone_primebds.utils.prefixUtil import modLog
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -25,9 +24,9 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
 
     # Display mute message with remaining time
     if mute_data["is_permanent"]:
-        ev.player.send_message(f"{modLog()}You are permanently muted for {ColorFormat.YELLOW}{mute_data['reason']}")
+        ev.player.send_message(f"You are permanently muted for {ColorFormat.YELLOW}{mute_data['reason']}")
     else:
-        ev.player.send_message(f"{modLog()}You are muted for \"{ColorFormat.YELLOW}{mute_data['reason']}{ColorFormat.GOLD}\" "
+        ev.player.send_message(f"You are muted for \"{ColorFormat.YELLOW}{mute_data['reason']}{ColorFormat.GOLD}\" "
                                f"{ColorFormat.GOLD}which expires in {ColorFormat.YELLOW}{format_time_remaining(mute_data['mute_time'])}")
 
     ev.is_cancelled = True

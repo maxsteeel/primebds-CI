@@ -4,9 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from endstone import ColorFormat, Player
 
 from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.loggingUtil import log, discordRelay
-from endstone_primebds.utils.prefixUtil import modLog
-
+from endstone_primebds.utils.loggingUtil import log
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
@@ -39,11 +37,11 @@ def run_checks(self: "PrimeBDS"):
                     if player not in confirmed_death:
                         self.server.dispatch_command(self.server.command_sender, "gamerule doimmediaterespawn true")
                         if config["modules"]["check_prolonged_death_screen"]["kick"]:
-                            log(self, f"{modLog()}Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was kicked for Prolonged Death Screen", "mod")
+                            log(self, f"Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was kicked for Prolonged Death Screen", "mod")
                             player.kick(f"{ColorFormat.RED}Detected: Prolonged Death Screen Exploit")
                             remove_from_saved_areas(self, player)
                         else:
-                            log(self, f"{modLog()}Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was detected to be stuck on Death Screen", "mod")
+                            log(self, f"Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was detected to be stuck on Death Screen", "mod")
                         confirmed_death.add(player)
         else:
             if player in death_tracker:
@@ -61,11 +59,11 @@ def run_checks(self: "PrimeBDS"):
                         config["modules"]["check_afk"]["enabled"]:
                     if player not in confirmed_afk:
                         if config["modules"]["check_afk"]["kick"]:
-                            log(self, f"{modLog()}Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was kicked for AFK", "mod")
+                            log(self, f"Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was kicked for AFK", "mod")
                             player.kick(f"{ColorFormat.RED}Detected: AFK")
                             remove_from_saved_areas(self, player)
                         else:
-                            log(self, f"{modLog()}Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was detected to be AFK", "mod")
+                            log(self, f"Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was detected to be AFK", "mod")
                         confirmed_afk.add(player)
             else:
                 if player in confirmed_afk:
