@@ -300,6 +300,7 @@ class PrimeBDS(Plugin):
                 seen_level_names[level_name] = 0
 
             # Launch server
+            time.sleep(2)
             process = launch_endstone_server(world_key, level_name, max_retries=3)
             if not process:
                 continue
