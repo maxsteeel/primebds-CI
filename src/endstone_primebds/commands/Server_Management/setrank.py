@@ -50,16 +50,15 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             if rank.lower() == new_rank:
                 db.update_user_data(player_name, 'internal_rank', rank)
 
-                if target.is_online():
-                    if new_rank == "operator":
-                        self.server.dispatch_command(self.server.command_sender, f"op {player_name}")
-                    else:
-                        self.server.dispatch_command(self.server.command_sender, f"deop {player_name}")
-                        if target.is_op:
-                            sender.send_message(
-                                f"Warning: internal OP level is currently set to 4, and {player_name}'s OP status could not be revoked."
-                            )
-                    self.reload_custom_perms(target)
+                if new_rank == "operator":
+                    self.server.dispatch_command(self.server.command_sender, f"op {player_name}")
+                else:
+                    self.server.dispatch_command(self.server.command_sender, f"deop {player_name}")
+                    if target.is_op:
+                        sender.send_message(
+                            f"Warning: internal OP level is currently set to 4, and {player_name}'s OP status could not be revoked."
+                        )
+                self.reload_custom_perms(target)
 
                 sender.send_message(
                     f"Player {ColorFormat.YELLOW}{player_name}'s {ColorFormat.WHITE}rank was updated to {ColorFormat.YELLOW}{rank.upper()}"

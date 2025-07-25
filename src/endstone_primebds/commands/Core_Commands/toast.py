@@ -1,6 +1,7 @@
 from endstone import Player, ColorFormat
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command, resolve_target_selector
+from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
 
 from typing import TYPE_CHECKING
 
@@ -17,7 +18,7 @@ command, permission = create_command(
 
 # TOAST COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    targets = resolve_target_selector(self, sender, args[0])
+    targets = get_matching_actors(self, sender, args[0])
 
     if not targets:
         sender.send_message(f"{ColorFormat.RED}No valid players found for selector: {args[0]}")
