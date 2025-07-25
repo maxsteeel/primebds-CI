@@ -9,7 +9,6 @@ from endstone_primebds.utils.configUtil import load_config, save_config
 
 from typing import TYPE_CHECKING
 
-from endstone_primebds.utils.prefixUtil import infoLog
 from functools import partial
 
 if TYPE_CHECKING:
@@ -87,5 +86,5 @@ def toggle_command_setting(player: Player, command_name: str, config: dict):
     new_status = config["commands"][command_name]["enabled"]
     status_color = "§a" if new_status else "§c"
     player.send_message(
-        f"{infoLog()}Command §b/{command_name}§r was set to {status_color}{new_status}§r! Use §e/reload or restart the server §rto enable changes!"
+        f"Command §b/{command_name}§r was set to {status_color}{new_status}§r! Use §e/reload or restart the server §rto enable changes!"
     )
