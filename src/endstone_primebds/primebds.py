@@ -444,10 +444,11 @@ class PrimeBDS(Plugin):
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically."""
+        print(args)
         try:
             if command.name in self.handlers:
-                if any("@" in arg for arg in args):
-                    sender.send_message(f"Invalid argument: @ symbols are not allowed for managed commands.")
+                if any("@e" in arg for arg in args):
+                    sender.send_message(f"§cSelector must be player-type")
                     return False
                 else:
                     handler_func = self.handlers[command.name]  # Get the handler function

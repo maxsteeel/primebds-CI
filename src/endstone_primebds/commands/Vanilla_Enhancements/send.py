@@ -1,7 +1,7 @@
 import socket
-from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
 
 from typing import TYPE_CHECKING
 
@@ -10,19 +10,18 @@ if TYPE_CHECKING:
 
 # Register command
 command, permission = create_command(
-    "connect",
-    "Connect players to a specified server address!",
-    ["/connect <player: player> <ip: string> <port: string>", "/connect (all)<selector: All> <ip: string> <port: string>"],
-    ["primebds.command.connect"]
+    "send",
+    "Sends players to a specified server address!",
+    ["/send <player: player> <ip: string> <port: int>"],
+    ["primebds.command.send"]
 )
 
 # CONNECT COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if len(args) < 3:
-        sender.send_message("Usage: /transfer <player|all> <ip> <port>")
+        sender.send_message("Usage: /send <player> <ip> <port>")
         return False
 
-    target_name = args[0].lower()
     ip = args[1]
     port_str = args[2]
 
@@ -36,16 +35,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     port = int(port_str)
 
-    if target_name == "all":
-        for actor in self.server.level.actors:
-            if isinstance(actor, Player):
-                actor.transfer(ip, port)
-    else:
-        target = self.server.get_player(target_name)
-        if target:
-            target.transfer(ip, port)
-        else:
-            sender.send_message(f"Player {target_name} not found.")
+    targets = get_matching_actors(self, args[0], sender)
+    for target in targets:
+        target.transfer(ip, port)
 
     return True
 

@@ -17,7 +17,7 @@ command, permission = create_command(
     [
         "/world (create|delete|load|unload)<world_subaction: world_subaction> <world_name: string>",
         "/world (cmd)<world_command: world_command> <world_name: string> <command: string>",
-        "/world (transfer)<world_transfer: world_transfer> <world_name: string> <player: player>",
+        "/world (send)<world_send: world_send> <world_name: string> <player: player>",
         "/world (list)<world_list: world_list>"
      ],
     ["primebds.command.world"]
@@ -106,9 +106,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         send_feedback("[PrimeBDS] Worlds List:\n" + "\n".join(lines))
         return True
 
-    elif subaction == "transfer":
+    elif subaction == "send":
         if len(args) < 3:
-            send_feedback("[PrimeBDS] Usage: /world <world_name> transfer <player>")
+            send_feedback("[PrimeBDS] Usage: /world <world_name> send <player>")
             return False
 
         world_name = args[1]
@@ -157,10 +157,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         try:
             player.transfer(ip, port)
-            send_feedback(f"[PrimeBDS] Transferred player '{player.name}' to world '{world_name.lower()}' ({ip}:{port})")
+            send_feedback(f"[PrimeBDS] Sent player '{player.name}' to world '{world_name.lower()}' ({ip}:{port})")
             return True
         except Exception as e:
-            send_feedback(f"[PrimeBDS] Failed to transfer player '{player.name}': {e}")
+            send_feedback(f"[PrimeBDS] Failed to send player '{player.name}': {e}")
             return False
 
     else:
