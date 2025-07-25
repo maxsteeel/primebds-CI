@@ -44,7 +44,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     time = int(args[1]) if len(args) > 1 else 1
 
-    def monitor_interval():
+    def monitor_interval(player_name):
         try:
             # Get player reference once per tick
             player = self.server.get_player(player_name)
@@ -124,7 +124,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 self.server.scheduler.cancel_task(self.monitor_intervals[player_name])
                 del self.monitor_intervals[player_name]
 
-    task = self.server.scheduler.run_repeating(self, monitor_interval, interval=time * 20)
+    task = self.server.scheduler.run_task(
+        self,
+        lambda: monitor_interval(player_name),
+        delay=0,
+        period=time * 20
+    )
+
     if task:
         self.monitor_intervals[player_name] = task.task_id
         sender.send_message(f"Started monitoring on an interval of {time} second(s)")
