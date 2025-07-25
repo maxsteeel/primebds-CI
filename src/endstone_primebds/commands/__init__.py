@@ -122,8 +122,11 @@ def preload_settings():
             "vertical_knockback_modifier": 0.0,
             "horizontal_sprint_knockback_modifier": 0.0,
             "vertical_sprint_knockback_modifier": 0.0,
-            "resisted_knockback_percentage": 0.0,
             "fall_damage_height": 3.5,
+            "projectiles": OrderedDict({
+                "horizontal_knockback_modifier": 0.0,
+                "vertical_knockback_modifier": 0.0,
+            }),
             "disable_fire_damage": False,
             "disable_explosion_damage": False,
             "disable_sprint_hits": False,
@@ -135,8 +138,13 @@ def preload_settings():
                     "vertical_knockback_modifier": 2,
                     "horizontal_sprint_knockback_modifier": 0,
                     "vertical_sprint_knockback_modifier": 0,
-                    "resisted_knockback_percentage": 0.0,
                     "fall_damage_height": 7.0,
+                    "projectiles": OrderedDict({
+                        "horizontal_knockback_modifier": 0.0,
+                        "vertical_knockback_modifier": 0.0,
+                        "horizontal_sprint_knockback_modifier": 0.0,
+                        "vertical_sprint_knockback_modifier": 0.0,
+                    }),
                     "disable_fire_damage": True,
                     "disable_explosion_damage": True,
                     "disable_sprint_hits": True,
@@ -144,7 +152,6 @@ def preload_settings():
             })
         }),
         "multiworld": OrderedDict({
-        "WARNING": "DO NOT ENABLE THIS AS THE FEATURE IS STILL UNDERGOING DEVELOPMENT",
         "enabled": False,
         "ip_main": "127.0.0.1",
         "worlds": OrderedDict({
@@ -165,7 +172,7 @@ def preload_settings():
                     "compression-threshold": 1,
                     "texturepack-required": False,
                     "allow-list": False,
-                    "allow-cheats": False,
+                    "allow-cheats": False
                 })
             })
         })
