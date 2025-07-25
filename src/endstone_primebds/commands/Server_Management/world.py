@@ -168,12 +168,14 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
 
 # Stupidly complex file searching system to find the right config.json path
-def find_main_files(start_path=None):
+def find_main_files(start_path=None, max_depth=20):
     """
     Walks up the directory tree from start_path (or CWD) to find the topmost:
     - 'plugins/primebds_data/config.json'
     - '<root>/server.properties' (assumed just above plugins dir)
-    
+
+    If multiworld is true in a config, use it. Otherwise, keep going up.
+
     Returns a dict:
         {
             "config": dict or None,
@@ -185,27 +187,38 @@ def find_main_files(start_path=None):
 
     current_path = os.path.abspath(start_path)
     config_path = None
+    depth = 0
 
-    while True:
+    while depth < max_depth:
         plugins_path = os.path.join(current_path, "plugins")
         candidate_config = os.path.join(plugins_path, "primebds_data", "config.json")
 
         if os.path.isfile(candidate_config):
-            config_path = candidate_config 
+            try:
+                with open(candidate_config, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    if config.get("multiworld", False):
+                        config_path = candidate_config
+                        break
+                    else:
+                        config_path = candidate_config  # Store it but keep going
+            except Exception as e:
+                print(f"[PrimeBDS] Failed to load config at {candidate_config}: {e}")
 
         parent = os.path.dirname(current_path)
-        if parent == current_path: 
+        if parent == current_path:  # Reached filesystem root
             break
 
         current_path = parent
+        depth += 1
 
-    config = None
+    final_config = None
     server_properties = None
 
     if config_path:
         try:
             with open(config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
+                final_config = json.load(f)
         except Exception as e:
             print(f"[PrimeBDS] Failed to load config: {e}")
 
@@ -213,7 +226,6 @@ def find_main_files(start_path=None):
         candidate_properties = os.path.join(root_dir, "server.properties")
 
         if os.path.isfile(candidate_properties):
-            server_properties = candidate_properties
             try:
                 with open(candidate_properties, "r", encoding="utf-8") as f:
                     lines = [line.strip() for line in f if "=" in line and not line.strip().startswith("#")]
@@ -222,7 +234,7 @@ def find_main_files(start_path=None):
                 print(f"[PrimeBDS] Failed to load server.properties: {e}")
 
     return {
-        "config": config,
+        "config": final_config,
         "server_properties": server_properties,
     }
 
