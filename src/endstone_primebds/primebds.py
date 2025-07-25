@@ -17,15 +17,12 @@ from endstone_primebds.commands import (
     preloaded_handlers
 )
 
-# from endstone_primebds.utils.multiworldUtil import start_flask_server, MultiworldHttpClient, wait_for_flask_server
-
-from endstone_primebds.events.intervalChecks import interval_function, stop_interval
+from endstone_primebds.events.intervals import interval_function, stop_interval
 from endstone_primebds.commands.Server_Management.monitor import clear_all_intervals
 from endstone_primebds.utils.configUtil import load_config
 
 from endstone_primebds.utils.dbUtil import UserDB, grieflog
 from endstone_primebds.utils.internalPermissionsUtil import get_permissions
-from endstone_primebds.utils.prefixUtil import errorLog
 
 
 def plugin_text():
@@ -47,12 +44,11 @@ Prime BDS Loaded!
 from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent,
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, BlockBreakEvent, BlockPlaceEvent,
                             PlayerInteractEvent, ActorDamageEvent, ActorKnockbackEvent)
-from endstone_primebds.events.chat_events import handle_chat_event
-from endstone_primebds.events.command_processes import handle_command_preprocess, handle_server_command_preprocess
-from endstone_primebds.events.player_connect import handle_login_event, handle_join_event, handle_leave_event
-from endstone_primebds.events.grieflog_events import handle_block_break, handle_player_interact, handle_block_place
-from endstone_primebds.events.player_combat import handle_kb_event, handle_damage_event
-
+from endstone_primebds.events.chat import handle_chat_event
+from endstone_primebds.events.commands import handle_command_preprocess, handle_server_command_preprocess
+from endstone_primebds.events.connections import handle_login_event, handle_join_event, handle_leave_event
+from endstone_primebds.events.grieflog import handle_block_break, handle_player_interact, handle_block_place
+from endstone_primebds.events.combat import handle_kb_event, handle_damage_event
 
 class PrimeBDS(Plugin):
     api_version = "0.6"
@@ -65,11 +61,11 @@ class PrimeBDS(Plugin):
 
     def __init__(self):
         super().__init__()
+        self.monitor_intervals = {}
         self.multiworld_processes = {}
         self.multiworld_ports = {}
-        #self.multiworld_http_client = MultiworldHttpClient()
-        self.base_port = 4000
         self.entity_damage_cooldowns = {}
+        self.entity_last_hit = {}
 
     # EVENT HANDLER
     @event_handler()
@@ -142,7 +138,7 @@ class PrimeBDS(Plugin):
         self.check_for_inactive_sessions()
 
         if config["modules"]["multiworld"]["enabled"] and not self._is_nested_multiworld_instance():
-            #self.start_additional_servers()
+            self.start_additional_servers()
             return
 
     def on_disable(self):
@@ -151,10 +147,9 @@ class PrimeBDS(Plugin):
 
         config = load_config()
         if config["modules"]["multiworld"]["enabled"] and not self._is_nested_multiworld_instance():
-            #self.stop_additional_servers()
+            self.stop_additional_servers()
             return
 
-    """
     def start_additional_servers(self):
         config = load_config()
         multiworld = config["modules"].get("multiworld", {})
@@ -183,83 +178,120 @@ class PrimeBDS(Plugin):
                 return
             current_dir = parent_dir
 
-        root_plugins_dir = os.path.join(current_dir, "plugins")
+        DB_FOLDER = os.path.join(current_dir, 'plugins', 'primebds_data')
+        multiworld_base_dir = os.path.join(DB_FOLDER, "multiworld")
 
         # Setup multiworld directories
-        DB_FOLDER = os.path.join(current_dir, 'plugins', 'primebds_data')
         os.makedirs(DB_FOLDER, exist_ok=True)
-
-        multiworld_base_dir = os.path.join(DB_FOLDER, "multiworld")
         os.makedirs(multiworld_base_dir, exist_ok=True)
 
+        root_plugins_dir = os.path.join(current_dir, "plugins")
         seen_level_names = {}
+
+        def launch_endstone_server(folder, level_name, max_retries=1):
+            attempt = 0
+            while attempt <= max_retries:
+
+                process = subprocess.Popen(
+                    [sys.executable, "-m", "endstone", "--yes", f"--server-folder={folder}"],
+                    cwd=multiworld_base_dir,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                
+                time.sleep(5)
+                if process.poll() is not None:
+                    print(f"[PrimeBDS] World '{level_name}' crashed or exited early (attempt {attempt + 1}).")
+                    attempt += 1
+                else:
+                    return process
+            print(f"[PrimeBDS] World '{level_name}' failed to start after {max_retries + 1} attempts.")
+            return None
+
+        def stop_process_for_folder(folder_name):
+            # Look for processes matching the folder (level_name)
+            to_stop = []
+            for level_name, proc in self.multiworld_processes.items():
+                # You can match by exact level_name or some mapping from folder to level_name
+                # Assuming level_name == folder_name or similar here:
+                if level_name.startswith(folder_name):
+                    to_stop.append(level_name)
+
+            for level_name in to_stop:
+                proc = self.multiworld_processes.get(level_name)
+                if proc is None:
+                    continue
+
+                print(f"[PrimeBDS] Attempting to stop existing process for '{level_name}'")
+
+                try:
+                    # Attempt graceful stop by sending stop command
+                    if proc.stdin:
+                        proc.stdin.write("stop\n")
+                        proc.stdin.flush()
+
+                    # Wait up to 5 seconds for graceful exit
+                    try:
+                        proc.wait(timeout=5)
+                        print(f"[PrimeBDS] Process for '{level_name}' stopped gracefully.")
+                    except subprocess.TimeoutExpired:
+                        print(f"[PrimeBDS] Process for '{level_name}' did not stop in time, killing...")
+                        proc.kill()
+                        proc.wait()
+                        print(f"[PrimeBDS] Process for '{level_name}' killed.")
+                except Exception as e:
+                    print(f"[PrimeBDS] Error stopping process for '{level_name}': {e}")
+
+                # Remove from tracking dict
+                self.multiworld_processes.pop(level_name, None)
+                self.multiworld_ports.pop(level_name, None)
+
+        def copy_plugins_to_world(root_plugins_dir, world_plugins_dir):
+            """
+            Copy only .whl files from root_plugins_dir to world_plugins_dir,
+            but only if no .whl file containing 'primebds' is already present in world_plugins_dir.
+            """
+
+            if not os.path.exists(world_plugins_dir):
+                os.makedirs(world_plugins_dir, exist_ok=True)
+
+            for item in os.listdir(root_plugins_dir):
+                if not item.endswith(".whl"):
+                    continue
+
+                source_path = os.path.join(root_plugins_dir, item)
+                target_path = os.path.join(world_plugins_dir, item)
+
+                try:
+                    shutil.copy2(source_path, target_path)
+                except Exception as e:
+                    print(f"[PrimeBDS] Failed to copy '{item}': {e}")
 
         for idx, (world_key, settings) in enumerate(worlds.items()):
             if world_key == current_profile:
                 continue
 
             world_dir = os.path.join(multiworld_base_dir, world_key)
-            first_time_setup = not os.path.exists(os.path.join(world_dir, "server.properties"))
+            os.makedirs(world_dir, exist_ok=True)
+            stop_process_for_folder(world_dir)
 
-            if first_time_setup:
-                os.makedirs(world_dir, exist_ok=True)
+            # Copy plugin wheels if needed
+            world_plugins_dir = os.path.join(world_dir, "plugins")
+            copy_plugins_to_world(root_plugins_dir, world_plugins_dir)
 
-                # Initialize Endstone directly in the world folder
-                process = subprocess.run(
-                    [sys.executable, "-m", "endstone", "--yes", f"--server-folder={world_key}"],
-                    cwd=multiworld_base_dir,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    encoding='utf-8',
-                )
-
-                if process.returncode != 0:
-                    print(f"[PrimeBDS] Failed to initialize world '{world_key}' via endstone.")
-                    print(process.stdout)
-                    print(process.stderr)
-                    continue
-
-                target_plugins_dir = os.path.join(world_dir, "plugins")
-                os.makedirs(target_plugins_dir, exist_ok=True)
-
-                target_plugins_dir_norm = os.path.normpath(os.path.abspath(target_plugins_dir))
-                for item in os.listdir(root_plugins_dir):
-                    source_path = os.path.join(root_plugins_dir, item)
-                    if os.path.isfile(source_path) and item.endswith(".whl"):
-                        source_path_norm = os.path.normpath(os.path.abspath(source_path))
-                        if os.path.commonpath([source_path_norm, target_plugins_dir_norm]) == target_plugins_dir_norm:
-                            print(f"[PrimeBDS] Skipped plugin wheel '{item}' to avoid recursive copy.")
-                            continue
-
-                        try:
-                            shutil.copy2(source_path, target_plugins_dir)
-                            print(f"[PrimeBDS] Copied plugin wheel '{item}' to world '{world_key}'.")
-                        except Exception as e:
-                            print(f"[PrimeBDS] Failed to copy plugin wheel '{item}': {e}")
-
-            # Merge default + config properties
-            merged_props = default_props.copy()
-            for key, value in settings.items():
-                merged_props[key] = str(value).lower() if isinstance(value, bool) else str(value)
-
+            # Write server.properties
             server_properties_path = os.path.join(world_dir, "server.properties")
             with open(server_properties_path, "w", encoding="utf-8") as f:
-                for key, value in merged_props.items():
+                for key, value in default_props.items():
                     f.write(f"{key}={value}\n")
+                for key, value in settings.items():
+                    value_str = str(value).lower() if isinstance(value, bool) else str(value)
+                    f.write(f"{key}={value_str}\n")
 
-            # Launch Endstone server
-            process = subprocess.Popen(
-                [sys.executable, "-m", "endstone", "--yes", f"--server-folder={world_key}"],
-                cwd=multiworld_base_dir,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding='utf-8'
-            )
-
-            level_name = merged_props.get("level-name", world_key)
+            # Determine level name
+            level_name = settings.get("level-name", world_key)
             original_level_name = level_name
             if level_name in seen_level_names:
                 seen_level_names[level_name] += 1
@@ -267,12 +299,22 @@ class PrimeBDS(Plugin):
             else:
                 seen_level_names[level_name] = 0
 
+            # Launch server
+            process = launch_endstone_server(world_key, level_name, max_retries=3)
+            if not process:
+                continue
+
             self.multiworld_processes[level_name] = process
 
-            # Assign port based on index offset
-            port = self.base_port + idx
+            # Assign proper port
+            port_str = settings.get("server-port")
+            try:
+                port = int(port_str)
+            except (TypeError, ValueError):
+                port = self.base_port + idx + 1
+                print(f"[PrimeBDS] Invalid or missing port for '{level_name}', using fallback: {port}")
+
             self.multiworld_ports[level_name] = port
-            # self.multiworld_http_client.register_world(level_name, port)
 
             def forward_output(stream, prefix):
                 while True:
@@ -290,15 +332,25 @@ class PrimeBDS(Plugin):
 
             time.sleep(2)
 
-    #def stop_additional_servers(self):
+    def stop_additional_servers(self):
         for level_name, process in list(self.multiworld_processes.items()):
             if process.poll() is None:  # still running
                 print(f"[PrimeBDS] Closing '{level_name}' (PID {process.pid})")
 
                 try:
+                    # Attempt clean shutdown via stdin
+                    if process.stdin:
+                        try:
+                            process.stdin.write("stop\n")
+                            process.stdin.flush()
+                        except Exception as e:
+                            print(f"[PrimeBDS] Failed to send stop command to '{level_name}': {e}")
+
+                    # Wait for graceful shutdown
                     process.wait(timeout=3)
-                    print(f"[PrimeBDS] World '{level_name}' stopped gracefully.")
+                    print(f"[PrimeBDS] World '{level_name}' stopped correctly")
                 except subprocess.TimeoutExpired:
+                    # Force kill the process tree
                     try:
                         parent = psutil.Process(process.pid)
                         for child in parent.children(recursive=True):
@@ -319,7 +371,6 @@ class PrimeBDS(Plugin):
 
     def _is_nested_multiworld_instance(self):
         return "plugins{}primebds_data{}multiworld".format(os.sep, os.sep) in os.path.abspath(__file__)
-    """
 
     def check_for_inactive_sessions(self):
         """Checks for players who have active sessions (NULL end_time) and are not online. Ends their session."""
@@ -353,7 +404,6 @@ class PrimeBDS(Plugin):
 
         dbgl.close_connection()
 
-    # PERMISSIONS HANDLER
     def reload_custom_perms(self, player: Player):
         # Update Internal DB
         db = UserDB("users.db")
@@ -392,19 +442,18 @@ class PrimeBDS(Plugin):
 
         db.close_connection()
 
-    # COMMAND HANDLER
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically."""
         try:
             if command.name in self.handlers:
                 if any("@" in arg for arg in args):
-                    sender.send_message(f"{errorLog()}Invalid argument: @ symbols are not allowed for managed commands.")
+                    sender.send_message(f"Invalid argument: @ symbols are not allowed for managed commands.")
                     return False
                 else:
                     handler_func = self.handlers[command.name]  # Get the handler function
                     return handler_func(self, sender, args)  # Execute the handler
             else:
-                sender.send_message(f"{errorLog()}Command '{command.name}' not found.")
+                sender.send_message(f"Command '{command.name}' not found.")
                 return False
         except Exception as e:
             # Hide file paths by removing drive letters and usernames

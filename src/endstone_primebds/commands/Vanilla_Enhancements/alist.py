@@ -10,7 +10,6 @@ from endstone_primebds.utils.configUtil import load_config, save_config
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.dbUtil import UserDB
-from endstone_primebds.utils.prefixUtil import errorLog, infoLog
 
 from typing import TYPE_CHECKING
 
@@ -32,14 +31,14 @@ command, permission = create_command(
 # ALLOWLIST COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if len(args) == 0:
-        sender.send_message(f"{errorLog()}Usage: /alist <add|remove|list> [name]")
+        sender.send_message(f"Usage: /alist <add|remove|list> [name]")
         return True
 
     subcommand = args[0].lower()
 
     if subcommand == "add":
         if len(args) < 2:
-            sender.send_message(f"{errorLog()}Usage: /alist add <player> [ignore_max_player]")
+            sender.send_message(f"Usage: /alist add <player> [ignore_max_player]")
             return True
 
         player_name = args[1]
@@ -49,11 +48,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             if args[2].lower() in ["true", "false"]:
                 ignore_max_player = args[2].lower() == "true"
             else:
-                sender.send_message(f"{errorLog()}§rignore_max_player must be 'true' or 'false'")
+                sender.send_message(f"§rignore_max_player must be 'true' or 'false'")
                 return True
 
         self.server.dispatch_command(self.server.command_sender, f"whitelist add \"{player_name}\"")
-        sender.send_message(f"{infoLog()}§rAdded §b{player_name}§r to allowlist.")
+        sender.send_message(f"§rAdded §b{player_name}§r to allowlist.")
 
         if ignore_max_player is not None:
             allowlist_path = get_allowlist_path()
@@ -79,7 +78,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                             entry["xuid"] = xuid
                             modified = True
                         else:
-                            sender.send_message(f"{infoLog()}§rThe player §b{player_name}§r does not have recorded xuid so the ignore_max_players variable could not be set")
+                            sender.send_message(f"§rThe player §b{player_name}§r does not have recorded xuid so the ignore_max_players variable could not be set")
                         break
 
                 if modified:
@@ -96,24 +95,24 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     elif subcommand == "remove":
         if len(args) < 2:
-            sender.send_message(f"{errorLog()}Usage: /alist remove <player>")
+            sender.send_message(f"Usage: /alist remove <player>")
             return True
         player_name = args[1]
         self.server.dispatch_command(self.server.command_sender, f"whitelist remove \"{player_name}\"")
-        sender.send_message(f"{infoLog()}§rRemoved §b{player_name}§r from allowlist.")
+        sender.send_message(f"§rRemoved §b{player_name}§r from allowlist.")
         self.server.dispatch_command(self.server.command_sender, f"whitelist reload")
         return True
 
     elif subcommand == "list":
         allowlist_path = get_allowlist_path()
         if not os.path.exists(allowlist_path):
-            sender.send_message(f"{errorLog()}§rAllowlist file not found.")
+            sender.send_message(f"§rAllowlist file not found.")
             return True
         try:
             with open(allowlist_path, 'r') as f:
                 data = json.load(f)
             if not data:
-                sender.send_message(f"{infoLog()}§rAllowlist is empty.")
+                sender.send_message(f"§rAllowlist is empty.")
                 return True
             lines = []
             for entry in data:
@@ -123,9 +122,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 if ignores:
                     formatted = f"§6{name} §8(ignores player limit)"
                 lines.append(formatted)
-            sender.send_message(f"{infoLog()}§rAllowlist players:\n" + "\n".join(f"§7- {line}" for line in lines))
+            sender.send_message(f"§rAllowlist players:\n" + "\n".join(f"§7- {line}" for line in lines))
         except Exception as e:
-            sender.send_message(f"{errorLog()}§rFailed to read allowlist: {e}")
+            sender.send_message(f"§rFailed to read allowlist: {e}")
         return True
 
     elif subcommand == "check":
@@ -138,7 +137,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             profile_file = os.path.join(profile_dir, f"{profile_name}.json")
 
             if not os.path.exists(profile_file):
-                sender.send_message(f"{errorLog()}§rProfile §c'{profile_name}'§r not found in allowlist_profiles.")
+                sender.send_message(f"§rProfile §c'{profile_name}'§r not found in allowlist_profiles.")
                 return True
 
             # Get actual active allowlist
@@ -153,7 +152,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             allowlist_path = os.path.join(current_dir, 'allowlist.json')
 
             if not os.path.exists(allowlist_path):
-                sender.send_message(f"{errorLog()}Active allowlist.json file not found.")
+                sender.send_message(f"Active allowlist.json file not found.")
                 return True
 
             with open(allowlist_path, 'r') as f:
@@ -161,55 +160,55 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
             active_count = len(active_data)
             sender.send_message(
-                f"{infoLog()}§rUsing allowlist profile: §b{profile_name}§r with §a{active_count}§r active players.")
+                f"§rUsing allowlist profile: §b{profile_name}§r with §a{active_count}§r active players.")
 
         except Exception as e:
-            sender.send_message(f"{errorLog()}Failed to check allowlist profile: {e}")
+            sender.send_message(f"Failed to check allowlist profile: {e}")
 
         return True
 
     elif subcommand == "create":
         if len(args) < 2:
-            sender.send_message(f"{errorLog()}Usage: /alist create <name>")
+            sender.send_message(f"Usage: /alist create <name>")
             return True
 
         profile_name = args[1].strip()
         path = get_allowlist_profile_path(profile_name)
 
         if os.path.exists(path):
-            sender.send_message(f"{errorLog()}Allowlist profile '{profile_name}' already exists.")
+            sender.send_message(f"Allowlist profile '{profile_name}' already exists.")
             return True
 
         try:
             with open(path, "w") as f:
                 json.dump([], f, indent=4)
-            sender.send_message(f"{infoLog()}Created allowlist profile '{profile_name}'.")
+            sender.send_message(f"Created allowlist profile '{profile_name}'.")
         except Exception as e:
-            sender.send_message(f"{errorLog()}Failed to create profile: {e}")
+            sender.send_message(f"Failed to create profile: {e}")
         return True
 
     elif subcommand == "delete":
         if len(args) < 2:
-            sender.send_message(f"{errorLog()}Usage: /alist delete <name>")
+            sender.send_message(f"Usage: /alist delete <name>")
             return True
 
         profile_name = args[1].strip()
         path = get_allowlist_profile_path(profile_name)
 
         if not os.path.exists(path):
-            sender.send_message(f"{errorLog()}Allowlist profile '{profile_name}' does not exist.")
+            sender.send_message(f"Allowlist profile '{profile_name}' does not exist.")
             return True
 
         try:
             os.remove(path)
-            sender.send_message(f"{infoLog()}Deleted allowlist profile '{profile_name}'.")
+            sender.send_message(f"Deleted allowlist profile '{profile_name}'.")
         except Exception as e:
-            sender.send_message(f"{errorLog()}Failed to delete profile: {e}")
+            sender.send_message(f"Failed to delete profile: {e}")
         return True
 
     elif subcommand == "use":
         if len(args) < 2:
-            sender.send_message(f"{errorLog()}Usage: /alist use <profile>")
+            sender.send_message(f"Usage: /alist use <profile>")
             return True
 
         target_profile = args[1].strip()
@@ -217,7 +216,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         target_path = os.path.join(profiles_dir, f"{target_profile}.json")
 
         if not os.path.exists(target_path):
-            sender.send_message(f"{errorLog()}Profile '{target_profile}' does not exist.")
+            sender.send_message(f"Profile '{target_profile}' does not exist.")
             return True
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -247,25 +246,25 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             save_config(config)
             self.server.dispatch_command(self.server.command_sender, "whitelist reload")
 
-            msg = f"{infoLog()}Activated allowlist profile '{target_profile}'"
+            msg = f"Activated allowlist profile '{target_profile}'"
             if isinstance(sender, Player):
                 sender.send_message(msg)
             else:
                 print(msg)
 
         self.server.scheduler.run_task(self, apply_profile, delay=20)
-        sender.send_message(f"{infoLog()}Allowlist profile will switch to '{target_profile}' shortly.")
+        sender.send_message(f"Allowlist profile will switch to '{target_profile}' shortly.")
 
     elif subcommand == "profiles":
         profiles_dir = get_allowlist_profiles_folder()
         if not os.path.exists(profiles_dir):
-            sender.send_message(f"{errorLog()}No profiles directory found.")
+            sender.send_message(f"No profiles directory found.")
             return True
 
         try:
             profiles = [f[:-5] for f in os.listdir(profiles_dir) if f.endswith(".json")]
             if not profiles:
-                sender.send_message(f"{infoLog()}No saved allowlist profiles.")
+                sender.send_message(f"No saved allowlist profiles.")
                 return True
 
             config = load_primebds_config()
@@ -277,14 +276,14 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                     lines.append(f"§a{profile} §7(current)")
                 else:
                     lines.append(f"§7{profile}")
-            sender.send_message(f"{infoLog()}Available profiles:\n" + "\n".join(f"§8- {line}" for line in lines))
+            sender.send_message(f"Available profiles:\n" + "\n".join(f"§8- {line}" for line in lines))
 
         except Exception as e:
-            sender.send_message(f"{errorLog()}Failed to list profiles: {e}")
+            sender.send_message(f"Failed to list profiles: {e}")
         return True
 
     else:
-        sender.send_message(f"{errorLog()}Unknown subcommand '{subcommand}'")
+        sender.send_message(f"Unknown subcommand '{subcommand}'")
         return True
     return True
 

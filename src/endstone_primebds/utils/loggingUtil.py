@@ -10,7 +10,6 @@ from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.formWrapperUtil import ActionFormData, ActionFormResponse
 from endstone_primebds.utils.internalPermissionsUtil import has_log_perms
 from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.prefixUtil import infoLog, grieflog
 from endstone_primebds.utils.timeUtil import TimezoneUtils
 
 if TYPE_CHECKING:
@@ -126,7 +125,7 @@ def send_discord_message(webhook_url, payload):
 
 def sendgrieflog(logs: list[dict], sender):
     if not logs: 
-        sender.send_message(f"{grieflog()}No grief logs found.")
+        sender.send_message(f"No grief logs found.")
         return True
 
     logs.sort(key=lambda x: x['timestamp'], reverse=True)

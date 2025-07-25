@@ -7,7 +7,6 @@ from typing import List, Tuple, Any, Dict, Optional
 from endstone import ColorFormat
 from endstone.util import Vector
 from endstone_primebds.utils.modUtil import format_time_remaining
-from endstone_primebds.utils.prefixUtil import modLog
 from endstone_primebds.utils.timeUtil import TimezoneUtils
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -515,7 +514,7 @@ class UserDB(DatabaseManager):
         paginated_history = past_punishments[start:end]
 
         # Build response
-        msg = [f"{modLog()}Punishment Information\n---------------"]
+        msg = [f"Punishment Information\n---------------"]
 
         if active_punishments:
             msg.append(
