@@ -23,6 +23,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if len(args) < 1:
         sender.send_message(f"Usage: /removeban <player>")
         return False
+    
+    if any("@" in arg for arg in args):
+        sender.send_message(f"§c@ selectors are invalid for this command")
+        return False
 
     player_name = args[0].strip('"')
     db = UserDB("users.db")

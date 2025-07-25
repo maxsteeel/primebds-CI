@@ -22,6 +22,11 @@ command, permission = create_command(
 
 # CHECK COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
+
+    if any("@" in arg for arg in args):
+        sender.send_message(f"§c@ selectors are invalid for this command")
+        return False
+
     player_name = args[0].strip('"')
     target = sender.server.get_player(player_name)
 

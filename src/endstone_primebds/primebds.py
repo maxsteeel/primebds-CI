@@ -444,7 +444,6 @@ class PrimeBDS(Plugin):
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically."""
-        print(args)
         try:
             if command.name in self.handlers:
                 if any("@e" in arg for arg in args):

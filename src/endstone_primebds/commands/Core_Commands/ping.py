@@ -1,6 +1,7 @@
 from endstone import Player, ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
 
 from typing import TYPE_CHECKING
 
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "ping",
     "Checks the server ping!",
-    ["/ping [player: player]", "/ping (all)[selector: All]"],
+    ["/ping [player: player]"],
     ["primebds.command.ping"],
     "true"
 )
@@ -29,32 +30,25 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         )
         return True
 
-    player_name = args[0].strip('"')
+    selector = args[0].strip('"')
+    matched = get_matching_actors(self, selector, sender)
 
-    if player_name.lower() == "all":
-        # Fetch and display all players' pings
-        players = self.server.online_players
-        if not players:
-            sender.send_message(f"No players are online.")
-            return True
+    if not matched:
+        sender.send_error_message(f"No matching players found for '{selector}'.")
+        return True
 
+    if len(matched) == 1:
+        player = matched[0]
+        ping = player.ping
+        sender.send_message(
+            f"The ping of {player.name} is {get_ping_color(ping)}{ping}{ColorFormat.RESET}ms"
+        )
+    else:
         ping_list = [
             f"{player.name}: {get_ping_color(player.ping)}{player.ping}{ColorFormat.RESET}ms"
-            for player in players
+            for player in matched if isinstance(player, Player)
         ]
-        sender.send_message(f"Online Players' Pings:\n" + "\n".join(ping_list))
-        return True
-
-    # Handle single player lookup
-    target = sender.server.get_player(player_name)
-    if target is None:
-        sender.send_error_message(f"Player {player_name} not found.")
-        return True
-
-    ping = target.ping
-    sender.send_message(
-        f"The ping of {target.name} is {get_ping_color(ping)}{ping}{ColorFormat.RESET}ms"
-    )
+        sender.send_message(f"Matched Players' Pings:\n" + "\n".join(ping_list))
     return True
 
 

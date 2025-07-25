@@ -63,7 +63,6 @@ def get_matching_actors(self: "PrimeBDS", selector: str, origin: Player):
 
     selector_type = parsed["type"]
     args = parsed["args"]
-    print(args)
     origin_loc = origin.location
 
     result = []

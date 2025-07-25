@@ -28,6 +28,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if len(args) < 1:
         sender.sendMessage(f" Usage: /activity <player> [page: int]")
         return True
+    
+    if any("@" in arg for arg in args):
+        sender.send_message(f"§c@ selectors are invalid for this command")
+        return False
 
     player_name = args[0]
     page = int(args[1]) if len(args) > 1 and args[1].isdigit() else 1

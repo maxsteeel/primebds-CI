@@ -13,7 +13,8 @@ from endstone_primebds.utils.formWrapperUtil import ActionFormData, ActionFormRe
 command, permission = create_command(
     "updatepacks",
     "Updates the server packs!",
-    ["/updatepacks (resource|behavior|all)<target_pack: target_pack>"],
+    ["/updatepacks (resource)<target_rp: target_rp> (version|uuid)<update_target>",
+     "/updatepacks (behavior)<target_bp: target_bp>"],
     ["primebds.command.reloadpacks"]
 )
 
@@ -32,13 +33,13 @@ def handler(self, sender: CommandSender, args: list[str]) -> bool:
     BP_PATH = os.path.join(current_dir, 'worlds', self.server.level.name, 'behavior_packs')
 
     # Handle Resource Packs
-    if "resource" in args or "all" in args:
+    if "resource" in args:
         if not os.path.exists(RP_PATH):
-            sender.send_message(f" No resource packs found to update")
+            sender.send_message(" No resource packs found to update")
             return False
 
         updated_packs = 0
-        updated_pack_names = []  # List to store names of updated packs
+        updated_pack_names = []
         for pack in os.listdir(RP_PATH):
             pack_path = os.path.join(RP_PATH, pack)
             manifest_path = os.path.join(pack_path, "manifest.json")
@@ -49,36 +50,52 @@ def handler(self, sender: CommandSender, args: list[str]) -> bool:
                 with open(manifest_path, "r", encoding="utf-8") as f:
                     manifest = json.load(f)
 
-                # Increment version
-                header_version = manifest.get("header", {}).get("version", [1, 0, 0])
-                header_version[-1] += 1  # Increment last number
-                manifest["header"]["version"] = header_version
+                # Update version
+                if args[1] == "version":
+                    header_version = manifest.get("header", {}).get("version", [1, 0, 0])
+                    header_version[-1] += 1
+                    manifest["header"]["version"] = header_version
 
-                # Write back updated manifest
+                # Update UUID
+                if args[1] == "uuid":
+                    new_uuid = fetch_uuid()
+                    if new_uuid:
+                        manifest["header"]["uuid"] = new_uuid
+
                 with open(manifest_path, "w", encoding="utf-8") as f:
                     json.dump(manifest, f, indent=4)
 
                 updated_packs += 1
-                updated_pack_names.append(pack)  # Add the updated pack name to the list
+                updated_pack_names.append(pack)
             except Exception as e:
                 sender.send_message(f" Failed to update {pack}: {e}")
                 continue
 
-        # Send message with updated pack names
         if updated_packs > 0:
             sender.send_message(
                 f"Updated {updated_packs} resource pack(s): {', '.join(updated_pack_names)}!\n{ColorFormat.GRAY}{ColorFormat.ITALIC}REQUIRES SERVER RESTART TO APPLY")
         else:
-            sender.send_message(f" No resource packs were updated.")
+            sender.send_message(" No resource packs were updated.")
 
     # Handle Behavior Packs
-    if "behavior" in args or "all" in args:
+    if "behavior" in args:
         if not os.path.exists(BP_PATH):
             sender.send_message(f" No behavior packs found to update")
             return False
         else:
             select_pack(sender, BP_PATH)
         return True
+
+def fetch_uuid():
+    url = "https://www.uuidtools.com/api/generate/v4"
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        uuid_list = response.json()
+        return uuid_list[0] if uuid_list else None
+    except Exception as e:
+        print(f"UUID fetch failed: {e}")
+        return None
 
 def select_pack(sender: CommandSender, path) -> None:
     packs = [pack for pack in os.listdir(path) if os.path.isdir(os.path.join(path, pack))]

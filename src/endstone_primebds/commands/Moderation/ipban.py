@@ -29,6 +29,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(
             f"Usage: /ipban <player> <duration> (unit) [reason] or /ipban <player> forever [reason]")
         return False
+    
+    if any("@" in arg for arg in args):
+        sender.send_message(f"§c@ selectors are invalid for this command")
+        return False
 
     player_name = args[0].strip('"')
     target = self.server.get_player(player_name)

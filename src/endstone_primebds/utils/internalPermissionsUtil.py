@@ -4,7 +4,7 @@ RANKS = ["Default", "Helper", "Mod", "Operator"]
 # Define permissions associated with each rank
 PERMISSIONS = {
     "Default": ["primebds.command.spectate", "primebds.command.ping", "primebds.command.playtime", "primebds.command.refresh"],
-    "Helper": ["primebds.command.check", "primebds.command.monitor", "primebds.command.vsp", "primebds.command.activity", "primebds.command.activitylist",
+    "Helper": ["primebds.command.check", "primebds.command.monitor", "primebds.command.activity", "primebds.command.activitylist",
                "primebds.command.logs", "primebds.command.inspect", "primebds.command.grieflog"],
     "Mod": ["primebds.command.ipban", "primebds.command.mute", "primebds.command.permban", "primebds.command.punishments",
             "primebds.command.removeban", "primebds.command.tempban", "primebds.command.tempmute", "primebds.command.unmute",

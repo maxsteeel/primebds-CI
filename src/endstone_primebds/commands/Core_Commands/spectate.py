@@ -23,6 +23,11 @@ command, permission = create_command(
 
 # SPECTATE COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
+
+    if any("@" in arg for arg in args):
+        sender.send_message(f"§c@ selectors are invalid for this command")
+        return False
+
     config = load_config()
     check_gamemode = config["modules"]["spectator_check"].get("check_gamemode", True)
     check_tags = config["modules"]["spectator_check"].get("check_tags", False)
