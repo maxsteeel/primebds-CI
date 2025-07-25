@@ -8,7 +8,7 @@ from endstone.command import CommandSender
 from endstone.scoreboard import Criteria
 
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog
+
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -36,13 +36,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     elif action == "list":
         profiles = list_scoreboard_profiles()
         player.send_message(
-            f"{infoLog()}Available profiles: {', '.join(profiles)}" if profiles else f"{infoLog()}No profiles found.")
+            f"Available profiles: {', '.join(profiles)}" if profiles else f"No profiles found.")
         return True
     elif action == "delete" and len(args) > 1:
         name = args[1]
         return delete_scoreboard(self, player, name)
 
-    player.send_message(f"{errorLog()}Invalid action. Use 'save', 'load', or 'list'.")
+    player.send_message(f"Invalid action. Use 'save', 'load', or 'list'.")
     return False
 
 def save_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
@@ -94,7 +94,7 @@ def save_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
         print(f"Saved scoreboard profile '{name}'")
         return False
     else:
-        player.send_message(f"{infoLog()}Saved scoreboard profile '{name}' with {entry_count} entries!")
+        player.send_message(f"Saved scoreboard profile '{name}' with {entry_count} entries!")
         if invalid_entry_counts > 0:
             player.send_message(f"{invalid_entry_counts} were removed as mob entries cannot be transferred.")
     return True
@@ -105,7 +105,7 @@ def load_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
 
     if not os.path.exists(load_path):
         if isinstance(player, Player):
-            player.send_message(f"{errorLog()}Scoreboard profile '{name}' not found!")
+            player.send_message(f"Scoreboard profile '{name}' not found!")
         else:
             print(f"Scoreboard profile '{name}' not found!")
         return False
@@ -162,7 +162,7 @@ def load_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
 
     status = "NEW" if new_profile else "OLD"
     if isinstance(player, Player):
-        player.send_message(f"{infoLog()}Loaded scoreboard profile '{name}' {ColorFormat.GRAY}{ColorFormat.ITALIC}[{status}]")
+        player.send_message(f"Loaded scoreboard profile '{name}' {ColorFormat.GRAY}{ColorFormat.ITALIC}[{status}]")
     else:
         print(f"Loaded scoreboard profile '{name}' [{status}]")
 
@@ -173,18 +173,18 @@ def delete_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
 
     if not os.path.exists(delete_path):
         if isinstance(player, Player):
-            player.send_message(f"{errorLog()}Scoreboard profile '{name}' not found!")
+            player.send_message(f"Scoreboard profile '{name}' not found!")
         else:
-            print(f"{errorLog()}Scoreboard profile '{name}' not found!")
+            print(f"Scoreboard profile '{name}' not found!")
         return False
 
     os.remove(delete_path)
 
     if not isinstance(player, Player):
-        print(f"{infoLog()}Deleted scoreboard profile '{name}'")
+        print(f"Deleted scoreboard profile '{name}'")
         return False
     else:
-        player.send_message(f"{infoLog()}Deleted scoreboard profile '{name}'")
+        player.send_message(f"Deleted scoreboard profile '{name}'")
     return True
 
 def list_scoreboard_profiles() -> List[str]:

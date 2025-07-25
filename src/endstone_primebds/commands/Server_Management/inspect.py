@@ -3,7 +3,6 @@ from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.configUtil import load_config
 from endstone_primebds.utils.dbUtil import grieflog
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog, grieflog
 
 from typing import TYPE_CHECKING
 
@@ -22,14 +21,14 @@ command, permission = create_command(
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if not isinstance(sender, Player):
-        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        sender.send_message(f"This command can only be executed by a player")
         return False
     
     config = load_config()
     is_gl_enabled = config["modules"]["grieflog"]["enabled"]
 
     if not is_gl_enabled:
-        sender.send_message(f"{errorLog()}Grief Logger is currently disabled by config")
+        sender.send_message(f"Grief Logger is currently disabled by config")
         return True
 
     if isinstance(sender, Player):
@@ -42,9 +41,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         dbgl.set_user_toggle(player.xuid, player.name)
 
         if toggle:
-            sender.send_message(f"{grieflog()}Inspect mode {ColorFormat.GREEN}Enabled")
+            sender.send_message(f"Inspect mode {ColorFormat.GREEN}Enabled")
         else:
-            sender.send_message(f"{grieflog()}Inspect mode {ColorFormat.RED}Disabled")
+            sender.send_message(f"Inspect mode {ColorFormat.RED}Disabled")
 
         dbgl.close_connection()
 

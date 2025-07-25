@@ -6,7 +6,6 @@ from endstone import ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.dbUtil import UserDB
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog
 
 from typing import TYPE_CHECKING
 
@@ -33,7 +32,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         user = db.get_offline_user(player_name)
         if user is None:
             sender.send_message(
-                f"{errorLog()}Player {ColorFormat.YELLOW}{player_name}{ColorFormat.RED} not found in database.")
+                f"Player {ColorFormat.YELLOW}{player_name}{ColorFormat.RED} not found in database.")
             db.close_connection()
             return False
 
@@ -75,7 +74,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         leave_time_str = TimezoneUtils.convert_to_timezone(last_leave, "EST")
 
     # Format and send the message
-    sender.send_message(f"""{infoLog()}{ColorFormat.AQUA}Player Information:
+    sender.send_message(f"""{ColorFormat.AQUA}Player Information:
 {ColorFormat.DARK_GRAY}---------------
 {ColorFormat.YELLOW}Name: {ColorFormat.WHITE}{name} {ColorFormat.GRAY}[{status}{ColorFormat.GRAY}]
 {ColorFormat.YELLOW}XUID: {ColorFormat.WHITE}{xuid}

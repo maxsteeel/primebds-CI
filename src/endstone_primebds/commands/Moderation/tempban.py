@@ -5,7 +5,6 @@ from endstone_primebds.utils.configUtil import load_config
 from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.loggingUtil import log
 from endstone_primebds.utils.modUtil import format_time_remaining, ban_message
-from endstone_primebds.utils.prefixUtil import errorLog, modLog
 from datetime import timedelta, datetime
 
 from typing import TYPE_CHECKING
@@ -24,7 +23,7 @@ command, permission = create_command(
 # TEMPBAN COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if len(args) < 3:
-        sender.send_message(f"{errorLog()}Usage: /tempban <player> <duration_number> (second|minute|hour|day|week|month|year) [reason]")
+        sender.send_message(f"Usage: /tempban <player> <duration_number> (second|minute|hour|day|week|month|year) [reason]")
         return False
 
     player_name = args[0].strip('"')
@@ -35,12 +34,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         # If the player is offline, look them up by name in the database
         mod_log = db.get_offline_mod_log(player_name)
         if not mod_log:
-            sender.send_message(f"{errorLog()}Player {ColorFormat.YELLOW}{player_name} not found.")
+            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} not found.")
             db.close_connection()
             return False
         # Check if the player is already banned
         if mod_log.is_banned:
-            sender.send_message(f"{modLog()}Player {ColorFormat.YELLOW}{player_name} is already banned.")
+            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} is already banned.")
             db.close_connection()
             return False
 
@@ -48,7 +47,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         duration_number = int(args[1])
         duration_unit = args[2].lower()
     except ValueError:
-        sender.send_message(f"{errorLog()}Invalid duration format. Use an integer followed by a time unit.")
+        sender.send_message(f"Invalid duration format. Use an integer followed by a time unit.")
         return False
 
     # Supported time units
@@ -63,7 +62,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     }
 
     if duration_unit not in time_units:
-        sender.send_message(f"{errorLog()}Invalid time unit. Use: second, minute, hour, day, week, month, year.")
+        sender.send_message(f"Invalid time unit. Use: second, minute, hour, day, week, month, year.")
         return False
 
     ban_duration = time_units[duration_unit]
@@ -77,26 +76,26 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if target:
         # If the player is online, add ban directly
         if db.get_mod_log(target.xuid).is_banned:  # Check if the player is already banned
-            sender.send_message(f"{errorLog()}Player {ColorFormat.YELLOW}{player_name} is already banned.")
+            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} is already banned.")
             db.close_connection()
             return False
         db.add_ban(target.xuid, int(ban_expiration.timestamp()), reason)
         target.kick(message)
-        sender.send_message(f"{modLog()}Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was banned for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}for {ColorFormat.YELLOW}{formatted_expiration}")
+        sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was banned for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}for {ColorFormat.YELLOW}{formatted_expiration}")
     else:
         # If the player is offline, use xuid to ban them
         xuid = db.get_xuid_by_name(player_name)
         if db.get_mod_log(xuid).is_banned:  # Check if the player is already banned
-            sender.send_message(f"{errorLog()}Player {ColorFormat.YELLOW}{player_name} is already banned.")
+            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} is already banned.")
             db.close_connection()
             return False
         db.add_ban(xuid, int(ban_expiration.timestamp()), reason)
-        sender.send_message(f"{modLog()}Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was banned for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}for {ColorFormat.YELLOW}{formatted_expiration} {ColorFormat.GRAY}{ColorFormat.ITALIC}(Offline)")
+        sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was banned for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}for {ColorFormat.YELLOW}{formatted_expiration} {ColorFormat.GRAY}{ColorFormat.ITALIC}(Offline)")
 
     config = load_config()
     mod_log_enabled = config["modules"]["game_logging"]["moderation"]["enabled"]
     if mod_log_enabled:
-        log(self, f"{modLog()}Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was banned by {ColorFormat.YELLOW}{sender.name} {ColorFormat.GOLD}for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}until {ColorFormat.YELLOW}{formatted_expiration}", "mod")
+        log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was banned by {ColorFormat.YELLOW}{sender.name} {ColorFormat.GOLD}for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}until {ColorFormat.YELLOW}{formatted_expiration}", "mod")
 
     db.close_connection()
     return True

@@ -6,7 +6,6 @@ from endstone_primebds.utils.commandUtil import create_command
 from typing import TYPE_CHECKING
 from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.formWrapperUtil import ActionFormResponse, ActionFormData
-from endstone_primebds.utils.prefixUtil import modLog, errorLog
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -46,13 +45,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     page = int(args[1]) if len(args) > 1 and args[1].isdigit() else 1
 
     if page < 1:
-        sender.send_message(f"{errorLog()}Page number must be 1 or higher")
+        sender.send_message(f"Page number must be 1 or higher")
         return False
 
     history_message = db.print_punishment_history(target_name, page)
 
     if not history_message:
-        sender.send_message(f"{modLog()}No punishment history found for {ColorFormat.YELLOW}{target_name}")
+        sender.send_message(f"No punishment history found for {ColorFormat.YELLOW}{target_name}")
         return True
 
     sender.send_message(history_message)
@@ -66,9 +65,9 @@ def clear_all_punishments(self: "PrimeBDS", sender: CommandSender, target_name: 
     success = db.delete_all_punishment_logs_by_name(target_name)
 
     if success:
-        sender.send_message(f"{modLog()}Successfully cleared all punishments for {ColorFormat.YELLOW}{target_name}")
+        sender.send_message(f"Successfully cleared all punishments for {ColorFormat.YELLOW}{target_name}")
     else:
-        sender.send_message(f"{modLog()}Failed to clear punishments for {ColorFormat.YELLOW}{target_name}")
+        sender.send_message(f"Failed to clear punishments for {ColorFormat.YELLOW}{target_name}")
 
     return True
 
@@ -81,7 +80,7 @@ def remove_punishment_by_id(self: "PrimeBDS", sender: CommandSender, target_name
     punish_log = db.get_punishment_logs(target_name)
 
     if not history:
-        sender.send_message(f"{modLog()}No more punishments found for {ColorFormat.YELLOW}{target_name}.")
+        sender.send_message(f"No more punishments found for {ColorFormat.YELLOW}{target_name}.")
         return False
 
     # Create action form with punishments listed as buttons
@@ -109,10 +108,10 @@ def remove_punishment_by_id(self: "PrimeBDS", sender: CommandSender, target_name
 
         if success:
             player.send_message(
-                f"{modLog()}Successfully removed punishment ID {punishment_id} for {ColorFormat.YELLOW}{target_name}")
+                f"Successfully removed punishment ID {punishment_id} for {ColorFormat.YELLOW}{target_name}")
         else:
             player.send_message(
-                f"{errorLog()}Failed to remove punishment ID {punishment_id} for {ColorFormat.YELLOW}{target_name}")
+                f"Failed to remove punishment ID {punishment_id} for {ColorFormat.YELLOW}{target_name}")
 
         remove_punishment_by_id(self, sender, target_name)
 

@@ -4,7 +4,7 @@ from endstone import Player, ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.formWrapperUtil import ActionFormResponse, ActionFormData
-from endstone_primebds.utils.prefixUtil import errorLog
+
 from endstone_primebds.utils.dbUtil import grieflog
 
 from typing import TYPE_CHECKING
@@ -24,7 +24,7 @@ command, permission = create_command(
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if not isinstance(sender, Player):
-        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        sender.send_message(f"This command can only be executed by a player")
         return False
 
     if len(args) < 1:
@@ -38,7 +38,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     playtimes = dbgl.get_all_playtimes()
 
     if not playtimes:
-        sender.send_message(f"{errorLog()}No player playtime data found")
+        sender.send_message(f"No player playtime data found")
         return True
 
     # Sort the playtimes based on the filter type
@@ -64,7 +64,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         # Sort by most recent session's start_time
         sorted_playtimes = sorted(sorted_playtimes, key=lambda x: x['recent_session_start'], reverse=True)
     else:
-        sender.send_message(f"{errorLog()} Invalid filter type. Use 'highest', 'lowest', or 'recent'.")
+        sender.send_message(f" Invalid filter type. Use 'highest', 'lowest', or 'recent'.")
         return True
 
     form = ActionFormData()

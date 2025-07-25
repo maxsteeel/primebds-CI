@@ -1,7 +1,7 @@
 from endstone import Player, boss, ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog
+
 
 from typing import TYPE_CHECKING
 
@@ -29,13 +29,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     global boss_bar_cache
 
     if not isinstance(sender, Player):
-        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        sender.send_message(f"This command can only be executed by a player")
         return False
 
     if args[1] == "remove":
         # Check if there are any boss bars stored
         if not boss_bar_cache:
-            sender.send_message(f"{errorLog()}No active boss bars to remove!")
+            sender.send_message(f"No active boss bars to remove!")
             return False
 
         # Handle boss bar removal
@@ -51,7 +51,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
                 removed_count += 1
 
-            sender.send_message(f"{infoLog()}Removed boss bars from {removed_count} player(s)!")
+            sender.send_message(f"Removed boss bars from {removed_count} player(s)!")
             return True
 
         else:
@@ -64,10 +64,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 if not bar.players:
                     del boss_bar_cache[target]
 
-                sender.send_message(f"{infoLog()}Removed boss bar for {args[0]}!")
+                sender.send_message(f"Removed boss bar for {args[0]}!")
                 return True
             else:
-                sender.send_message(f"{errorLog()}No boss bar found for {args[0]}!")
+                sender.send_message(f"No boss bar found for {args[0]}!")
                 return False
 
     # Parse command arguments
@@ -78,7 +78,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         title = args[4]
         is_dark = bool(args[5]) if len(args) > 5 else False
     except (ValueError, IndexError):
-        sender.send_message(f"{errorLog()}Invalid command usage!")
+        sender.send_message(f"Invalid command usage!")
         return False
 
     # Create boss bar
@@ -106,11 +106,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             bar.add_player(target)
             boss_bar_cache[target] = bar  
         else:
-            sender.send_message(f"{errorLog()}Player {args[0]} not found!")
+            sender.send_message(f"Player {args[0]} not found!")
             return False
 
     if sender != "Server":
-        sender.send_message(f"{infoLog()}{ColorFormat.AQUA}Bossbar Set For {args[0]}:\n"
+        sender.send_message(f"{ColorFormat.AQUA}Bossbar Set For {args[0]}:\n"
                             f"{ColorFormat.DARK_GRAY}---------------\n"
                             f"{ColorFormat.YELLOW}Color: {ColorFormat.RESET}{args[1]}\n"
                             f"{ColorFormat.YELLOW}Progress: {ColorFormat.RESET}{progress}%\n"

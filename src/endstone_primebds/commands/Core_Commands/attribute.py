@@ -1,7 +1,6 @@
 from endstone import Player, ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog
 
 from typing import TYPE_CHECKING
 
@@ -27,7 +26,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if not player:
         # Send error message to the sender
-        sender.send_message(f"{errorLog()}Player {player_name} not found!")
+        sender.send_message(f"Player {player_name} not found!")
         return False
 
     # Handling flyspeed attribute
@@ -36,10 +35,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             new_fly_speed = float(args[2])
             original_fly_speed = player.fly_speed
             player.fly_speed = new_fly_speed
-            player.send_message(f"{infoLog()}Flyspeeed changed: {ColorFormat.RED}{original_fly_speed} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_fly_speed}")
-            sender.send_message(f"{infoLog()}Player {player_name}'s flyspeed changed: {ColorFormat.RED}{original_fly_speed} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_fly_speed}")
+            player.send_message(f"Flyspeeed changed: {ColorFormat.RED}{original_fly_speed} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_fly_speed}")
+            sender.send_message(f"Player {player_name}'s flyspeed changed: {ColorFormat.RED}{original_fly_speed} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_fly_speed}")
         except ValueError:
-            sender.send_message(f"{errorLog()} Invalid fly speed value: {args[2]}")
+            sender.send_message(f" Invalid fly speed value: {args[2]}")
             return False
 
     elif args[1].lower() == "walkspeed":
@@ -47,10 +46,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             new_walk_speed = float(args[2])
             original_walk_speed = player.walk_speed
             player.walk_speed = new_walk_speed
-            player.send_message(f"{infoLog()}Walkspeeed changed: {ColorFormat.RED}{original_walk_speed} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_walk_speed}")
-            sender.send_message(f"{infoLog()}Player {player_name}'s walkspeed changed: {ColorFormat.RED}{original_walk_speed} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_walk_speed}")
+            player.send_message(f"Walkspeeed changed: {ColorFormat.RED}{original_walk_speed} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_walk_speed}")
+            sender.send_message(f"Player {player_name}'s walkspeed changed: {ColorFormat.RED}{original_walk_speed} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_walk_speed}")
         except ValueError:
-            sender.send_message(f"{errorLog()} Invalid fly speed value: {args[2]}")
+            sender.send_message(f" Invalid fly speed value: {args[2]}")
             return False
 
     # Handling fly attribute
@@ -59,10 +58,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             new_fly_state = bool(args[2].lower() == "true")
             original_fly_state = player.is_flying
             player.allow_flight = new_fly_state
-            player.send_message(f"{infoLog()}Fly state changed: {ColorFormat.RED}{original_fly_state} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_fly_state}")
-            sender.send_message(f"{infoLog()}Player {player_name}'s fly state changed: {ColorFormat.RED}{original_fly_state} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_fly_state}")
+            player.send_message(f"Fly state changed: {ColorFormat.RED}{original_fly_state} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_fly_state}")
+            sender.send_message(f"Player {player_name}'s fly state changed: {ColorFormat.RED}{original_fly_state} {ColorFormat.GRAY}-> {ColorFormat.GREEN}{new_fly_state}")
         except ValueError:
-            sender.send_message(f"{errorLog()}Invalid fly state value: {args[2]}")
+            sender.send_message(f"Invalid fly state value: {args[2]}")
             return False
 
     # Return True if the operation was successful

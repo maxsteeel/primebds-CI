@@ -6,7 +6,7 @@ from endstone.command import CommandSender
 
 import endstone_primebds
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog, trailLog
+
 from endstone_primebds.utils.formWrapperUtil import ActionFormData, ActionFormResponse
 
 # Register command
@@ -21,7 +21,7 @@ command, permission = create_command(
 def handler(self, sender: CommandSender, args: list[str]) -> bool:
 
     if not isinstance(sender, Player):
-        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        sender.send_message(f"This command can only be executed by a player")
         return False
 
     current_dir = os.path.dirname(endstone_primebds.__file__)
@@ -34,7 +34,7 @@ def handler(self, sender: CommandSender, args: list[str]) -> bool:
     # Handle Resource Packs
     if "resource" in args or "all" in args:
         if not os.path.exists(RP_PATH):
-            sender.send_message(f"{errorLog()} No resource packs found to update")
+            sender.send_message(f" No resource packs found to update")
             return False
 
         updated_packs = 0
@@ -61,20 +61,20 @@ def handler(self, sender: CommandSender, args: list[str]) -> bool:
                 updated_packs += 1
                 updated_pack_names.append(pack)  # Add the updated pack name to the list
             except Exception as e:
-                sender.send_message(f"{errorLog()} Failed to update {pack}: {e}")
+                sender.send_message(f" Failed to update {pack}: {e}")
                 continue
 
         # Send message with updated pack names
         if updated_packs > 0:
             sender.send_message(
-                f"{infoLog()}Updated {updated_packs} resource pack(s): {', '.join(updated_pack_names)}!\n{ColorFormat.GRAY}{ColorFormat.ITALIC}REQUIRES SERVER RESTART TO APPLY")
+                f"Updated {updated_packs} resource pack(s): {', '.join(updated_pack_names)}!\n{ColorFormat.GRAY}{ColorFormat.ITALIC}REQUIRES SERVER RESTART TO APPLY")
         else:
-            sender.send_message(f"{errorLog()} No resource packs were updated.")
+            sender.send_message(f" No resource packs were updated.")
 
     # Handle Behavior Packs
     if "behavior" in args or "all" in args:
         if not os.path.exists(BP_PATH):
-            sender.send_message(f"{errorLog()} No behavior packs found to update")
+            sender.send_message(f" No behavior packs found to update")
             return False
         else:
             select_pack(sender, BP_PATH)
@@ -84,7 +84,7 @@ def select_pack(sender: CommandSender, path) -> None:
     packs = [pack for pack in os.listdir(path) if os.path.isdir(os.path.join(path, pack))]
 
     if not packs:
-        sender.send_message(f"{errorLog()} No behavior packs found.")
+        sender.send_message(f" No behavior packs found.")
         return
 
     form = ActionFormData()
@@ -112,7 +112,7 @@ def select_dependency(player: Player, result: ActionFormResponse, packs, path):
     manifest_path = os.path.join(path, chosen_pack, "manifest.json")
 
     if not os.path.exists(manifest_path):
-        player.send_message(f"{errorLog()}No manifest file found for {chosen_pack}.")
+        player.send_message(f"No manifest file found for {chosen_pack}.")
         return
 
     try:
@@ -124,7 +124,7 @@ def select_dependency(player: Player, result: ActionFormResponse, packs, path):
         dependencies = manifest.get("dependencies", [])
 
         if not dependencies:
-            player.send_message(f"{errorLog()}No dependencies found for {chosen_pack}.")
+            player.send_message(f"No dependencies found for {chosen_pack}.")
             return
 
         # Create the form to display dependencies
@@ -145,7 +145,7 @@ def select_dependency(player: Player, result: ActionFormResponse, packs, path):
         )
 
     except Exception as e:
-        player.send_message(f"{errorLog()} Failed to load dependencies for {chosen_pack}: {e}")
+        player.send_message(f" Failed to load dependencies for {chosen_pack}: {e}")
 
 def select_version(player: Player, result: ActionFormResponse, dep, manifest_path, chosen_pack, path):
     if result.canceled or int(result.selection) >= len(dep):
@@ -154,7 +154,7 @@ def select_version(player: Player, result: ActionFormResponse, dep, manifest_pat
     # Get the selected dependency
     chosen_dep = dep[result.selection] if result.selection is not None else None
     if not chosen_dep:
-        player.send_message(f"{infoLog()}Action canceled or invalid selection.")
+        player.send_message(f"Action canceled or invalid selection.")
         return
 
     module_name = chosen_dep.get("module_name")
@@ -237,7 +237,7 @@ def select_version(player: Player, result: ActionFormResponse, dep, manifest_pat
                 except Exception as e:
                     print(f"Error reading or writing manifest file: {e}")
 
-                player.send_message(f"{infoLog()}Selected {module_name} - {chosen_version} {ColorFormat.GRAY}({ColorFormat.WHITE}Saved as {ColorFormat.YELLOW}{major_version}{ColorFormat.GRAY})\n{trailLog()}Updated {chosen_pack} {ColorFormat.GRAY}- {ColorFormat.ITALIC}REQUIRES SERVER RESTART TO APPLY")
+                player.send_message(f"Selected {module_name} - {chosen_version} {ColorFormat.GRAY}({ColorFormat.WHITE}Saved as {ColorFormat.YELLOW}{major_version}{ColorFormat.GRAY})\nUpdated {chosen_pack} {ColorFormat.GRAY}- {ColorFormat.ITALIC}REQUIRES SERVER RESTART TO APPLY")
 
         form.show(player).then(
             lambda p=player, result=ActionFormResponse: on_version_selected(p, result)

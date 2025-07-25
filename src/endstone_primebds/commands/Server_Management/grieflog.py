@@ -6,7 +6,6 @@ from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.configUtil import load_config
 from endstone_primebds.utils.dbUtil import grieflog
 from endstone_primebds.utils.loggingUtil import sendgrieflog
-from endstone_primebds.utils.prefixUtil import errorLog, grieflog
 
 from typing import TYPE_CHECKING
 
@@ -28,14 +27,14 @@ command, permission = create_command(
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if not isinstance(sender, Player):
-        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        sender.send_message(f"This command can only be executed by a player")
         return False
 
     config = load_config()
     is_gl_enabled = config["modules"]["grieflog"]["enabled"]
 
     if not is_gl_enabled:
-        sender.send_message(f"{errorLog()}Grief Logger is currently disabled by config")
+        sender.send_message(f"Grief Logger is currently disabled by config")
         return True
 
     if isinstance(sender, Player):
@@ -68,19 +67,19 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             if len(args) == 2 and args[1].lower() == "all":
                 # Clear all logs
                 dbgl.delete_all_logs()
-                sender.send_message(f"{grieflog()}All grief logs have been cleared")
+                sender.send_message(f"All grief logs have been cleared")
                 return True
 
             elif len(args) == 3 and args[1].lower() == "time" and args[2].isdigit():
                 # Clear logs from the last x minutes
                 minutes = int(args[2])
                 logs_cleared = dbgl.delete_logs_within_seconds(int(minutes * 60))
-                sender.send_message(f"{grieflog()}Cleared {logs_cleared} grief logs from the last {minutes} minutes have been cleared")
+                sender.send_message(f"Cleared {logs_cleared} grief logs from the last {minutes} minutes have been cleared")
                 return True
 
             else:
                 # Invalid arguments for flush
-                sender.send_message(f"{errorLog()}Invalid arguments. Usage: /grieflog flush (all|time) [time_in_minutes]")
+                sender.send_message(f"Invalid arguments. Usage: /grieflog flush (all|time) [time_in_minutes]")
                 return True
 
         sender = self.server.get_player(sender.name)
@@ -96,7 +95,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         # If no logs were found
         if not logs:
-            sender.send_message(f"{grieflog()}No grief logs found for the given parameters")
+            sender.send_message(f"No grief logs found for the given parameters")
             return True
 
         sendgrieflog(logs, sender)

@@ -1,7 +1,6 @@
 from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.prefixUtil import errorLog
 
 from typing import TYPE_CHECKING
 
@@ -22,7 +21,7 @@ command, permission = create_command(
 # BOTTOM COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not isinstance(sender, Player):
-        sender.send_error_message(f"{errorLog()}This command can only be executed by a player.")
+        sender.send_error_message(f"This command can only be executed by a player.")
         return False
 
     player = self.server.get_player(sender.name)
@@ -59,7 +58,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     # If no valid air pocket is found, return an error
     if lowest_air_y is None:
-        sender.send_message(f"{errorLog()}No valid air pocket found at this X, Z position.")
+        sender.send_message(f"No valid air pocket found at this X, Z position.")
         return False
 
     # Teleport player to the lowest detected air pocket

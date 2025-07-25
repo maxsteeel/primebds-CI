@@ -1,6 +1,6 @@
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog, trailLog
+
 from endstone_primebds.utils.dbUtil import grieflog
 
 from typing import TYPE_CHECKING
@@ -52,7 +52,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         # Send the total playtime and rank
         sender.send_message(
-            f"{infoLog()}§rYour Playtime: §f{total_playtime_days}d {total_playtime_hours}h {total_playtime_minutes}m {total_playtime_seconds}s §7§o({player_rank}{rank_suffix})§r")
+            f"§rYour Playtime: §f{total_playtime_days}d {total_playtime_hours}h {total_playtime_minutes}m {total_playtime_seconds}s §7§o({player_rank}{rank_suffix})§r")
 
         dbgl.close_connection()
     elif len(args) == 1 and args[0].lower() == 'true':
@@ -61,7 +61,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         leaderboard = dbgl.get_all_playtimes()
         leaderboard = sorted(leaderboard, key=lambda x: x['total_playtime'], reverse=True)
 
-        sender.send_message(f"{infoLog()}§rTop 10 Playtimes on the Server:")
+        sender.send_message(f"§rTop 10 Playtimes on the Server:")
 
         # Show the top 10 players' playtimes
         for index, entry in enumerate(leaderboard[:10]):
@@ -79,12 +79,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             rank_suffix = get_rank_suffix(rank)
 
             sender.send_message(
-                f"{trailLog()}§e{rank}{rank_suffix}. §a{player_name} - §f{total_playtime_days}d {total_playtime_hours}h {total_playtime_minutes}m {total_playtime_seconds}s")
+                f"§e{rank}{rank_suffix}. §a{player_name} - §f{total_playtime_days}d {total_playtime_hours}h {total_playtime_minutes}m {total_playtime_seconds}s")
 
         dbgl.close_connection()
     else:
         # If incorrect arguments are passed
-        sender.send_message(f"{errorLog()}Usage: /playtime [leaderboard]")
+        sender.send_message(f"Usage: /playtime [leaderboard]")
 
     return True
 

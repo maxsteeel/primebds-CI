@@ -4,7 +4,6 @@ from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.configUtil import load_config
 from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.loggingUtil import log
-from endstone_primebds.utils.prefixUtil import modLog
 
 from typing import TYPE_CHECKING
 
@@ -22,7 +21,7 @@ command, permission = create_command(
 # REMOVEBAN COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if len(args) < 1:
-        sender.send_message(f"{modLog()}Usage: /removeban <player>")
+        sender.send_message(f"Usage: /removeban <player>")
         return False
 
     player_name = args[0].strip('"')
@@ -33,7 +32,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if not mod_log or not mod_log.is_banned:
         # Player is not banned, return an error message
-        sender.send_message(f"{modLog()}Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}is not banned")
+        sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}is not banned")
         db.close_connection()
         return False
 
@@ -42,12 +41,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     db.close_connection()
 
     # Notify the sender that the ban has been removed
-    sender.send_message(f"{modLog()}Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}has been unbanned")
+    sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}has been unbanned")
 
     config = load_config()
     mod_log_enabled = config["modules"]["game_logging"]["moderation"]["enabled"]
     if mod_log_enabled:
-        log(self, f"{modLog()}Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was unbanned by {ColorFormat.YELLOW}{sender.name}", "mod")
+        log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was unbanned by {ColorFormat.YELLOW}{sender.name}", "mod")
 
     return True
 

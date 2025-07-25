@@ -8,7 +8,6 @@ from endstone_primebds.utils.formWrapperUtil import (
 )
 
 from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.prefixUtil import infoLog
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -36,10 +35,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     # Validate sender eligibility based on config
     if check_gamemode and sender.game_mode != GameMode.SPECTATOR:
-        sender.send_message(f"{infoLog()}You are not currently a spectator!")
+        sender.send_message(f"You are not currently a spectator!")
         return True
     if check_tags and not any(tag in sender.scoreboard_tags for tag in dead_tags):
-        sender.send_message(f"{infoLog()}You are not currently a spectator!")
+        sender.send_message(f"You are not currently a spectator!")
         return True
 
     def is_valid_spectate_target(player: Player) -> bool:
@@ -71,13 +70,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                         if 0 <= selected_index < len(players_to_spectate):
                             warp_player(player, players_to_spectate[selected_index])
                         else:
-                            player.send_message(f"{infoLog()}Invalid selection.")
+                            player.send_message(f"Invalid selection.")
                     except ValueError:
-                        player.send_message(f"{infoLog()}Invalid selection index.")
+                        player.send_message(f"Invalid selection index.")
 
             form.show(sender).then(lambda player=sender, result=ActionFormResponse: submit(player, result))
         else:
-            sender.send_message(f"{infoLog()}No players available to spectate.")
+            sender.send_message(f"No players available to spectate.")
         return True
     else:
         # Direct teleport logic
@@ -85,7 +84,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         target = self.server.get_player(target_name)
 
         if target is None or not is_valid_spectate_target(target):
-            sender.send_message(f"{infoLog()}Player {target_name} is not available to spectate.")
+            sender.send_message(f"Player {target_name} is not available to spectate.")
             return False
 
         warp_player(sender, target)
@@ -97,4 +96,4 @@ def warp_player(sender: Player, target: Player):
     # GameMode.SPECTATOR
     sender.game_mode = GameMode.SPECTATOR
     sender.teleport(target.location)
-    sender.send_message(f"{infoLog()}Now spectating {target.name_tag}")
+    sender.send_message(f"Now spectating {target.name_tag}")

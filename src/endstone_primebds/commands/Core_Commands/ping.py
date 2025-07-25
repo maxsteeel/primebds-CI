@@ -1,7 +1,6 @@
 from endstone import Player, ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.prefixUtil import infoLog, trailLog
 
 from typing import TYPE_CHECKING
 
@@ -26,7 +25,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         target = sender
         ping = target.ping
         sender.send_message(
-            f"{infoLog()}Your ping is {get_ping_color(ping)}{ping}{ColorFormat.RESET}ms"
+            f"Your ping is {get_ping_color(ping)}{ping}{ColorFormat.RESET}ms"
         )
         return True
 
@@ -36,14 +35,14 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         # Fetch and display all players' pings
         players = self.server.online_players
         if not players:
-            sender.send_message(f"{infoLog()}No players are online.")
+            sender.send_message(f"No players are online.")
             return True
 
         ping_list = [
-            f"{trailLog()}{player.name}: {get_ping_color(player.ping)}{player.ping}{ColorFormat.RESET}ms"
+            f"{player.name}: {get_ping_color(player.ping)}{player.ping}{ColorFormat.RESET}ms"
             for player in players
         ]
-        sender.send_message(f"{infoLog()}Online Players' Pings:\n" + "\n".join(ping_list))
+        sender.send_message(f"Online Players' Pings:\n" + "\n".join(ping_list))
         return True
 
     # Handle single player lookup
@@ -54,7 +53,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     ping = target.ping
     sender.send_message(
-        f"{infoLog()}The ping of {target.name} is {get_ping_color(ping)}{ping}{ColorFormat.RESET}ms"
+        f"The ping of {target.name} is {get_ping_color(ping)}{ping}{ColorFormat.RESET}ms"
     )
     return True
 

@@ -2,7 +2,7 @@ import time
 from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog, trailLog
+
 from endstone_primebds.utils.dbUtil import grieflog, UserDB
 from endstone_primebds.utils.timeUtil import TimezoneUtils
 from typing import TYPE_CHECKING
@@ -22,11 +22,11 @@ SESSIONS_PER_PAGE = 5
 
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not isinstance(sender, Player):
-        sender.send_message(f"{errorLog()}This command can only be executed by a player")
+        sender.send_message(f"This command can only be executed by a player")
         return False
         
     if len(args) < 1:
-        sender.sendMessage(f"{errorLog()} Usage: /activity <player> [page: int]")
+        sender.sendMessage(f" Usage: /activity <player> [page: int]")
         return True
 
     player_name = args[0]
@@ -40,20 +40,20 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     db.close_connection()
 
     if not xuid:
-        sender.send_message(f"{errorLog()}No session history found for {player_name}")
+        sender.send_message(f"No session history found for {player_name}")
         return True
 
     # Fetch all user sessions
     sessions = dbgl.get_user_sessions(xuid)
     if not sessions:
-        sender.send_message(f"{errorLog()}No session history found for {player_name}")
+        sender.send_message(f"No session history found for {player_name}")
         return True
 
     total_playtime_seconds = dbgl.get_total_playtime(xuid)
-    sender.send_message(f"{infoLog()} §rSession History for {player_name} (Page {page}):")
+    sender.send_message(f" §rSession History for {player_name} (Page {page}):")
 
     playtime_str = format_time(total_playtime_seconds)
-    sender.send_message(f"{trailLog()} §eTotal Playtime: §f{playtime_str}")
+    sender.send_message(f" §eTotal Playtime: §f{playtime_str}")
 
     sessions.sort(key=lambda s: s['start_time'], reverse=True)
 
@@ -68,7 +68,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if active_session:
         start_time = TimezoneUtils.convert_to_timezone(active_session['start_time'], 'EST')
         active_seconds = int(time.time() - active_session['start_time'])
-        sender.send_message(f"{trailLog()} §a{start_time}§7 - §aActive Now §f(+{format_time(active_seconds)})")
+        sender.send_message(f" §a{start_time}§7 - §aActive Now §f(+{format_time(active_seconds)})")
 
     # Paginate session history
     total_pages = (len(sessions) + SESSIONS_PER_PAGE - 1) // SESSIONS_PER_PAGE
@@ -80,10 +80,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         start_time = TimezoneUtils.convert_to_timezone(session['start_time'], 'EST')
         end_time = TimezoneUtils.convert_to_timezone(session['end_time'], 'EST')
         duration_text = f"§f({format_time(session['duration'])})"
-        sender.send_message(f"{trailLog()} §a{start_time}§7 - §c{end_time} {duration_text}")
+        sender.send_message(f" §a{start_time}§7 - §c{end_time} {duration_text}")
 
     if page < total_pages:
-        sender.send_message(f"{trailLog()} §eUse '/activity {player_name} {page + 1}' for more.")
+        sender.send_message(f" §eUse '/activity {player_name} {page + 1}' for more.")
 
     dbgl.close_connection()
     return True

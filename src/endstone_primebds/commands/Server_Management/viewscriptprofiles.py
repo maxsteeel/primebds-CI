@@ -6,7 +6,7 @@ import platform
 from endstone import Player, ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog
+
 from endstone_primebds.utils.formWrapperUtil import (
     ActionFormData,
     ActionFormResponse,
@@ -74,7 +74,7 @@ def open_profiles_menu(sender: Player):
     profile_files = list_profiles()
 
     if not profile_files:
-        sender.send_message(f"{infoLog()}No profile files found.")
+        sender.send_message(f"No profile files found.")
         return
 
     form = ActionFormData()
@@ -97,9 +97,9 @@ def open_profiles_menu(sender: Player):
                     profile_path = profile_files[selected_index]
                     open_profile_text(player, profile_path)
                 else:
-                    player.send_message(f"{infoLog()}Invalid selection.")
+                    player.send_message(f"Invalid selection.")
             except ValueError:
-                player.send_message(f"{infoLog()}Invalid selection index.")
+                player.send_message(f"Invalid selection index.")
 
     form.show(sender).then(lambda player=sender, result=ActionFormResponse: submit(player, result))
 
@@ -126,7 +126,7 @@ def open_profile_text(player: Player, profile_path: str):
                 return True
 
     except Exception as e:
-        player.send_message(f"{errorLog()}Failed to open the profile: {str(e)}")
+        player.send_message(f"Failed to open the profile: {str(e)}")
 
 def generate_readable_text(node_data):
     """Generate a readable text representation of the node data with Minecraft color codes, sorted by hit count,
