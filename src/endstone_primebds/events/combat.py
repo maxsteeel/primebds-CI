@@ -71,7 +71,8 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
     source = ev.source
     source_player = self.server.get_player(source.name) if hasattr(source, "name") and source.name else None
     entity_key = f"{ev.actor.type}:{ev.actor.id}"
-    last_hit_type = self.entity_last_hit[entity_key]
+    last_hit_type = self.entity_last_hit.get(entity_key)
+    tags = getattr(source_player, "scoreboard_tags", [])
 
     if last_hit_type == "projectile":
         horizontal_proj_kb = get_custom_tag(config, tags, "projectiles.horizontal_knockback_modifier")
@@ -100,8 +101,6 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
 
         ev.knockback = Vector(newx, abs(newy), newz)
         return
-
-    tags = getattr(source_player, "scoreboard_tags", [])
 
     kb_h_modifier = get_custom_tag(config, tags, "horizontal_knockback_modifier")
     kb_v_modifier = get_custom_tag(config, tags, "vertical_knockback_modifier")

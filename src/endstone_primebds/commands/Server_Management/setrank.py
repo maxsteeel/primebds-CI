@@ -1,4 +1,4 @@
-from endstone import Player, ColorFormat
+from endstone import ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.dbUtil import UserDB

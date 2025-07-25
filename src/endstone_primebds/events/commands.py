@@ -15,6 +15,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
     command = event.command
     player = event.player
     args = command.split()
+    cmd = args[0].lstrip("/").lower() if args else ""
 
     config = load_config()
     if config["modules"]["game_logging"]["commands"]["enabled"]:
@@ -23,15 +24,10 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         discordRelay(f"**{player.name}** ran: {command}", "cmd")
 
     # /me Crasher Fix
-    if (args and args[0].lstrip("/").lower() == "me"
-            and args[0].lstrip("/").lower() == "tell"
-            and args[0].lstrip("/").lower() == "w"
-            and args[0].lstrip("/").lower() == "msg"
-            and command.count("@e") >= 5):
-        event.player.add_attachment(self, "minecraft.command.me", False)
-        event.player.add_attachment(self, "minecraft.command.tell", False)
-        event.player.add_attachment(self, "minecraft.command.w", False)
-        event.player.add_attachment(self, "minecraft.command.msg", False)
+    blocked_cmds = {"me", "tell", "w", "msg"}
+    if cmd in blocked_cmds and command.count("@e") >= 5:
+        for perm in ["minecraft.command.me", "minecraft.command.tell", "minecraft.command.w", "minecraft.command.msg"]:
+            event.player.add_attachment(self, perm, False)
         event.is_cancelled = True
 
         # Log the staff message
@@ -42,25 +38,25 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                 log(self, f"Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was kicked due to {ColorFormat.YELLOW}Crasher Exploit", "mod")
                 player.kick("Crasher Detected")
 
+    if any("@e" in arg for arg in args):
+        player.send_message(f"§cSelector must be player-type")
+        event.is_cancelled = True
+        return False
+
     # Internal Permissions Handler
     db = UserDB("users.db")
     if ((db.get_online_user(player.xuid).internal_rank == "Operator" and not player.has_permission("minecraft.kick")) or
             (db.get_online_user(player.xuid).internal_rank == "Default" and player.is_op) or not player.has_permission("primebds.command.refresh")):
         self.reload_custom_perms(player)
 
-    if args and len(args) > 0 and args[0].lstrip("/").lower() in moderation_commands \
-            or (len(args) > 0 and args[0].lstrip("/").lower() == "kick"): # Edge case for kick
+    if args and len(args) > 0 and cmd in moderation_commands \
+            or (len(args) > 0 and cmd == "kick"): # Edge case for kick
 
-        if args[0].lstrip("/").lower() == "punishments":
+        if cmd == "punishments":
             return True
 
         if len(args) < 2:
             player.send_message(f"Invalid usage: Not enough arguments")
-            event.is_cancelled = True
-            return False
-
-        if any("@" in arg for arg in args):
-            player.send_message(f"Invalid argument: @ symbols are not allowed for managed commands")
             event.is_cancelled = True
             return False
 
@@ -93,16 +89,18 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                     event.player.send_message(
                         f"Player {ColorFormat.YELLOW}{target.name} {ColorFormat.GOLD}has higher permissions")
 
-    elif args and args[0].lstrip("/").lower() == "ban" or args[0].lstrip("/").lower() == "unban" or args[0].lstrip("/").lower() == "pardon":
+    elif args and cmd == "ban" or cmd == "unban" or cmd == "pardon":
         player.send_message(f"Hardcoded Endstone Moderation Commands are disabled by primebds")
         event.is_cancelled = True
         return False
-    elif args and args[0].lstrip("/").lower() == "op": # Disabled to handle PrimeBDS rank system
+    elif args and cmd == "op":
         self.server.dispatch_command(self.server.command_sender, f"setrank \"{args[1]}\" operator")
+        self.server.dispatch_command(self.server.command_sender, f"op \"{args[1]}\"")
         event.is_cancelled = True
         return False
-    elif args and args[0].lstrip("/").lower() == "deop":
+    elif args and cmd == "deop":
         self.server.dispatch_command(self.server.command_sender, f"setrank \"{args[1]}\" default")
+        self.server.dispatch_command(self.server.command_sender, f"deop \"{args[1]}\"")
         event.is_cancelled = True
         return False
 
@@ -113,16 +111,20 @@ def handle_server_command_preprocess(self: "PrimeBDS", event: ServerCommandEvent
     player = event.sender
     args = command.split()
 
-    if args and args[0].lstrip("/").lower() == "ban" or args[0].lstrip("/").lower() == "unban" or args[0].lstrip(
+    cmd = args[0].lstrip("/").lower() if args else ""
+
+    if args and cmd == "ban" or cmd == "unban" or args[0].lstrip(
             "/").lower() == "pardon":
         player.send_message(f"Hardcoded Endstone Moderation Commands are disabled by primebds\nPlease use \"permban\" or \"removeban\"")
         event.is_cancelled = True
         return False
-    elif args and args[0].lstrip("/").lower() == "op":  # Disabled to handle PrimeBDS rank system
+    elif args and cmd == "op":
         self.server.dispatch_command(self.server.command_sender, f"setrank \"{args[1]}\" operator")
+        self.server.dispatch_command(self.server.command_sender, f"op \"{args[1]}\"")
         event.is_cancelled = True
         return False
-    elif args and args[0].lstrip("/").lower() == "deop":
+    elif args and cmd == "deop":
         self.server.dispatch_command(self.server.command_sender, f"setrank \"{args[1]}\" default")
+        self.server.dispatch_command(self.server.command_sender, f"drop \"{args[1]}\"")
         event.is_cancelled = True
         return False

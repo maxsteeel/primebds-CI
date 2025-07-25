@@ -1,44 +1,31 @@
 from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
 
 from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
 # Register command
 command, permission = create_command(
     "gms",
-    "Sets your game mode to survival!",
-    ["/gms [player: player]", "/gms (all)[selector: All]"],
+    "Sets your game mode to adventure!",
+    ["/gms [player: player]"],
     ["primebds.command.gms"]
 )
 
-# GMS COMMAND FUNCTIONALITY
+# GMA COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if len(args) == 0:
         if not isinstance(sender, Player):
-            sender.send_message(f"This command can only be executed by a player")
+            sender.send_message("This command can only be executed by a player")
             return False
-        target = self.server.get_player(sender.name)
-        target.perform_command("gamemode s @s")
+        sender.perform_command("gamemode s @s")
+        return True
 
-    elif len(args) == 1:
-        target_name = args[0].lower()
-
-        if target_name == "all":
-            sender.perform_command("gamemode s @a")
-
-        else:
-            target = self.server.get_player(target_name)
-            if target:
-                sender.perform_command(f"gamemode s {target_name}")
-            else:
-                sender.send_message(f"Player {target_name} not found.")
-
-    else:
-        sender.send_error_message(f"Invalid arguments. Usage: /gms [player] or /gms [all]")
-        return False
+    targets = get_matching_actors(self, args[0], sender)
+    for target in targets:
+        sender.perform_command(f"gamemode s {target.name}")
 
     return True

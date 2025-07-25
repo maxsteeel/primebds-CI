@@ -21,7 +21,7 @@ command, permission = create_command(
     "alist",
     "Manages server access!",
     ["/alist", "/alist (list|check|profiles)<allowlist_sub: allowlist_list>",
-     "/alist (add|remove)<allowlist_sub: allowlist_sub_action> <player: player> [ignore_max_player_limit: bool]",
+     "/alist (add|remove)<allowlist_sub: allowlist_sub_action> <player: string> [ignore_max_player_limit: bool]",
      "/alist (create|use|delete)<allowlist: allowlist_action> <name: string>"],
     ["primebds.command.alist"],
     "op",
