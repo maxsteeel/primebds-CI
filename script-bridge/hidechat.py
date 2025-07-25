@@ -1,7 +1,6 @@
 from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.prefixUtil import infoLog, errorLog
 
 from typing import TYPE_CHECKING
 
