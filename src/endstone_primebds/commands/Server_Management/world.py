@@ -3,7 +3,7 @@ import os
 from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.configUtil import load_config
+from endstone_primebds.utils.configUtil import load_config, find_and_load_config
 
 from typing import TYPE_CHECKING
 
@@ -71,14 +71,16 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     elif subaction == "list":
 
         start_path = os.path.dirname(os.path.abspath(__file__))
-        result = find_main_files(start_path)
-        config = result["config"]
-        server_properties = result["server_properties"]
+        config = find_and_load_config("primebds_data/config.json", start_path)
+        server_properties = find_and_load_config("server.properties", start_path)
+
+        if config is None or server_properties is None:
+            send_feedback("[PrimeBDS] Unable to locate config list")
+            return False
 
         main_port = int(server_properties.get("server-port", 19132))
         current_world = self.server.level.name
 
-        config = load_config()
         multiworld = config["modules"].get("multiworld", {})
         worlds = multiworld.get("worlds", {})
 
@@ -116,9 +118,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         # Load config and server.properties references
         start_path = os.path.dirname(os.path.abspath(__file__))
-        result = find_main_files(start_path)
-        config = result["config"]
-        server_properties = result["server_properties"]
+        config = find_and_load_config("primebds_data/config.json", start_path)
+        server_properties = find_and_load_config("server.properties", start_path)
+
+        if config is None or server_properties is None:
+            send_feedback("[PrimeBDS] Unable to locate config list")
+            return False
 
         # Main world IP and port defaults
         main_port = int(server_properties.get("server-port", 19132))
@@ -166,75 +171,4 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     else:
         send_feedback(f"[PrimeBDS] Unknown subaction '{subaction}'.")
         return False
-
-# Stupidly complex file searching system to find the right config.json path
-def find_main_files(start_path=None, max_depth=20):
-    """
-    Walks up the directory tree from start_path (or CWD) to find the topmost:
-    - 'plugins/primebds_data/config.json'
-    - '<root>/server.properties' (assumed just above plugins dir)
-
-    If multiworld is true in a config, use it. Otherwise, keep going up.
-
-    Returns a dict:
-        {
-            "config": dict or None,
-            "server_properties": dict or None,
-        }
-    """
-    if start_path is None:
-        start_path = os.getcwd()
-
-    current_path = os.path.abspath(start_path)
-    config_path = None
-    depth = 0
-
-    while depth < max_depth:
-        plugins_path = os.path.join(current_path, "plugins")
-        candidate_config = os.path.join(plugins_path, "primebds_data", "config.json")
-
-        if os.path.isfile(candidate_config):
-            try:
-                with open(candidate_config, "r", encoding="utf-8") as f:
-                    config = json.load(f)
-                    if config.get("multiworld", False):
-                        config_path = candidate_config
-                        break
-                    else:
-                        config_path = candidate_config  # Store it but keep going
-            except Exception as e:
-                print(f"[PrimeBDS] Failed to load config at {candidate_config}: {e}")
-
-        parent = os.path.dirname(current_path)
-        if parent == current_path:  # Reached filesystem root
-            break
-
-        current_path = parent
-        depth += 1
-
-    final_config = None
-    server_properties = None
-
-    if config_path:
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                final_config = json.load(f)
-        except Exception as e:
-            print(f"[PrimeBDS] Failed to load config: {e}")
-
-        root_dir = os.path.abspath(os.path.join(os.path.dirname(config_path), "..", ".."))
-        candidate_properties = os.path.join(root_dir, "server.properties")
-
-        if os.path.isfile(candidate_properties):
-            try:
-                with open(candidate_properties, "r", encoding="utf-8") as f:
-                    lines = [line.strip() for line in f if "=" in line and not line.strip().startswith("#")]
-                    server_properties = dict(line.split("=", 1) for line in lines)
-            except Exception as e:
-                print(f"[PrimeBDS] Failed to load server.properties: {e}")
-
-    return {
-        "config": final_config,
-        "server_properties": server_properties,
-    }
 
