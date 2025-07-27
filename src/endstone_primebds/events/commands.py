@@ -38,11 +38,6 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                 log(self, f"Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was kicked due to {ColorFormat.YELLOW}Crasher Exploit", "mod")
                 player.kick("Crasher Detected")
 
-    if any("@e" in arg for arg in args):
-        player.send_message(f"§cSelector must be player-type")
-        event.is_cancelled = True
-        return False
-
     # Internal Permissions Handler
     db = UserDB("users.db")
     if ((db.get_online_user(player.xuid).internal_rank == "Operator" and not player.has_permission("minecraft.kick")) or
