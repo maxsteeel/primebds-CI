@@ -17,7 +17,9 @@ command, permission = create_command(
     "check",
     "Checks a player's client info!",
     ["/check <player: player>"],
-    ["primebds.command.check"]
+    ["primebds.command.check"],
+    "op",
+    ["seen"]
 )
 
 # CHECK COMMAND FUNCTIONALITY
@@ -80,17 +82,15 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     # Format and send the message
     sender.send_message(f"""{ColorFormat.AQUA}Player Information:
-{ColorFormat.DARK_GRAY}---------------
-{ColorFormat.YELLOW}Name: {ColorFormat.WHITE}{name} {ColorFormat.GRAY}[{status}{ColorFormat.GRAY}]
-{ColorFormat.YELLOW}XUID: {ColorFormat.WHITE}{xuid}
-{ColorFormat.YELLOW}UUID: {ColorFormat.WHITE}{uuid}
-{ColorFormat.YELLOW}Internal Rank: {ColorFormat.WHITE}{rank}
-{ColorFormat.YELLOW}Device OS: {ColorFormat.WHITE}{device}
-{ColorFormat.YELLOW}Client Version: {ColorFormat.WHITE}{version}
-{ColorFormat.YELLOW}Ping: {ColorFormat.WHITE}{ping}
-{ColorFormat.YELLOW}Last Join: {ColorFormat.WHITE}{join_time}
-{ColorFormat.YELLOW}Last Leave: {ColorFormat.WHITE}{leave_time_str}
-{ColorFormat.DARK_GRAY}---------------
+§7- {ColorFormat.YELLOW}Name: {ColorFormat.WHITE}{name} {ColorFormat.GRAY}[{status}{ColorFormat.GRAY}]
+§7- {ColorFormat.YELLOW}XUID: {ColorFormat.WHITE}{xuid}
+§7- {ColorFormat.YELLOW}UUID: {ColorFormat.WHITE}{uuid}
+§7- {ColorFormat.YELLOW}Internal Rank: {ColorFormat.WHITE}{rank}
+§7- {ColorFormat.YELLOW}Device OS: {ColorFormat.WHITE}{device}
+§7- {ColorFormat.YELLOW}Client Version: {ColorFormat.WHITE}{version}
+§7- {ColorFormat.YELLOW}Ping: {ColorFormat.WHITE}{ping}
+§7- {ColorFormat.YELLOW}Last Join: {ColorFormat.WHITE}{join_time}
+§7- {ColorFormat.YELLOW}Last Leave: {ColorFormat.WHITE}{leave_time_str}
 """)
 
     return True
