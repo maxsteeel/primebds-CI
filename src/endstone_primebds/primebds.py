@@ -39,7 +39,7 @@ from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, Play
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, BlockBreakEvent, BlockPlaceEvent,
                             PlayerInteractEvent, ActorDamageEvent, ActorKnockbackEvent)
 from endstone_primebds.handlers.chat import handle_chat_event
-from endstone_primebds.handlers.commands import handle_command_preprocess, handle_server_command_preprocess
+from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
 from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event
 from endstone_primebds.handlers.grieflog import handle_block_break, handle_player_interact, handle_block_place
 from endstone_primebds.handlers.combat import handle_kb_event, handle_damage_event
