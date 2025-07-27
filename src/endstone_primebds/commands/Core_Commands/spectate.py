@@ -7,6 +7,7 @@ from endstone_primebds.utils.formWrapperUtil import (
     ActionFormResponse,
 )
 
+from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
 from endstone_primebds.utils.configUtil import load_config
 
 if TYPE_CHECKING:
@@ -24,8 +25,8 @@ command, permission = create_command(
 # SPECTATE COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
-    if any("@" in arg for arg in args):
-        sender.send_message(f"§c@ selectors are invalid for this command")
+    if any("@a" in arg for arg in args):
+        sender.send_message(f"§cYou cannot select all players for this command")
         return False
 
     config = load_config()
@@ -84,17 +85,16 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message(f"No players available to spectate.")
         return True
     else:
-        # Direct teleport logic
-        target_name = args[0]
-        target = self.server.get_player(target_name)
-
-        if target is None or not is_valid_spectate_target(target):
-            sender.send_message(f"Player {target_name} is not available to spectate.")
-            return False
-
-        warp_player(sender, target)
+        targets = get_matching_actors(self.server, args[0])
+        if len(targets) == 1:
+            target = targets[0]
+            if target is None or not is_valid_spectate_target(target):
+                sender.send_message(f"Player {target} is not available to spectate.")
+                return False
+            warp_player(sender, target)
+        else:
+            sender.send_message(f"Unable to find target player")
         return True
-
 
 def warp_player(sender: Player, target: Player):
     """Warp the sender to the target player."""
