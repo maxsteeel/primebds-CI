@@ -60,7 +60,7 @@ def run_checks(self: "PrimeBDS"):
                     if player not in confirmed_afk:
                         if config["modules"]["check_afk"]["kick"]:
                             log(self, f"Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was kicked for AFK", "mod")
-                            player.kick(f"{ColorFormat.RED}Detected: AFK")
+                            player.kick(f"{ColorFormat.RED}You were kicked for being AFK!")
                             remove_from_saved_areas(self, player)
                         else:
                             log(self, f"Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was detected to be AFK", "mod")
