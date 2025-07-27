@@ -1,8 +1,7 @@
-import socket
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
-
+from endstone_primebds.utils.addressUtil import is_valid_ip, is_valid_port
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -40,16 +39,3 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         target.transfer(ip, port)
 
     return True
-
-def is_valid_ip(ip: str) -> bool:
-    try:
-        socket.inet_aton(ip)
-        return True
-    except socket.error:
-        return False
-
-def is_valid_port(port_str: str) -> bool:
-    if not port_str.isdigit():
-        return False
-    port = int(port_str)
-    return 1 <= port <= 65535

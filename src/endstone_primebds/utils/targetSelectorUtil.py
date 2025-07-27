@@ -39,6 +39,7 @@ def parse_selector(selector: str) -> dict | None:
 
     return {"type": selector_type, "args": args}
 
+# Heavily commenting this because it's gonna get BIG
 def get_matching_actors(self: "PrimeBDS", selector: str, origin: Player):
     """
     Returns a list of actors that match the target selector or player name.
@@ -63,7 +64,7 @@ def get_matching_actors(self: "PrimeBDS", selector: str, origin: Player):
 
     selector_type = parsed["type"]
     args = parsed["args"]
-    origin_loc = origin.location
+    origin_loc = getattr(origin, "location", None) or Vector(0, 0, 0) # Safe grab due to possibility of server close
 
     result = []
 

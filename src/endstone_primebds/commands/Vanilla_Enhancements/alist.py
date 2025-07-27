@@ -33,6 +33,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if len(args) == 0:
         sender.send_message(f"Usage: /alist <add|remove|list> [name]")
         return True
+    
+    if any("@" in arg for arg in args):
+        sender.send_message(f"§cTarget selectors are invalid for this command")
+        return False
 
     subcommand = args[0].lower()
 
