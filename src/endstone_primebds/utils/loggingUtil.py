@@ -151,10 +151,17 @@ def show_page(current_page, logs, total_pages, sender, logs_per_page):
         action = log['action']
         timestamp = log['timestamp']
         location = log['location']
+        dim = log['dim']
+
         formatted_time = TimezoneUtils.convert_to_timezone(timestamp, 'EST')
 
+        if dim != None:
+            dim = f'/ {ColorFormat.YELLOW}{dim}{ColorFormat.RESET}'
+        else:
+            dim = ''
+
         # Start building the log text
-        log_text += f"{ColorFormat.RESET}User: {ColorFormat.AQUA}{player_name}\n{ColorFormat.RESET}Action: {ColorFormat.GREEN}{action}\n{ColorFormat.RESET}Location: {ColorFormat.YELLOW}{location}\n{ColorFormat.RESET}Time: {ColorFormat.RED}{formatted_time}\n"
+        log_text += f"{ColorFormat.RESET}User: {ColorFormat.AQUA}{player_name}\n{ColorFormat.RESET}Action: {ColorFormat.GREEN}{action}\n{ColorFormat.RESET}Location: {ColorFormat.YELLOW}{location} {ColorFormat.RESET}{dim}\n{ColorFormat.RESET}Time: {ColorFormat.RED}{formatted_time}\n"
 
         if 'block_type' in log:
             block_type = log['block_type']

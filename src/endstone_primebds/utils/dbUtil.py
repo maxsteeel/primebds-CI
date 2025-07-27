@@ -2,7 +2,7 @@ import os
 import sqlite3
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Tuple, Any, Dict, Optional
 from endstone import ColorFormat
 from endstone.util import Vector
@@ -28,6 +28,7 @@ class User:
     last_leave: int
     internal_rank: str
     enabled_logs: str
+    is_afk: bool
 
 @dataclass
 class ModLog:
@@ -58,6 +59,7 @@ class GriefAction:
     xuid: str
     action: str
     location: str
+    dim: str
     timestamp: int
     block_type: str
     block_state: str
@@ -82,12 +84,37 @@ class DatabaseManager:
         self.conn.commit()
 
     def insert(self, table_name: str, data: Dict[str, Any]):
-        """Insert a row into the table."""
+        """Insert a row into the table, adding missing columns automatically."""
+
+        self.cursor.execute(f"PRAGMA table_info({table_name})")
+        existing_columns = {row[1] for row in self.cursor.fetchall()}  # column names set
+
+        for col in data.keys():
+            if col not in existing_columns:
+                value = data[col]
+                if isinstance(value, int):
+                    col_type = "INTEGER"
+                    default = 0
+                elif isinstance(value, float):
+                    col_type = "REAL"
+                    default = 0.0
+                elif isinstance(value, bool):
+                    col_type = "INTEGER"
+                    default = 0
+                else:
+                    col_type = "TEXT"
+                    default = "''"
+
+                alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col} {col_type} DEFAULT {default}"
+                self.cursor.execute(alter_sql)
+                self.conn.commit()
+
         columns = ', '.join(data.keys())
         placeholders = ', '.join(['?' for _ in data.values()])
         query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
         self.cursor.execute(query, tuple(data.values()))
         self.conn.commit()
+
 
     def fetch_all(self, table_name: str) -> List[Dict[str, Any]]:
         """Fetch all rows from a table."""
@@ -140,7 +167,8 @@ class UserDB(DatabaseManager):
             'last_join': 'INTEGER',
             'last_leave': 'INTEGER',
             'internal_rank': 'TEXT',
-            'enabled_logs': 'INTEGER'
+            'enabled_logs': 'INTEGER',
+            'is_afk': 'INTEGER'
         }
         self.create_table('users', user_info_columns)
 
@@ -201,7 +229,8 @@ class UserDB(DatabaseManager):
                 'last_join': last_join,
                 'last_leave': last_leave,
                 'internal_rank': internal_rank,
-                'enabled_logs': 1
+                'enabled_logs': 1,
+                'is_afk': 0
             }
 
             mod_data = {
@@ -230,7 +259,8 @@ class UserDB(DatabaseManager):
                 'name': name,
                 'ping': ping,
                 'device_os': device,
-                'client_ver': client_ver
+                'client_ver': client_ver,
+                'is_afk': 0
             }
 
             self.update('users', updates, condition, params)
@@ -656,6 +686,7 @@ class grieflog(DatabaseManager):
             'x': 'REAL',
             'y': 'REAL',
             'z': 'REAL',
+            'dim': 'TEXT',
             'timestamp': 'INTEGER',
             'block_type': 'TEXT',
             'block_state': 'TEXT'
@@ -676,6 +707,18 @@ class grieflog(DatabaseManager):
         self.create_table('actions_log', action_log_columns)
         self.create_table('sessions_log', session_log_columns)
         self.create_table('user_toggles', user_toggle_columns)  
+
+    def get_latest_logout(self, player_name: str) -> dict | None:
+        self.cursor.execute("""
+            SELECT * FROM actions_log
+            WHERE name = ? AND action = 'Logout'
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """, (player_name,))
+        row = self.cursor.fetchone()
+        if not row:
+            return None
+        return dict(zip([desc[0] for desc in self.cursor.description], row))
 
     def set_user_toggle(self, xuid: str, name: str):
         """Toggles the inspect mode for a player."""
@@ -723,88 +766,45 @@ class grieflog(DatabaseManager):
 
         return result
 
-    def get_logs_by_coordinates(self, x: float, y: float, z: float, player_name: str = None) -> list[dict]:
-        """Returns logs based on coordinates and an optional player name filter."""
-        query = "SELECT * FROM actions_log WHERE x = ? AND y = ? AND z = ?"
-        params = [x, y, z]  
+    def fetch_all_as_dicts(self, query: str, params: tuple = ()) -> list[dict]:
+        """Helper to run a query and return list of dicts keyed by column name."""
+        self.cursor.execute(query, params)
+        rows = self.cursor.fetchall()
 
+        self.cursor.execute("PRAGMA table_info(actions_log);")
+        columns = [col[1] for col in self.cursor.fetchall()]
+
+        result = []
+        for row in rows:
+            row_dict = {columns[i]: row[i] for i in range(len(columns))}
+            if 'x' in columns and 'y' in columns and 'z' in columns:
+                row_dict['location'] = f"{row_dict['x']},{row_dict['y']},{row_dict['z']}"
+            result.append(row_dict)
+
+        return result
+
+    def get_logs_by_coordinates(self, x: float, y: float, z: float, player_name: str = None) -> list[dict]:
+        query = "SELECT * FROM actions_log WHERE x = ? AND y = ? AND z = ?"
+        params = (x, y, z)
         if player_name:
             query += " AND name = ?"
-            params.append(player_name)
-
-        self.cursor.execute(query, tuple(params))
-        logs = self.cursor.fetchall()
-
-        result = []
-        for log in logs:
-            result.append({
-                'id': log[0],
-                'xuid': log[1],
-                'name': log[2],
-                'action': log[3],
-                'location': f"{log[4]},{log[5]},{log[6]}",  # Rebuilding the location string
-                'timestamp': log[7],
-                'block_type': log[8], 
-                'block_state': log[9] 
-            })
-        return result
+            params += (player_name,)
+        return self.fetch_all_as_dicts(query, params)
 
     def get_logs_by_player(self, player_name: str) -> list[dict]:
-        """Returns all logs for a given player name."""
         query = "SELECT * FROM actions_log WHERE name = ?"
-        self.cursor.execute(query, (player_name,))
-        logs = self.cursor.fetchall()
+        return self.fetch_all_as_dicts(query, (player_name,))
 
-        result = []
-        for log in logs:
-            result.append({
-                'id': log[0],
-                'xuid': log[1],
-                'name': log[2],
-                'action': log[3],
-                'location': log[4],
-                'timestamp': log[5],
-                'block_type': log[8],  
-                'block_state': log[9] 
-            })
-        return result
-
-    def get_logs_within_radius(self, x: float, y: float, z: float, radius: float) -> List[dict]:
-        """Returns logs within a defined radius of the given coordinates."""
-        # Query to check for the existence of 'block_type' and 'block_state' columns
-        self.cursor.execute("PRAGMA table_info(actions_log);")
-        columns = [column[1] for column in self.cursor.fetchall()]
-        has_block_type = 'block_type' in columns
-        has_block_state = 'block_state' in columns
-
-        # SQL query to fetch logs within the radius
+    def get_logs_within_radius(self, x: float, y: float, z: float, radius: float) -> list[dict]:
         query = """
         SELECT * FROM actions_log
         WHERE (POWER(x - ?, 2) + POWER(y - ?, 2) + POWER(z - ?, 2)) <= POWER(?, 2)
         """
-        self.cursor.execute(query, (x, y, z, radius))
-        logs = self.cursor.fetchall()
-
-        result = []
-        for log in logs:
-            log_dict = {
-                'id': log[0],
-                'xuid': log[1],
-                'name': log[2],
-                'action': log[3],
-                'location': f"{log[4]},{log[5]},{log[6]}",  # Rebuilding the location string
-                'timestamp': log[7],
-            }
-            if has_block_type:
-                log_dict['block_type'] = log[8]
-            if has_block_state:
-                log_dict['block_state'] = log[9]
-            result.append(log_dict)
-
-        return result
+        params = (x, y, z, radius)
+        return self.fetch_all_as_dicts(query, params)
 
     def log_action(self, xuid: str, name: str, action: str, location, timestamp: int, block_type: str = None,
-                   block_state: str = None):
+                   block_state: str = None, dim: str = None):
         """Logs an action performed by a player, stores x, y, z as separate coordinates, and includes block data if available."""
         # Parse the location if it's a Vec object (assuming it has x, y, z attributes)
         if isinstance(location, Vector):
@@ -821,6 +821,7 @@ class grieflog(DatabaseManager):
             'x': x,
             'y': y,
             'z': z,
+            'dim': dim,
             'timestamp': timestamp,
         }
 
@@ -931,8 +932,6 @@ class grieflog(DatabaseManager):
                 'total_playtime': total_playtime
             })
         return result
-
-    from datetime import datetime, timedelta
 
     def delete_logs_older_than_seconds(self, seconds: int, sendPrint=False):
         """Deletes logs that are older than the given seconds threshold and logs the action."""

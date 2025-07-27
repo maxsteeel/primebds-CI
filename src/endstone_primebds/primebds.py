@@ -1,15 +1,10 @@
-from collections import OrderedDict
 import os
-import shutil
-import subprocess
-import sys
 import threading
 import time
 import traceback
 from endstone import ColorFormat, Player
 from endstone.plugin import Plugin
 from endstone.command import Command, CommandSender
-import psutil
 
 from endstone_primebds.commands import (
     preloaded_commands,

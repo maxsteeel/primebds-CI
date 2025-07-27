@@ -74,7 +74,7 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
                 round(ev.player.location.y),
                 round(ev.player.location.z)
             )
-            dbgl.log_action(ev.player.xuid, ev.player.name, "Login", rounded_coords, int(time.time()))
+            dbgl.log_action(ev.player.xuid, ev.player.name, "Login", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
             dbgl.close_connection()
 
     db.close_connection()
@@ -102,7 +102,7 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
             rounded_y = round(ev.player.location.y)
             rounded_z = round(ev.player.location.z)
             rounded_coords = Vector(rounded_x, rounded_y, rounded_z)
-            dbgl.log_action(ev.player.xuid, ev.player.name, "Logout", rounded_coords, int(time.time()))
+            dbgl.log_action(ev.player.xuid, ev.player.name, "Logout", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
             dbgl.close_connection()
 
     db.close_connection()

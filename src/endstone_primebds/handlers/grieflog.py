@@ -24,7 +24,16 @@ def handle_block_break(self: "PrimeBDS", ev: BlockBreakEvent):
         else:
             block_states = list(ev.block.data.block_states.values())
             formatted_block_states = ", ".join(map(str, block_states))
-            dbgl.log_action(ev.player.xuid, ev.player.name, "Block Break", ev.block.location, int(time.time()), ev.block.data.type, formatted_block_states)
+            dbgl.log_action(
+                ev.player.xuid, 
+                ev.player.name, 
+                "Block Break", 
+                ev.block.location, 
+                int(time.time()), 
+                ev.block.data.type, 
+                formatted_block_states,
+                ev.player.dimension.name
+            )
 
         dbgl.close_connection()
 
@@ -45,7 +54,15 @@ def handle_block_place(self: "PrimeBDS", ev: BlockPlaceEvent):
             placed_block = ev.block_placed_state
             block_states = list(ev.block.data.block_states.values())
             formatted_block_states = ", ".join(map(str, block_states))
-            dbgl.log_action(ev.player.xuid, ev.player.name, "Block Place", placed_block.location, int(time.time()), placed_block.type, formatted_block_states)
+            dbgl.log_action(ev.player.xuid, 
+                            ev.player.name, 
+                            "Block Place", 
+                            placed_block.location, 
+                            int(time.time()), 
+                            placed_block.type, 
+                            formatted_block_states,
+                            ev.player.dimension.name
+                        )
 
         dbgl.close_connection()
     return True
@@ -87,7 +104,8 @@ def handle_player_interact(self: "PrimeBDS", ev: PlayerInteractEvent):
                     ev.block.location,
                     int(time.time()),
                     ev.block.data.type,
-                    formatted_block_states
+                    formatted_block_states,
+                    ev.player.dimension.name
                 )
 
         dbgl.close_connection()
