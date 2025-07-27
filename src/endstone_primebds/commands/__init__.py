@@ -76,13 +76,7 @@ def preload_settings():
             })
         }),
         "game_logging": OrderedDict({
-            "custom_tags": [],
-            "moderation": OrderedDict({
-                "enabled": True
-            }),
-            "commands": OrderedDict({
-                "enabled": False
-            })
+            "custom_tags": []
         }),
         "spectator_check": OrderedDict({
             "check_gamemode": True,

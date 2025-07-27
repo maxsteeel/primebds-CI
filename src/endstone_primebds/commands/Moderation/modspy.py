@@ -10,9 +10,9 @@ if TYPE_CHECKING:
 
 # Register command
 command, permission = create_command(
-    "logs",
-    "Toggles whether you receive admin logs!",
-    ["/logs [toggle: bool]"],
+    "modspy",
+    "Allows you to view commands others have run!",
+    ["/modspy [toggle: bool]"],
     ["primebds.command.logs"]
 )
 
@@ -27,12 +27,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     current_status = db.get_offline_user(sender.name).enabled_logs
 
     if not args:
-        status_message = f"Admin logs are currently {f'{ColorFormat.GREEN}enabled' if current_status else f'{ColorFormat.RED}disabled'}"
+        status_message = f"Mod logs are currently {f'{ColorFormat.GREEN}enabled' if current_status else f'{ColorFormat.RED}disabled'}"
         sender.send_message(status_message)
     else:
         new_status = args[0].lower() in ["true", "1", "yes", "enable"]
         db.update_user_data(sender.name, "enabled_logs", int(new_status))
-        sender.send_message(f"Admin logs have been {f'{ColorFormat.GREEN}enabled' if new_status else f'{ColorFormat.RED}disabled'}")
+        sender.send_message(f"Mod logs have been {f'{ColorFormat.GREEN}enabled' if new_status else f'{ColorFormat.RED}disabled'}")
 
     db.close_connection()
     return True
