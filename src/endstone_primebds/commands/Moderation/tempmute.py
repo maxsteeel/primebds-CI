@@ -90,10 +90,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         db.add_mute(xuid, int(mute_expiration.timestamp()), reason)
         sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was muted for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}for {ColorFormat.YELLOW}{formatted_expiration} {ColorFormat.GRAY}{ColorFormat.ITALIC}(Offline)")
 
-    config = load_config()
-    mod_log_enabled = config["modules"]["game_logging"]["moderation"]["enabled"]
-    if mod_log_enabled:
-        log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was muted by {ColorFormat.YELLOW}{sender.name} {ColorFormat.GOLD}for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}until {ColorFormat.YELLOW}{formatted_expiration}", "mod")
+    log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was muted by {ColorFormat.YELLOW}{sender.name} {ColorFormat.GOLD}for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}until {ColorFormat.YELLOW}{formatted_expiration}", "mod")
 
     db.close_connection()
     return True

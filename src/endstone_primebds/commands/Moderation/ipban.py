@@ -129,10 +129,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was IP banned for {ColorFormat.YELLOW}'{reason}' {ColorFormat.GOLD}for {formatted_expiration} {ColorFormat.GRAY}{ColorFormat.ITALIC}(Offline, IP Banned)"
             )
 
-    config = load_config()
-    mod_log_enabled = config["modules"]["game_logging"]["moderation"]["enabled"]
-    if mod_log_enabled:
-        log(self,
+    log(self,
             f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was IP banned by {ColorFormat.YELLOW}{sender.name} for {ColorFormat.YELLOW}\"{reason}\" until {ColorFormat.YELLOW}{formatted_expiration}",
             "mod")
 

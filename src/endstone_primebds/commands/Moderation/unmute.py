@@ -46,10 +46,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     # Notify the sender that the mute has been removed
     sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}has been unmuted")
-
-    config = load_config()
-    mod_log_enabled = config["modules"]["game_logging"]["moderation"]["enabled"]
-    if mod_log_enabled:
-        log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was unmuted by {ColorFormat.YELLOW}{sender.name}", "mod")
+    log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was unmuted by {ColorFormat.YELLOW}{sender.name}", "mod")
 
     return True
