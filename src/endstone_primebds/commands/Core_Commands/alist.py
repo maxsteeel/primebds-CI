@@ -1,8 +1,6 @@
 import os
 import json
 import shutil
-import threading
-import time
 
 from endstone import Player
 
