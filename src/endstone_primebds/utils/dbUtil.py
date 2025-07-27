@@ -70,28 +70,6 @@ class DatabaseManager:
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.cursor = self.conn.cursor()
 
-    # Future use in cases where we link multiworld (unused as things will remain seperate for now)
-    def _find_valid_primebds_data(self) -> str:
-        """
-        Walks up from CWD to find the correct 'primebds_data' folder, 
-        confirmed by presence of a 'multiworld' subfolder.
-        """
-        current_path = os.path.abspath(os.getcwd())
-
-        while True:
-            plugins_path = os.path.join(current_path, "plugins")
-            primebds_data_path = os.path.join(plugins_path, "primebds_data")
-            multiworld_check = os.path.join(primebds_data_path, "multiworld")
-
-            if os.path.isdir(multiworld_check):
-                return primebds_data_path
-
-            parent = os.path.dirname(current_path)
-            if parent == current_path:
-                raise FileNotFoundError("Could not locate 'plugins/primebds_data' with 'multiworld' inside.")
-
-            current_path = parent
-
     def create_table(self, table_name: str, columns: Dict[str, str]):
         """Create a table if it doesn't exist.
         Args:
