@@ -16,10 +16,9 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
     player = event.player
     args = command.split()
     cmd = args[0].lstrip("/").lower() if args else ""
-
     config = load_config()
-    if config["modules"]["game_logging"]["commands"]["enabled"]:
-        log(self, f"{ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}ran: {ColorFormat.AQUA}{command}", "cmd")
+    db = UserDB("users.db")
+
     if config["modules"]["discord_logging"]["commands"]["enabled"]:
         discordRelay(f"**{player.name}** ran: {command}", "cmd")
 
@@ -39,7 +38,6 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                 player.kick("Crasher Detected")
 
     # Internal Permissions Handler
-    db = UserDB("users.db")
     if ((db.get_online_user(player.xuid).internal_rank == "Operator" and not player.has_permission("minecraft.kick")) or
             (db.get_online_user(player.xuid).internal_rank == "Default" and player.is_op) or not player.has_permission("primebds.command.refresh")):
         self.reload_custom_perms(player)
