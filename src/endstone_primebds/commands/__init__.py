@@ -141,9 +141,7 @@ def preload_settings():
                     "fall_damage_height": 7.0,
                     "projectiles": OrderedDict({
                         "horizontal_knockback_modifier": 0.0,
-                        "vertical_knockback_modifier": 0.0,
-                        "horizontal_sprint_knockback_modifier": 0.0,
-                        "vertical_sprint_knockback_modifier": 0.0,
+                        "vertical_knockback_modifier": 0.0
                     }),
                     "disable_fire_damage": True,
                     "disable_explosion_damage": True,

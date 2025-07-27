@@ -3,7 +3,7 @@ import os
 from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.configUtil import load_config, find_and_load_config
+from endstone_primebds.utils.configUtil import find_and_load_config
 
 from typing import TYPE_CHECKING
 
