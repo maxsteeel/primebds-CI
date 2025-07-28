@@ -8,7 +8,7 @@ from endstone import ColorFormat
 
 from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.formWrapperUtil import ActionFormData, ActionFormResponse
-from endstone_primebds.utils.internalPermissionsUtil import has_log_perms
+from endstone_primebds.utils.internalPermissionsUtil import check_perms
 from endstone_primebds.utils.configUtil import load_config
 from endstone_primebds.utils.timeUtil import TimezoneUtils
 
@@ -34,7 +34,7 @@ def log(self: "PrimeBDS", message, type):
         tags = set(player.scoreboard_tags or [])
 
         # check perms, custom-tag overlap, or OP status
-        if (has_log_perms(user.internal_rank)
+        if (check_perms(user.internal_rank, "primebds.command.modspy")
                 or (config_tags & tags)
                 or player.is_op
         ):

@@ -8,7 +8,8 @@ PERMISSIONS = {
                "primebds.command.inspect", "primebds.command.grieflog", "primebds_command.socialspy"],
     "Mod": ["primebds.command.ipban", "primebds.command.mute", "primebds.command.permban", "primebds.command.punishments",
             "primebds.command.removeban", "primebds.command.tempban", "primebds.command.tempmute", "primebds.command.unmute",
-            "primebds.command.nickname", "primebds.command.modspy"],
+            "primebds.command.nickname", "primebds.command.modspy", "primebds.command.offlinetp", "primebds.command.plist",
+            "minecraft.command.tp"],
     "Operator": ["*"]
 }
 
@@ -24,9 +25,15 @@ def get_permissions(rank: str) -> list[str]:
 
     return inherited_permissions
 
-def has_log_perms(rank: str) -> bool:
-    """Returns True if the rank has logging permissions (Mod or higher), otherwise False."""
-    return rank in RANKS[RANKS.index("Helper"):]
+def check_perms(rank: str, perm: str) -> bool:
+    """Check if a rank has a given permission."""
+    rank_perms = PERMISSIONS.get(rank, [])
+
+    # If admin or '*' is present, they have all permissions
+    if "*" in rank_perms:
+        return True
+
+    return perm in rank_perms
 
 def check_internal_rank(user1_rank: str, user2_rank: str) -> bool:
     """
