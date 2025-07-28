@@ -34,9 +34,4 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     for target in targets:
         target.send_popup(message)
 
-    if len(targets) == 1:
-        sender.send_message(f"A popup packet was sent to {ColorFormat.YELLOW}{targets[0].name}")
-    else:
-        sender.send_message(f"A popup packet was sent to {len(targets)} players")
-
     return True

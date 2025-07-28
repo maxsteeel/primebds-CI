@@ -1,4 +1,4 @@
-from endstone import Player, ColorFormat
+from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
@@ -34,26 +34,35 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             nick_arg_index = len(args) - 1  
             new_nick = " ".join(args[:nick_arg_index]).strip()
             if not new_nick:
-                sender.send_message(f"{targets[0].name}'s current nickname is: {ColorFormat.YELLOW}{targets[0].name_tag}")
+                sender.send_message(f"{targets[0].name}'s current nickname is: §e{targets[0].name_tag}")
                 return True
         else:
             new_nick = " ".join(args).strip()
     elif len(args) == 1:
         new_nick = args[0]
     else:
-        sender.send_message(f"Your current nickname is: {ColorFormat.YELLOW}{targets[0].name_tag}")
+        sender.send_message(f"Your current nickname is: §e{targets[0].name_tag}")
         return True
 
     for target in targets:
         if new_nick.lower() == "remove":
             target.name_tag = target.name 
-            sender.send_message(f"{target.name}'s nickname has been reset to original name: {ColorFormat.YELLOW}{target.name}")
         else:
             if new_nick:
                 target.name_tag = new_nick 
-                sender.send_message(f"{target.name}'s nickname was set to: {ColorFormat.YELLOW}{new_nick}")
             else:
                 sender.send_error_message("Nickname cannot be empty.")
                 return False
+            
+    if new_nick.lower() == "remove":
+        if len(targets) == 1:
+            sender.send_message(f"§e{targets[0].name}'s §rnickname has been reset")
+        else:
+            sender.send_message(f"§e{len(targets)} §rplayers had their nickname reset")
+    else:
+        if len(targets) == 1:
+            sender.send_message(f"§e{targets[0].name}'s §rnickname was set to: §e{new_nick}")
+        else:
+            sender.send_message(f"§e{len(targets)} §rplayers had their nickname set to \"§{new_nick}\"")
 
     return True

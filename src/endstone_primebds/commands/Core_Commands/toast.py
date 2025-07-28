@@ -21,12 +21,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     targets = get_matching_actors(self, args[0], sender)
 
     if not targets:
-        sender.send_message(f"{ColorFormat.RED}No valid players found for selector: {args[0]}")
         return True
 
     for player in targets:
         player.send_toast(args[1], args[2])
 
-    names = ", ".join(p.name for p in targets)
-    sender.send_message(f"A toast packet was sent to {ColorFormat.YELLOW}{names}")
     return True

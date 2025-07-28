@@ -26,9 +26,4 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     for player in matches:
         player.send_tip(args[1])
 
-    if len(matches) == 1:
-        sender.send_message(f"A tip packet was sent to {ColorFormat.YELLOW}{matches[0].name}")
-    else:
-        sender.send_message(f"A tip packet was sent to {len(matches)} players")
-
     return True
