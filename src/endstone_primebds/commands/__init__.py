@@ -145,7 +145,7 @@ def preload_settings():
         }),
         "multiworld": OrderedDict({
         "enabled": False,
-        "ip_main": "127.0.0.1",
+        "main_ip": "127.0.0.1",
         "worlds": OrderedDict({
             "example_world_folder": OrderedDict({
                     "ip": "127.0.0.1",
@@ -157,14 +157,14 @@ def preload_settings():
                     "difficulty": "easy",
                     "default-player-permission-level": "member",
                     "max-players": 10,
-                    "view-distance": 10,
+                    "view-distance": 12,
                     "tick-distance": 4,
-                    "max-threads": 8,
+                    "max-threads": 0,
                     "level-seed": "",
-                    "compression-threshold": 1,
+                    "compression-threshold": 30000,
                     "texturepack-required": False,
                     "allow-list": False,
-                    "allow-cheats": False
+                    "allow-cheats": True
                 })
             })
         })
