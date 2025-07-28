@@ -53,7 +53,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
 
     time_units = {
-        "second": timedelta(seconds=duration_number),
+        "second": timedelta(seconds=duration_number+1),
         "minute": timedelta(minutes=duration_number),
         "hour": timedelta(hours=duration_number),
         "day": timedelta(days=duration_number),
