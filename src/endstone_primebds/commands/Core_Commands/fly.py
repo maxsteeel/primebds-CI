@@ -53,6 +53,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         player.allow_flight = new_fly_state
         msg = "§aFly Enabled§r" if new_fly_state else "§cFly Disabled§r"
         player.send_message(msg)
-        sender.send_message(f"Player {player.name}'s fly state changed: {msg}")
+
+    sender.send_message(f"§e{len(targets)} players §rfly state changed: {msg}")
 
     return True

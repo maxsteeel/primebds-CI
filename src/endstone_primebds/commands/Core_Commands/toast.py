@@ -18,7 +18,7 @@ command, permission = create_command(
 
 # TOAST COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    targets = get_matching_actors(self, sender, args[0])
+    targets = get_matching_actors(self, args[0], sender)
 
     if not targets:
         sender.send_message(f"{ColorFormat.RED}No valid players found for selector: {args[0]}")

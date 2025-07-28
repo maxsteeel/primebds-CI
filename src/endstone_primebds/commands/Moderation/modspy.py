@@ -13,7 +13,7 @@ command, permission = create_command(
     "modspy",
     "Allows you to view commands others have run!",
     ["/modspy [toggle: bool]"],
-    ["primebds.command.logs"]
+    ["primebds.command.modspy"]
 )
 
 # LOGS COMMAND FUNCTIONALITY

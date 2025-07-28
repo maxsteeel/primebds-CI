@@ -43,6 +43,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     config = find_and_load_config("primebds_data/config.json", start_path)
     server_properties = find_and_load_config("server.properties", start_path)
 
+    multiworld = config["modules"].get("multiworld", {})
+    enabled = multiworld.get("enabled", False)
+    if not enabled:
+        send_feedback("[PrimeBDS] Multiworld is currently §cDisabled")
+        return True
+
     if subaction == "cmd":
         if len(args) < 3:
             send_feedback("[PrimeBDS] Usage: /world <world_name> cmd <command>")
@@ -56,7 +62,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         main_level = server_properties.get("level-name", "Unknown")
 
-        if self.server.level.name.lower() == main_level.lower():
+        if world_name == main_level.lower():
             try:
                 self.server.dispatch_command(self.server.command_sender, command_to_run)
                 return True

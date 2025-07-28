@@ -47,7 +47,7 @@ from endstone_primebds.handlers.multiworld import start_additional_servers, stop
 
 class PrimeBDS(Plugin):
     api_version = "0.6"
-    authors = ["PrimeStrat", "trainer jeo"]
+    authors = ["PrimeStrat"]
     name = "primebds"
 
     commands = preloaded_commands
@@ -139,7 +139,7 @@ class PrimeBDS(Plugin):
         self.check_for_inactive_sessions()
 
         if config["modules"]["multiworld"]["enabled"] and not is_nested_multiworld_instance():
-            start_additional_servers()
+            start_additional_servers(self)
             return
 
     def on_disable(self):
@@ -148,7 +148,7 @@ class PrimeBDS(Plugin):
 
         config = load_config()
         if config["modules"]["multiworld"]["enabled"] and not is_nested_multiworld_instance():
-            stop_additional_servers()
+            stop_additional_servers(self)
             return
 
     def check_for_inactive_sessions(self):

@@ -224,5 +224,5 @@ def stop_additional_servers(self):
 
     self.multiworld_processes.clear()
     
-def is_nested_multiworld_instance(self):
+def is_nested_multiworld_instance():
     return "plugins{}primebds_data{}multiworld".format(os.sep, os.sep) in os.path.abspath(__file__)

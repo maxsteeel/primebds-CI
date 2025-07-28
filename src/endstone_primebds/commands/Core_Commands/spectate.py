@@ -85,7 +85,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message(f"No players available to spectate.")
         return True
     else:
-        targets = get_matching_actors(self.server, args[0])
+        targets = get_matching_actors(self.server, args[0], sender)
         if len(targets) == 1:
             target = targets[0]
             if target is None or not is_valid_spectate_target(target):

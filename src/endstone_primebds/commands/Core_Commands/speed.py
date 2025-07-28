@@ -50,11 +50,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             if attr == "flyspeed":
                 player.fly_speed = 0.05  # Default fly speed is 0.05
                 player.send_message("§aFlyspeed reset to default§r")
-                sender.send_message(f"Player {player.name}'s flyspeed reset to default")
             else:
                 player.walk_speed = 0.1  # Assuming default walk speed is 0.1
                 player.send_message("§aWalkspeed reset to default§r")
-                sender.send_message(f"Player {player.name}'s walkspeed reset to default")
+
+        sender.send_message(f"§e{len(targets)} §rplayer's {attr} was reset")
 
         return True
 

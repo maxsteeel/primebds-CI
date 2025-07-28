@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 # Register command
 command, permission = create_command(
     "primebds",
-    "A global command for primebds to modify settings.!",
+    "An all-in-one primebds manager!",
     ["/primebds (settings)<primebds_action: primebds_action>"],
     ["primebds.command.primebds"]
 )

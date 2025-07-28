@@ -61,7 +61,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     sender.send_message(history_message)
     return True
 
-
 def clear_all_punishments(self: "PrimeBDS", sender: CommandSender, target_name: str) -> bool:
     """Clears all punishment logs for the selected player."""
     db = UserDB("users.db")
