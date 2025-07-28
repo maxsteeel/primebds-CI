@@ -30,11 +30,10 @@ def handle_mute_status(player: Player) -> bool:
 
     reason = mute_data["reason"]
     if mute_data["is_permanent"]:
-        player.send_message(f"You are permanently muted for {ColorFormat.YELLOW}{reason}")
+        player.send_message(f"§6You are permanently muted for §e{reason}")
     else:
         remaining = format_time_remaining(mute_data["mute_time"])
-        player.send_message(f"You are muted for \"{ColorFormat.YELLOW}{reason}{ColorFormat.GOLD}\" "
-                            f"{ColorFormat.GOLD}which expires in {ColorFormat.YELLOW}{remaining}")
+        player.send_message(f"§6You are muted for §e\"{reason}\" §6which expires in §e{remaining}")
     return False
 
 def load_mute_from_db(xuid):

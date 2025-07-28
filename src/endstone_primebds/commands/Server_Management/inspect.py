@@ -43,7 +43,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         if toggle:
             sender.send_message(f"Inspect mode {ColorFormat.GREEN}Enabled")
         else:
-            sender.send_message(f"Inspect mode {ColorFormat.RED}Disabled")
+            sender.send_message(f"Inspect mode §cDisabled")
 
         dbgl.close_connection()
 

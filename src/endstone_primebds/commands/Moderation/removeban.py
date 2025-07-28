@@ -36,7 +36,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if not mod_log or not mod_log.is_banned:
         # Player is not banned, return an error message
-        sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}is not banned")
+        sender.send_message(f"§6Player §e{player_name} §6is not banned")
         db.close_connection()
         return False
 
@@ -45,9 +45,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     db.close_connection()
 
     # Notify the sender that the ban has been removed
-    sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}has been unbanned")
+    sender.send_message(f"§6Player §e{player_name} §6has been unbanned")
 
-    log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was unbanned by {ColorFormat.YELLOW}{sender.name}", "mod")
+    log(self, f"§6Player §e{player_name} §6was unbanned by §e{sender.name}", "mod")
 
     return True
 

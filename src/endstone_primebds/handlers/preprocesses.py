@@ -34,7 +34,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
             if config["modules"]["me_crasher_patch"]["ban"]:
                 self.server.dispatch_command(self.server.command_sender, f"tempban {player.name} 7 day Crasher Exploit")
             else:
-                log(self, f"Player {ColorFormat.YELLOW}{player.name} {ColorFormat.GOLD}was kicked due to {ColorFormat.YELLOW}Crasher Exploit", "mod")
+                log(self, f"Player §e{player.name} §6was kicked due to §eCrasher Exploit", "mod")
                 player.kick("Crasher Detected")
 
     # Internal Permissions Handler
@@ -48,17 +48,12 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         if cmd == "punishments":
             return True
 
-        if len(args) < 2:
-            player.send_message(f"Invalid usage: Not enough arguments")
-            event.is_cancelled = True
-            return False
-
         target = self.server.get_player(args[1])
         if target and self.server.get_player(target.name).is_op:
             if target.xuid != player.xuid: # Allow you to punish OR remove a punishment from yourself
                 event.is_cancelled = True
                 event.player.send_message(
-                    f"Player {ColorFormat.YELLOW}{target.name} {ColorFormat.GOLD}has higher permissions")
+                    f"Player §e{target.name} §6has higher permissions")
                 return True
 
         elif target:
@@ -69,7 +64,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                 is_valid = check_internal_rank(target_user.internal_rank, sender.internal_rank)
                 if is_valid and not player.is_op:
                     event.is_cancelled = True
-                    event.player.send_message(f"Player {ColorFormat.YELLOW}{target.name} {ColorFormat.GOLD}has higher permissions")
+                    event.player.send_message(f"Player §e{target.name} §6has higher permissions")
 
         elif not target:
             target_user = db.get_offline_user(args[1])
@@ -80,7 +75,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                 if is_valid and not player.is_op:
                     event.is_cancelled = True
                     event.player.send_message(
-                        f"Player {ColorFormat.YELLOW}{target.name} {ColorFormat.GOLD}has higher permissions")
+                        f"Player §e{target.name} §6has higher permissions")
 
     elif args and cmd == "ban" or cmd == "unban" or cmd == "pardon":
         player.send_message(f"Hardcoded Endstone Moderation Commands are disabled by primebds")
@@ -88,12 +83,10 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         return False
     elif args and cmd == "op":
         self.server.dispatch_command(self.server.command_sender, f"setrank \"{args[1]}\" operator")
-        self.server.dispatch_command(self.server.command_sender, f"op \"{args[1]}\"")
         event.is_cancelled = True
         return False
     elif args and cmd == "deop":
         self.server.dispatch_command(self.server.command_sender, f"setrank \"{args[1]}\" default")
-        self.server.dispatch_command(self.server.command_sender, f"deop \"{args[1]}\"")
         event.is_cancelled = True
         return False
 

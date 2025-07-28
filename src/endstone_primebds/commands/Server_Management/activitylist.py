@@ -90,7 +90,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             playtime_str += f"{minutes}m "
         playtime_str += f"{seconds}s"
 
-        form.button(f"{ColorFormat.AQUA}{player_name}\n{ColorFormat.RED}{playtime_str}")
+        form.button(f"{ColorFormat.AQUA}{player_name}\n§c{playtime_str}")
 
     form.button("Cancel")
 

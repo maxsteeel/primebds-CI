@@ -249,12 +249,12 @@ class PrimeBDS(Plugin):
 
             # Generate the error message
             error_message = (
-                    f"{ColorFormat.RED}========\n"
-                    f"{ColorFormat.GOLD}This command generated an error -> please report this on our GitHub and provide a copy of the error below!\n"
-                    f"{ColorFormat.RED}========\n\n"
-                    f"{ColorFormat.YELLOW}{e}\n\n"
-                    f"{ColorFormat.YELLOW}Command Usage: {ColorFormat.AQUA}{command.name} + {args}\n\n"
-                    + f"{ColorFormat.YELLOW}{clean_traceback(traceback.format_exc())}\n"
+                    f"§c========\n"
+                    f"§6This command generated an error -> please report this on our GitHub and provide a copy of the error below!\n"
+                    f"§c========\n\n"
+                    f"§e{e}\n\n"
+                    f"§eCommand Usage: {ColorFormat.AQUA}{command.name} + {args}\n\n"
+                    + f"§e{clean_traceback(traceback.format_exc())}\n"
                       f"{ColorFormat.RESET}"
             )
             error_message_console = (

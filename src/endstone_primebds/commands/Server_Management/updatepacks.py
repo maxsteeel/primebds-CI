@@ -73,7 +73,7 @@ def handler(self, sender: CommandSender, args: list[str]) -> bool:
 
         if updated_packs > 0:
             sender.send_message(
-                f"Updated {updated_packs} resource pack(s): {', '.join(updated_pack_names)}!\n{ColorFormat.GRAY}{ColorFormat.ITALIC}REQUIRES SERVER RESTART TO APPLY")
+                f"Updated {updated_packs} resource pack(s): {', '.join(updated_pack_names)}!\n§7§oREQUIRES SERVER RESTART TO APPLY")
         else:
             sender.send_message(" No resource packs were updated.")
 
@@ -254,7 +254,7 @@ def select_version(player: Player, result: ActionFormResponse, dep, manifest_pat
                 except Exception as e:
                     print(f"Error reading or writing manifest file: {e}")
 
-                player.send_message(f"Selected {module_name} - {chosen_version} {ColorFormat.GRAY}({ColorFormat.WHITE}Saved as {ColorFormat.YELLOW}{major_version}{ColorFormat.GRAY})\nUpdated {chosen_pack} {ColorFormat.GRAY}- {ColorFormat.ITALIC}REQUIRES SERVER RESTART TO APPLY")
+                player.send_message(f"Selected {module_name} - {chosen_version} §7({ColorFormat.WHITE}Saved as §e{major_version}§7)\nUpdated {chosen_pack} §7- §oREQUIRES SERVER RESTART TO APPLY")
 
         form.show(player).then(
             lambda p=player, result=ActionFormResponse: on_version_selected(p, result)

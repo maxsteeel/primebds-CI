@@ -1,4 +1,3 @@
-from endstone import ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.configUtil import load_config
@@ -43,19 +42,19 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if target:
         # If the player is online, check the ban status in the database
         if db.get_mod_log(target.xuid).is_banned:
-            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.RED}is already IP-banned")
+            sender.send_message(f"§6Player §e{player_name} §cis already IP-banned")
             db.close_connection()
             return False
     else:
         # If the player is offline, check their mod log for an existing IP ban
         mod_log = db.get_offline_mod_log(player_name)
         if mod_log and mod_log.is_ip_banned:
-            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.RED}is already IP-banne.")
+            sender.send_message(f"§6Player §e{player_name} §cis already IP-banne.")
             db.close_connection()
             return False
 
         if not mod_log:
-            sender.send_message(f"Player '{player_name}' not found")
+            sender.send_message(f"§6Player '{player_name}' not found")
             db.close_connection()
             return False
 
@@ -113,24 +112,24 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         target.kick(message)
         if permanent:
             sender.send_message(
-                f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was permanently IP banned for {ColorFormat.YELLOW}'{reason}' {ColorFormat.GRAY}{ColorFormat.ITALIC}(Permanent IP Banned)"
+                f"§6Player §e{player_name} §6was permanently IP banned for §e'{reason}' §7§o(Permanent IP Banned)"
             )
         else:
             sender.send_message(
-                f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was IP banned for {ColorFormat.YELLOW}'{reason}' {ColorFormat.GOLD}for {formatted_expiration} {ColorFormat.GRAY}{ColorFormat.ITALIC}(IP Banned)"
+                f"§6Player §e{player_name} §6was IP banned for §e'{reason}' §6for {formatted_expiration} §7§o(IP Banned)"
             )
     else:
         if permanent:
             sender.send_message(
-                f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was permanently IP banned for {ColorFormat.YELLOW}'{reason}' {ColorFormat.GRAY}{ColorFormat.ITALIC}(Offline, Permanent IP Banned)"
+                f"§6Player §e{player_name} §6was permanently IP banned for §e'{reason}' §7§o(Offline, Permanent IP Banned)"
             )
         else:
             sender.send_message(
-                f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was IP banned for {ColorFormat.YELLOW}'{reason}' {ColorFormat.GOLD}for {formatted_expiration} {ColorFormat.GRAY}{ColorFormat.ITALIC}(Offline, IP Banned)"
+                f"§6Player §e{player_name} §6was IP banned for §e'{reason}' §6for {formatted_expiration} §7§o(Offline, IP Banned)"
             )
 
     log(self,
-            f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was IP banned by {ColorFormat.YELLOW}{sender.name} for {ColorFormat.YELLOW}\"{reason}\" until {ColorFormat.YELLOW}{formatted_expiration}",
+            f"§6Player §e{player_name} §6was IP banned by §e{sender.name} for §e\"{reason}\" until §e{formatted_expiration}",
             "mod")
 
     db.close_connection()

@@ -37,11 +37,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not target:
         mod_log = db.get_offline_mod_log(player_name)
         if not mod_log:
-            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} not found.")
+            sender.send_message(f"§6Player §e{player_name} not found.")
             db.close_connection()
             return False
         if mod_log.is_muted:
-            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} is already muted.")
+            sender.send_message(f"§6Player §e{player_name} is already muted.")
             db.close_connection()
             return False
 
@@ -71,26 +71,26 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     reason = " ".join(args[3:]) if len(args) > 3 else "Disruptive Behavior"
 
     formatted_expiration = format_time_remaining(int(mute_expiration.timestamp()))
-    message = f"You are muted for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}which expires in {ColorFormat.YELLOW}{formatted_expiration}"
+    message = f"§6You are muted for §e\"{reason}\" §6which expires in §e{formatted_expiration}"
 
     if target:
         if db.get_mod_log(target.xuid).is_muted:
-            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} is already muted.")
+            sender.send_message(f"§6Player §e{player_name} is already muted.")
             db.close_connection()
             return False
         target.send_message(message)
         db.add_mute(target.xuid, int(mute_expiration.timestamp()), reason)
-        sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was muted for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}for {ColorFormat.YELLOW}{formatted_expiration}")
+        sender.send_message(f"§6Player §e{player_name} §6was muted for §e\"{reason}\" §6for §e{formatted_expiration}")
     else:
         xuid = db.get_xuid_by_name(player_name)
         if db.get_mod_log(xuid).is_muted:
-            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} is already muted.")
+            sender.send_message(f"§6Player §e{player_name} is already muted.")
             db.close_connection()
             return False
         db.add_mute(xuid, int(mute_expiration.timestamp()), reason)
-        sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was muted for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}for {ColorFormat.YELLOW}{formatted_expiration} {ColorFormat.GRAY}{ColorFormat.ITALIC}(Offline)")
+        sender.send_message(f"§6Player §e{player_name} §6was muted for §e\"{reason}\" §6for §e{formatted_expiration} §7§o(Offline)")
 
-    log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was muted by {ColorFormat.YELLOW}{sender.name} {ColorFormat.GOLD}for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}until {ColorFormat.YELLOW}{formatted_expiration}", "mod")
+    log(self, f"§6Player §e{player_name} §6was muted by §e{sender.name} §6for §e\"{reason}\" §6until §e{formatted_expiration}", "mod")
 
     db.close_connection()
     return True

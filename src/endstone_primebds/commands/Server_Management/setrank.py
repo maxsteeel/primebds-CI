@@ -61,7 +61,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 self.reload_custom_perms(target)
 
                 sender.send_message(
-                    f"Player {ColorFormat.YELLOW}{player_name}'s {ColorFormat.WHITE}rank was updated to {ColorFormat.YELLOW}{rank.upper()}"
+                    f"Player §e{player_name}'s {ColorFormat.WHITE}rank was updated to §e{rank.upper()}"
                 )
 
     db.close_connection()

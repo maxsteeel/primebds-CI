@@ -97,18 +97,18 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 "TheEnd": ColorFormat.MATERIAL_IRON,
             }.get(player.dimension.name, ColorFormat.GRAY)
 
-            tps_str = f"{tps_color}{tps_display}.{tps_fraction:1d} {ColorFormat.ITALIC}{ColorFormat.GRAY}({tick_usage:.1f})"
+            tps_str = f"{tps_color}{tps_display}.{tps_fraction:1d} §o§7({tick_usage:.1f})"
             ping_str = f"{ping_color}{player.ping}ms"
-            mspt_str = f"{mspt_color}{mspt:.1f}ms {ColorFormat.ITALIC}{ColorFormat.GRAY}(avg) {ColorFormat.RESET}{ColorFormat.GRAY}| {mspt_cur_color}{mspt_cur:.1f}ms {ColorFormat.ITALIC}{ColorFormat.GRAY}(cur)"
+            mspt_str = f"{mspt_color}{mspt:.1f}ms §o§7(avg) {ColorFormat.RESET}§7| {mspt_cur_color}{mspt_cur:.1f}ms §o§7(cur)"
             entity_str = f"{entity_color}{entity_count}"
             version_str = f"{ColorFormat.GREEN}{server_version}"
-            chunk_str = f"{ColorFormat.GREEN}{overworld_chunks} {ColorFormat.GRAY}| {ColorFormat.RED}{nether_chunks} {ColorFormat.GRAY}| {ColorFormat.MATERIAL_IRON}{the_end_chunks}"
+            chunk_str = f"{ColorFormat.GREEN}{overworld_chunks} §7| §c{nether_chunks} §7| {ColorFormat.MATERIAL_IRON}{the_end_chunks}"
             your_dim = f"{dim_color}{player.dimension.name}"
 
             player.send_tip(
                 f"{ColorFormat.AQUA}Server Monitor{ColorFormat.RESET}\n"
                 f"{ColorFormat.RESET}---------------------------\n"
-                f"{ColorFormat.RESET}Level: {self.server.level.name} {ColorFormat.ITALIC}{ColorFormat.GRAY}(ver. {version_str}{ColorFormat.GRAY})\n"
+                f"{ColorFormat.RESET}Level: {self.server.level.name} §o§7(ver. {version_str}§7)\n"
                 f"{ColorFormat.RESET}TPS: {tps_str} {ColorFormat.RESET}\n"
                 f"{ColorFormat.RESET}MSPT: {mspt_str}\n"
                 f"{ColorFormat.RESET}Loaded Chunks: {chunk_str}\n"

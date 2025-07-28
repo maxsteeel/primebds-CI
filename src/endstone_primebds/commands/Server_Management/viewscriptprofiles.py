@@ -84,7 +84,7 @@ def open_profiles_menu(sender: Player):
     for profile in profile_files:
         timestamp = datetime.fromtimestamp(os.path.getmtime(profile))
         modified_time = TimezoneUtils.convert_to_timezone(timestamp.timestamp(), "EST")
-        form.button(f"{ColorFormat.GOLD}CPUPROFILE\n{ColorFormat.RED}{modified_time}")
+        form.button(f"§6CPUPROFILE\n§c{modified_time}")
 
     form.button(f"Close")
 

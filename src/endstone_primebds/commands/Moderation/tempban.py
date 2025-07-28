@@ -38,12 +38,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         # If the player is offline, look them up by name in the database
         mod_log = db.get_offline_mod_log(player_name)
         if not mod_log:
-            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} not found.")
+            sender.send_message(f"§6Player §e{player_name} not found.")
             db.close_connection()
             return False
         # Check if the player is already banned
         if mod_log.is_banned:
-            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} is already banned.")
+            sender.send_message(f"§6Player §e{player_name} is already banned.")
             db.close_connection()
             return False
 
@@ -80,23 +80,23 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if target:
         # If the player is online, add ban directly
         if db.get_mod_log(target.xuid).is_banned:  # Check if the player is already banned
-            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} is already banned.")
+            sender.send_message(f"§6Player §e{player_name} is already banned.")
             db.close_connection()
             return False
         db.add_ban(target.xuid, int(ban_expiration.timestamp()), reason)
         target.kick(message)
-        sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was banned for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}for {ColorFormat.YELLOW}{formatted_expiration}")
+        sender.send_message(f"§6Player §e{player_name} §6was banned for §e\"{reason}\" §6for §e{formatted_expiration}")
     else:
         # If the player is offline, use xuid to ban them
         xuid = db.get_xuid_by_name(player_name)
         if db.get_mod_log(xuid).is_banned:  # Check if the player is already banned
-            sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} is already banned.")
+            sender.send_message(f"§6Player §e{player_name} is already banned.")
             db.close_connection()
             return False
         db.add_ban(xuid, int(ban_expiration.timestamp()), reason)
-        sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was banned for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}for {ColorFormat.YELLOW}{formatted_expiration} {ColorFormat.GRAY}{ColorFormat.ITALIC}(Offline)")
+        sender.send_message(f"§6Player §e{player_name} §6was banned for §e\"{reason}\" §6for §e{formatted_expiration} §7§o(Offline)")
 
-    log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was banned by {ColorFormat.YELLOW}{sender.name} {ColorFormat.GOLD}for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}until {ColorFormat.YELLOW}{formatted_expiration}", "mod")
+    log(self, f"§6Player §e{player_name} §6was banned by §e{sender.name} §6for §e\"{reason}\" §6until §e{formatted_expiration}", "mod")
 
     db.close_connection()
     return True

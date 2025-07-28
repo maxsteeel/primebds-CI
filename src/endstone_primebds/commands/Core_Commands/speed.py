@@ -81,19 +81,19 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"Player(s) {args[2]} not found!")
         return False
 
+    original = 0
+
     for player in targets:
         if attr == "flyspeed":
-            original = player.fly_speed
+            original = round(player.fly_speed, 1)
             player.fly_speed = new_speed
-            player.send_message(f"Flyspeed changed: §c{original} §7→ §a{new_speed}§r")
         else:
-            original = player.walk_speed
+            original = round(player.walk_speed, 1)
             player.walk_speed = new_speed
-            player.send_message(f"Walkspeed changed: §c{original} §7→ §a{new_speed}§r")
 
     if len(targets) == 1:
-        sender.send_message(f"{targets[0].name}'s {attr} changed to: §a{new_speed}")
+        sender.send_message(f"§e{targets[0].name}'s §b{attr} changed from §e{original} §rto §e{new_speed}")
     else:
-        sender.send_message(f"§e{len(targets)}§r players had their {attr} changed to: §a{new_speed}")
+        sender.send_message(f"§e{len(targets)}§r players had their §b{attr} §rchanged from §e{original} §rto §e{new_speed}")
 
     return True

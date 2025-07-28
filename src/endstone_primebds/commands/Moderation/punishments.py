@@ -55,7 +55,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     history_message = db.print_punishment_history(target_name, page)
 
     if not history_message:
-        sender.send_message(f"No punishment history found for {ColorFormat.YELLOW}{target_name}")
+        sender.send_message(f"No punishment history found for §e{target_name}")
         return True
 
     sender.send_message(history_message)
@@ -68,9 +68,9 @@ def clear_all_punishments(self: "PrimeBDS", sender: CommandSender, target_name: 
     success = db.delete_all_punishment_logs_by_name(target_name)
 
     if success:
-        sender.send_message(f"Successfully cleared all punishments for {ColorFormat.YELLOW}{target_name}")
+        sender.send_message(f"Successfully cleared all punishments for §e{target_name}")
     else:
-        sender.send_message(f"Failed to clear punishments for {ColorFormat.YELLOW}{target_name}")
+        sender.send_message(f"Failed to clear punishments for §e{target_name}")
 
     return True
 
@@ -83,7 +83,7 @@ def remove_punishment_by_id(self: "PrimeBDS", sender: CommandSender, target_name
     punish_log = db.get_punishment_logs(target_name)
 
     if not history:
-        sender.send_message(f"No more punishments found for {ColorFormat.YELLOW}{target_name}.")
+        sender.send_message(f"No more punishments found for §e{target_name}.")
         return False
 
     # Create action form with punishments listed as buttons
@@ -95,7 +95,7 @@ def remove_punishment_by_id(self: "PrimeBDS", sender: CommandSender, target_name
         punishment_text = (
             f"{punishment.action_type}: {punishment.reason}\n"
             f"{ColorFormat.DARK_GRAY}("
-            f"{ColorFormat.YELLOW}{TimezoneUtils.convert_to_timezone(punishment.timestamp, 'EST')}"
+            f"§e{TimezoneUtils.convert_to_timezone(punishment.timestamp, 'EST')}"
             f"{ColorFormat.DARK_GRAY})"
         )
         form.button(f"§c{punishment_text}")
@@ -111,10 +111,10 @@ def remove_punishment_by_id(self: "PrimeBDS", sender: CommandSender, target_name
 
         if success:
             player.send_message(
-                f"Successfully removed punishment ID {punishment_id} for {ColorFormat.YELLOW}{target_name}")
+                f"Successfully removed punishment ID {punishment_id} for §e{target_name}")
         else:
             player.send_message(
-                f"Failed to remove punishment ID {punishment_id} for {ColorFormat.YELLOW}{target_name}")
+                f"Failed to remove punishment ID {punishment_id} for §e{target_name}")
 
         remove_punishment_by_id(self, sender, target_name)
 

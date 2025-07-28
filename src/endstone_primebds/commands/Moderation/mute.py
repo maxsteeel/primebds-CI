@@ -38,7 +38,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     mod_log = db.get_offline_mod_log(player_name)
     if mod_log and mod_log.is_muted:
         formatted_expiration = format_time_remaining(mod_log.mute_time, True)
-        sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}is already muted for {ColorFormat.YELLOW}{mod_log.mute_reason}{ColorFormat.GOLD}, the mute expires {ColorFormat.YELLOW}{formatted_expiration}")
+        sender.send_message(f"§6Player §e{player_name} §6is already muted for §e{mod_log.mute_reason}§6, the mute expires §e{formatted_expiration}")
         db.close_connection()
         return False
 
@@ -47,21 +47,21 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     reason = " ".join(args[3:]) if len(args) > 3 else "Negative Behavior"
 
     formatted_expiration = format_time_remaining(int(mute_expiration.timestamp()), True)
-    message = f"You are muted for {ColorFormat.YELLOW}{reason} {ColorFormat.GOLD}which expires {ColorFormat.YELLOW}{formatted_expiration}"
+    message = f"§6You are muted for §e{reason} §6which expires §e{formatted_expiration}"
 
     if target:
         # If the player is online, apply the mute directly
         db.add_mute(target.xuid, int(mute_expiration.timestamp()), reason)
         target.send_message(message)
         sender.send_message(
-            f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was muted for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}which expires {ColorFormat.YELLOW}{formatted_expiration}")
+            f"§6Player §e{player_name} §6was muted for §e\"{reason}\" §6which expires §e{formatted_expiration}")
     else:
         # If the player is offline, use xuid to mute them
         db.add_mute(db.get_xuid_by_name(player_name), int(mute_expiration.timestamp()), reason)
         sender.send_message(
-            f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was muted for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}which expires {ColorFormat.YELLOW}{formatted_expiration} {ColorFormat.GRAY}{ColorFormat.ITALIC}(Offline)")
+            f"§6Player §e{player_name} §6was muted for §e\"{reason}\" §6which expires §e{formatted_expiration} §7§o(Offline)")
 
-    log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was muted by {ColorFormat.YELLOW}{sender.name} {ColorFormat.GOLD}for {ColorFormat.YELLOW}\"{reason}\" {ColorFormat.GOLD}until {ColorFormat.YELLOW}{formatted_expiration}", "mod")
+    log(self, f"§6Player §e{player_name} §6was muted by §e{sender.name} §6for §e\"{reason}\" §6until §e{formatted_expiration}", "mod")
 
     db.close_connection()
     return True

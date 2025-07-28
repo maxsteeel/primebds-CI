@@ -94,9 +94,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     sender.send_message(
         f"{ColorFormat.AQUA}Bossbar Set For {len(targets)} player(s):\n"
         f"{ColorFormat.DARK_GRAY}---------------\n"
-        f"{ColorFormat.YELLOW}Color: {ColorFormat.RESET}{args[1]}\n"
-        f"{ColorFormat.YELLOW}percent: {ColorFormat.RESET}{percent}%\n"
-        f"{ColorFormat.YELLOW}Title: {ColorFormat.RESET}{title}\n"
+        f"§eColor: {ColorFormat.RESET}{args[1]}\n"
+        f"§epercent: {ColorFormat.RESET}{percent}%\n"
+        f"§eTitle: {ColorFormat.RESET}{title}\n"
         f"{ColorFormat.DARK_GRAY}---------------"
     )
     return True

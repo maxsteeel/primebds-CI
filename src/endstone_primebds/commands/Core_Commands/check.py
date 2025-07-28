@@ -39,20 +39,20 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         user = db.get_offline_user(player_name)
         if user is None:
             sender.send_message(
-                f"Player {ColorFormat.YELLOW}{player_name}{ColorFormat.RED} not found in database.")
+                f"Player §e{player_name}§c not found in database.")
             db.close_connection()
             return False
 
         xuid = user.xuid
         uuid = user.uuid
         name = user.name
-        ping = f"{user.ping}ms {ColorFormat.GRAY}[Last Recorded{ColorFormat.GRAY}]"
+        ping = f"{user.ping}ms §7[Last Recorded§7]"
         device = user.device_os
         version = user.client_ver
         rank = user.internal_rank
         last_join = user.last_join
         last_leave = user.last_leave
-        status = f"{ColorFormat.RED}Offline"
+        status = f"§cOffline"
 
     else:
         # Fetch Online Data
@@ -82,15 +82,15 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     # Format and send the message
     sender.send_message(f"""{ColorFormat.AQUA}Player Information:
-§7- {ColorFormat.YELLOW}Name: {ColorFormat.WHITE}{name} {ColorFormat.GRAY}[{status}{ColorFormat.GRAY}]
-§7- {ColorFormat.YELLOW}XUID: {ColorFormat.WHITE}{xuid}
-§7- {ColorFormat.YELLOW}UUID: {ColorFormat.WHITE}{uuid}
-§7- {ColorFormat.YELLOW}Internal Rank: {ColorFormat.WHITE}{rank}
-§7- {ColorFormat.YELLOW}Device OS: {ColorFormat.WHITE}{device}
-§7- {ColorFormat.YELLOW}Client Version: {ColorFormat.WHITE}{version}
-§7- {ColorFormat.YELLOW}Ping: {ColorFormat.WHITE}{ping}
-§7- {ColorFormat.YELLOW}Last Join: {ColorFormat.WHITE}{join_time}
-§7- {ColorFormat.YELLOW}Last Leave: {ColorFormat.WHITE}{leave_time_str}
+§7- §eName: {ColorFormat.WHITE}{name} §7[{status}§7]
+§7- §eXUID: {ColorFormat.WHITE}{xuid}
+§7- §eUUID: {ColorFormat.WHITE}{uuid}
+§7- §eInternal Rank: {ColorFormat.WHITE}{rank}
+§7- §eDevice OS: {ColorFormat.WHITE}{device}
+§7- §eClient Version: {ColorFormat.WHITE}{version}
+§7- §ePing: {ColorFormat.WHITE}{ping}
+§7- §eLast Join: {ColorFormat.WHITE}{join_time}
+§7- §eLast Leave: {ColorFormat.WHITE}{leave_time_str}
 """)
 
     return True

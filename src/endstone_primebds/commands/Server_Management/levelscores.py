@@ -162,7 +162,7 @@ def load_scoreboard(self: "PrimeBDS", player, name: str) -> bool:
 
     status = "NEW" if new_profile else "OLD"
     if isinstance(player, Player):
-        player.send_message(f"Loaded scoreboard profile '{name}' {ColorFormat.GRAY}{ColorFormat.ITALIC}[{status}]")
+        player.send_message(f"Loaded scoreboard profile '{name}' §7§o[{status}]")
     else:
         print(f"Loaded scoreboard profile '{name}' [{status}]")
 

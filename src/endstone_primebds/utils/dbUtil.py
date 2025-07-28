@@ -493,9 +493,9 @@ class UserDB(DatabaseManager):
                 ip_ban_status = "IP " if is_ip_banned else ""
                 active_punishments["Ban"] = (
                     timestamp,
-                    f"{ColorFormat.RED}{ip_ban_status}Ban {ColorFormat.GRAY}- {ColorFormat.YELLOW}{ban_reason} "
-                    f"{ColorFormat.GRAY}({ColorFormat.YELLOW}{ban_expires_in}{ColorFormat.GRAY})\n"
-                    f"{ColorFormat.ITALIC}Date Issued: {ColorFormat.GRAY}{formatted_time}{ColorFormat.RESET}"
+                    f"§c{ip_ban_status}Ban §7- §e{ban_reason} "
+                    f"§7(§e{ban_expires_in}§7)\n"
+                    f"§oDate Issued: §7{formatted_time}{ColorFormat.RESET}"
                 )
                 active_timestamps.add(timestamp)
 
@@ -503,9 +503,9 @@ class UserDB(DatabaseManager):
                 mute_expires_in = format_time_remaining(mute_time, True)
                 active_punishments["Mute"] = (
                     timestamp,
-                    f"{ColorFormat.BLUE}Mute {ColorFormat.GRAY}- {ColorFormat.YELLOW}{mute_reason} "
-                    f"{ColorFormat.GRAY}({ColorFormat.YELLOW}{mute_expires_in}{ColorFormat.GRAY})\n"
-                    f"{ColorFormat.ITALIC}Date Issued: {ColorFormat.GRAY}{formatted_time}{ColorFormat.RESET}"
+                    f"{ColorFormat.BLUE}Mute §7- §e{mute_reason} "
+                    f"§7(§e{mute_expires_in}§7)\n"
+                    f"§oDate Issued: §7{formatted_time}{ColorFormat.RESET}"
                 )
                 active_timestamps.add(timestamp)
 
@@ -529,9 +529,9 @@ class UserDB(DatabaseManager):
 
             time_status = "EXPIRED"
             punishment_entry = (
-                f"{ColorFormat.BLUE}{action_type} {ColorFormat.GRAY}- {ColorFormat.YELLOW}{reason} "
-                f"{ColorFormat.GRAY}({ColorFormat.YELLOW}{time_status}{ColorFormat.GRAY})\n"
-                f"{ColorFormat.ITALIC}Date Issued: {ColorFormat.GRAY}{formatted_time}{ColorFormat.RESET}"
+                f"{ColorFormat.BLUE}{action_type} §7- §e{reason} "
+                f"§7(§e{time_status}§7)\n"
+                f"§oDate Issued: §7{formatted_time}{ColorFormat.RESET}"
             )
 
             if timestamp not in active_timestamps:
@@ -548,20 +548,20 @@ class UserDB(DatabaseManager):
 
         if active_punishments:
             msg.append(
-                f"{ColorFormat.GREEN}Active {ColorFormat.GOLD}Punishments for {ColorFormat.YELLOW}{name}{ColorFormat.GOLD}:"
+                f"{ColorFormat.GREEN}Active §6Punishments for §e{name}§6:"
             )
             for _, entry in active_punishments.values():
                 msg.append(f"§7- {entry}")
-            msg.append(f"{ColorFormat.GOLD}---------------")
+            msg.append(f"§6---------------")
 
         msg.append(
-            f"{ColorFormat.DARK_RED}Past {ColorFormat.GOLD}Punishments for {ColorFormat.YELLOW}{name}{ColorFormat.GOLD}:§r"
+            f"{ColorFormat.DARK_RED}Past §6Punishments for §e{name}§6:§r"
         )
 
         for entry in paginated_history:
             msg.append(f"§7- {entry}")
 
-        msg.append(f"{ColorFormat.GOLD}---------------")
+        msg.append(f"§6---------------")
 
         if page < total_pages:
             msg.append(f"§8Use §e/punishments {name} {page + 1} §8for more.")

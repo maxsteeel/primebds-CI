@@ -36,7 +36,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if not mod_log or not mod_log.is_muted:
         # Player is not muted, return an error message
-        sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}is not muted")
+        sender.send_message(f"§6Player §e{player_name} §6is not muted")
         db.close_connection()
         return False
 
@@ -45,7 +45,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     db.close_connection()
 
     # Notify the sender that the mute has been removed
-    sender.send_message(f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}has been unmuted")
-    log(self, f"Player {ColorFormat.YELLOW}{player_name} {ColorFormat.GOLD}was unmuted by {ColorFormat.YELLOW}{sender.name}", "mod")
+    sender.send_message(f"§6Player §e{player_name} §6has been unmuted")
+    log(self, f"§6Player §e{player_name} §6was unmuted by §e{sender.name}", "mod")
 
     return True
