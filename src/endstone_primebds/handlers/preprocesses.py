@@ -45,7 +45,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
     if args and len(args) > 0 and cmd in moderation_commands \
             or (len(args) > 0 and cmd == "kick"): # Edge case for kick
 
-        if cmd == "punishments":
+        if cmd == "punishments" or "modspy":
             return True
 
         target = self.server.get_player(args[1])

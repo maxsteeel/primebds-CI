@@ -341,10 +341,11 @@ class UserDB(DatabaseManager):
             return user
         return None
 
-    def get_all_players(self) -> list:
-        """Fetches a list of all players from the database."""
-        self.cursor.execute("SELECT DISTINCT name FROM punishment_logs")
-        return [row[0] for row in self.cursor.fetchall()]
+    def get_all_users(self) -> list[dict]:
+        """Fetches all players and their info from the database."""
+        self.cursor.execute("SELECT * FROM users")
+        columns = [col[0] for col in self.cursor.description]
+        return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
 
     def enabled_logs(self, xuid: str) -> bool:
         """Checks if logging is enabled for a user by their XUID."""
@@ -450,7 +451,7 @@ class UserDB(DatabaseManager):
             'xuid': self.get_xuid_by_name(name),
             'name': name,
             'action_type': 'Unmute',
-            'reason': 'Mute Removed',
+            'reason': 'Mute Expired',
             'timestamp': int(time.time()),
             'duration': 0
         }
@@ -484,12 +485,13 @@ class UserDB(DatabaseManager):
         active_punishments = {}
         active_timestamps = set()
 
+        current_time = int(time.time())
+
         for action_type, timestamp in active_punishment_logs:
             formatted_time = TimezoneUtils.convert_to_timezone(timestamp, 'EST')
 
-            if action_type == "Ban" and is_banned and timestamp < banned_time and "Ban" not in active_punishments:
+            if action_type == "Ban" and is_banned and banned_time > current_time and "Ban" not in active_punishments:
                 ban_expires_in = format_time_remaining(banned_time)
-
                 ip_ban_status = "IP " if is_ip_banned else ""
                 active_punishments["Ban"] = (
                     timestamp,
@@ -499,7 +501,7 @@ class UserDB(DatabaseManager):
                 )
                 active_timestamps.add(timestamp)
 
-            elif action_type == "Mute" and is_muted and timestamp < mute_time and "Mute" not in active_punishments:
+            elif action_type == "Mute" and is_muted and mute_time > current_time and "Mute" not in active_punishments:
                 mute_expires_in = format_time_remaining(mute_time, True)
                 active_punishments["Mute"] = (
                     timestamp,
@@ -513,8 +515,10 @@ class UserDB(DatabaseManager):
             SELECT action_type, reason, timestamp, duration 
             FROM punishment_logs 
             WHERE name = ? 
+            AND NOT (action_type = 'Unmute' AND reason = 'Mute Expired')
             ORDER BY timestamp DESC
         """
+
         self.cursor.execute(query, (name,))
         result = self.cursor.fetchall()
 
