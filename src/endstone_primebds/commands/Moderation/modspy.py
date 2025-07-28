@@ -27,8 +27,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     current_status = bool(user.enabled_logs)
 
     if not args:
-        status_message = f"Mod logs are currently {f'§aEnabled' if current_status else f'§cDisabled'}"
-        sender.send_message(status_message)
+        new_status = not current_status
+        db.update_user_data(sender.name, "enabled_logs", int(new_status))
+        sender.send_message(f"§6Mod logs have been {f'§aEnabled' if new_status else f'§cDisabled'}")
     else:
         new_status = args[0].lower() in ["true", "1", "yes", "enable"]
         db.update_user_data(sender.name, "enabled_logs", int(new_status))
