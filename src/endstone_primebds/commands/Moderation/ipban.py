@@ -49,7 +49,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         # If the player is offline, check their mod log for an existing IP ban
         mod_log = db.get_offline_mod_log(player_name)
         if mod_log and mod_log.is_ip_banned:
-            sender.send_message(f"§6Player §e{player_name} §cis already IP-banne.")
+            sender.send_message(f"§6Player §e{player_name} §cis already IP-banned")
             db.close_connection()
             return False
 
