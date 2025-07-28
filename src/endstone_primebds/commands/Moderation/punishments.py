@@ -95,7 +95,7 @@ def remove_punishment_by_id(self: "PrimeBDS", sender: CommandSender, target_name
         punishment_text = (
             f"{punishment.action_type}: {punishment.reason}\n"
             f"{ColorFormat.DARK_GRAY}("
-            f"§e{TimezoneUtils.convert_to_timezone(punishment.timestamp, 'EST')}"
+            f"§6{TimezoneUtils.convert_to_timezone(punishment.timestamp, 'EST')}"
             f"{ColorFormat.DARK_GRAY})"
         )
         form.button(f"§c{punishment_text}")

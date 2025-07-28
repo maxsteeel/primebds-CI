@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from endstone import ColorFormat, Player
+from endstone import Player
 from endstone.event import PlayerChatEvent
 from endstone_primebds.utils.loggingUtil import discordRelay
 from endstone_primebds.utils.dbUtil import UserDB
@@ -15,7 +15,7 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
         ev.cancel() # Utilize until fix then switch to ev.is_cancelled = true
         return False
 
-    
+
     
     discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")
     return True
