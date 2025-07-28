@@ -18,12 +18,7 @@ command, permission = create_command(
 
 # TIP COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    matches = get_matching_actors(self.server, args[0], sender)
-    if not matches:
-        sender.send_message(f"No valid players matched selector: {args[0]}")
-        return False
-
-    for player in matches:
+    targets = get_matching_actors(self, args[0], sender)
+    for player in targets:
         player.send_tip(args[1])
-
     return True

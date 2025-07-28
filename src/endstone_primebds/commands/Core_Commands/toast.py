@@ -19,11 +19,6 @@ command, permission = create_command(
 # TOAST COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     targets = get_matching_actors(self, args[0], sender)
-
-    if not targets:
-        return True
-
     for player in targets:
         player.send_toast(args[1], args[2])
-
     return True

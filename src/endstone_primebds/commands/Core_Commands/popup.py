@@ -18,20 +18,8 @@ command, permission = create_command(
 
 # POPUP COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    if len(args) < 2:
-        sender.send_error_message("Usage: /popup <player> <message>")
-        return False
-
-    target_selector = args[0].strip('"')
-    message = args[1]
-
-    targets = get_matching_actors(sender, target_selector, self.server)
-
-    if not targets:
-        sender.send_error_message(f"No valid players found for selector: {target_selector}")
-        return True
-
+    targets = get_matching_actors(self, args[0], sender)
     for target in targets:
-        target.send_popup(message)
+        target.send_popup(args[1])
 
     return True
