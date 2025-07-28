@@ -1,8 +1,8 @@
 import os
 import sqlite3
 import time
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+from dataclasses import dataclass, fields
+from datetime import datetime
 from typing import List, Tuple, Any, Dict, Optional
 from endstone import ColorFormat
 from endstone.util import Vector
@@ -27,8 +27,9 @@ class User:
     last_join: int
     last_leave: int
     internal_rank: str
-    enabled_logs: str
-    is_afk: bool
+    enabled_ms: int
+    is_afk: int
+    enabled_ss: int
 
 @dataclass
 class ModLog:
@@ -115,6 +116,20 @@ class DatabaseManager:
         self.cursor.execute(query, tuple(data.values()))
         self.conn.commit()
 
+    def ensure_user_table_columns(self):
+        self.cursor.execute("PRAGMA table_info(users)")
+        existing_columns = [col[1] for col in self.cursor.fetchall()]
+
+        for f in fields(User):
+            if f.name not in existing_columns:
+                self.cursor.execute(
+                    f"ALTER TABLE users ADD COLUMN {f.name} {self.get_sql_type(f.type)} DEFAULT 0"
+                )
+        self.conn.commit()
+
+    def get_sql_type(self, py_type):
+        mapping = {int: "INTEGER", str: "TEXT", float: "REAL"}
+        return mapping.get(py_type, "TEXT")
 
     def fetch_all(self, table_name: str) -> List[Dict[str, Any]]:
         """Fetch all rows from a table."""
@@ -130,10 +145,18 @@ class DatabaseManager:
         return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
 
     def update(self, table_name: str, updates: Dict[str, Any], condition: str, params: Tuple):
-        """Update rows in the table."""
         update_clause = ', '.join([f"{col} = ?" for col in updates.keys()])
         query = f"UPDATE {table_name} SET {update_clause} WHERE {condition}"
-        self.cursor.execute(query, tuple(updates.values()) + params)
+        
+        # Combine update values and condition params
+        values = tuple(updates.values())
+        
+        if not isinstance(params, tuple):
+            params = (params,)
+        
+        all_params = values + params
+
+        self.cursor.execute(query, all_params)
         self.conn.commit()
 
     def delete(self, table_name: str, condition: str, params: Tuple):
@@ -167,8 +190,9 @@ class UserDB(DatabaseManager):
             'last_join': 'INTEGER',
             'last_leave': 'INTEGER',
             'internal_rank': 'TEXT',
-            'enabled_logs': 'INTEGER',
-            'is_afk': 'INTEGER'
+            'enabled_ms': 'INTEGER',
+            'is_afk': 'INTEGER',
+            'enabled_ss': 'INTEGER'
         }
         self.create_table('users', user_info_columns)
 
@@ -229,8 +253,9 @@ class UserDB(DatabaseManager):
                 'last_join': last_join,
                 'last_leave': last_leave,
                 'internal_rank': internal_rank,
-                'enabled_logs': 1,
-                'is_afk': 0
+                'enabled_ms': 1,
+                'is_afk': 0,
+                'enabled_ss': 0
             }
 
             mod_data = {
@@ -249,6 +274,9 @@ class UserDB(DatabaseManager):
             self.insert('users', data)
             self.insert('mod_logs', mod_data)
 
+            for f in fields(User):
+                data.setdefault(f.name, f.default if f.default is not None else 0)
+
             self.player_data_cache[xuid] = data
             return True
         else:
@@ -265,23 +293,78 @@ class UserDB(DatabaseManager):
 
             self.update('users', updates, condition, params)
 
-            # Update cache
+            # Update cache and fill missing fields
             if xuid in self.player_data_cache:
                 self.player_data_cache[xuid].update(updates)
+                for f in fields(User):
+                    self.player_data_cache[xuid].setdefault(f.name, f.default if f.default is not None else 0)
             return True
 
-    def _get_from_cache(self, xuid: str, name: str = None) -> Optional[dict]:
+    def get_from_cache(self, xuid: str, name: str = None) -> Optional[dict]:
         """Private method to check cache for user or mod log data."""
         if xuid in self.player_data_cache:
-            if name and self.player_data_cache[xuid].get("name") == name:
-                return self.player_data_cache[xuid]
+            cached_data = self.patch_user_fields(self.player_data_cache[xuid])
+            self.player_data_cache[xuid] = cached_data
+
+            if name and cached_data.get("name") == name:
+                return cached_data
             elif not name:
-                return self.player_data_cache[xuid]
+                return cached_data
         return None
+    
+    def migrate_user_table(self):
+        """Add missing columns to 'users' table according to User dataclass fields."""
+        self.cursor.execute("PRAGMA table_info(users)")
+        existing_columns = {row[1] for row in self.cursor.fetchall()}
+
+        type_map = {
+            int: "INTEGER",
+            float: "REAL",
+            str: "TEXT",
+            bool: "INTEGER",
+        }
+
+        for f in fields(User):
+            if f.name not in existing_columns:
+                col_type = type_map.get(f.type, "TEXT")
+                # Prepare default value as a literal for SQL
+                default_val = f.default if f.default is not None else 0
+
+                # For string types, wrap default_val in quotes
+                if col_type == "TEXT":
+                    default_literal = f"'{default_val}'"
+                else:
+                    default_literal = str(default_val)
+
+                try:
+                    sql = f"ALTER TABLE users ADD COLUMN {f.name} {col_type} DEFAULT {default_literal}"
+                    self.cursor.execute(sql)
+                    print(f"Added missing column '{f.name}' to users table.")
+                except sqlite3.OperationalError as e:
+                    print(f"Warning: Could not add column '{f.name}': {e}")
+
+        self.conn.commit()
+
+    def patch_user_fields(self, data: dict) -> dict:
+        """Clean data dict to only User fields and fill missing with defaults."""
+        user_field_names = {f.name for f in fields(User)}
+
+        data = {k: v for k, v in data.items() if k in user_field_names}
+
+        for f in fields(User):
+            if f.name not in data:
+                if f.default is not None:
+                    data[f.name] = f.default
+                elif hasattr(f, "default_factory") and f.default_factory is not None:
+                    data[f.name] = f.default_factory()
+                else:
+                    data[f.name] = 0 if f.type in [int, float, bool] else ""
+
+        return data
 
     def get_mod_log(self, xuid: str) -> Optional[ModLog]:
         """Retrieve moderation log for a user, using cache when available."""
-        cached_data = self._get_from_cache(xuid)
+        cached_data = self.get_from_cache(xuid)
         if cached_data and "mod_log" in cached_data:
             return cached_data["mod_log"]
 
@@ -310,8 +393,7 @@ class UserDB(DatabaseManager):
         return None
 
     def get_online_user(self, xuid: str) -> Optional[User]:
-        """Retrieves all user data as an object, checking cache first."""
-        cached_data = self._get_from_cache(xuid)
+        cached_data = self.get_from_cache(xuid)
         if cached_data:
             return User(**cached_data)
 
@@ -320,25 +402,32 @@ class UserDB(DatabaseManager):
         result = self.cursor.fetchone()
 
         if result:
-            user = User(*result)
-            self.player_data_cache[xuid] = user.__dict__ 
+            column_names = [desc[0] for desc in self.cursor.description]
+            result_dict = self.patch_user_fields(dict(zip(column_names, result)))
+            user = User(**result_dict)
+            self.player_data_cache[xuid] = user.__dict__
             return user
+
         return None
 
     def get_offline_user(self, name: str) -> Optional[User]:
-        """Retrieves all user data as an object by name, checking cache first."""
         for xuid, data in self.player_data_cache.items():
-            if data.get("name") == name:
-                return User(**data)
+            patched_data = self.patch_user_fields(data)
+            self.player_data_cache[xuid] = patched_data
+            if patched_data.get("name") == name:
+                return User(**patched_data)
 
         query = "SELECT * FROM users WHERE name = ?"
         self.cursor.execute(query, (name,))
         result = self.cursor.fetchone()
 
         if result:
-            user = User(*result)
-            self.player_data_cache[result[0]] = user.__dict__  
+            column_names = [desc[0] for desc in self.cursor.description]
+            result_dict = self.patch_user_fields(dict(zip(column_names, result)))
+            user = User(**result_dict)
+            self.player_data_cache[result_dict['xuid']] = user.__dict__
             return user
+
         return None
 
     def get_all_users(self) -> list[dict]:
@@ -346,14 +435,6 @@ class UserDB(DatabaseManager):
         self.cursor.execute("SELECT * FROM users")
         columns = [col[0] for col in self.cursor.description]
         return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
-
-    def enabled_logs(self, xuid: str) -> bool:
-        """Checks if logging is enabled for a user by their XUID."""
-        query = "SELECT enabled_logs FROM users WHERE xuid = ?"
-        self.cursor.execute(query, (xuid,))
-        result =  self.cursor.fetchone()
-
-        return result is not None and result[0] == 1
 
     def add_ban(self, xuid, expiration: int, reason: str, ip_ban: bool = False):
         """Bans a player by updating the mod_logs table."""
@@ -655,22 +736,24 @@ class UserDB(DatabaseManager):
         return None
 
     def update_user_data(self, name: str, column: str, value):
-        """Updates a specific column for an existing user in the 'users' table and updates cache."""
-        if column not in ['xuid', 'uuid', 'name', 'ping', 'device_os', 'client_ver',
-                          'last_join', 'last_leave', 'internal_rank', 'enabled_logs']:
-            return
-
+        """Updates a specific column for an existing user in the 'users' table and keeps cache synced."""
+    
         condition = 'name = ?'
         params = (name,)
         updates = {column: value}
         self.update('users', updates, condition, params)
 
+        # Update cache
         for xuid, data in self.player_data_cache.items():
-            if data.get("name") == name:
+            patched_data = self.patch_user_fields(data)
+            self.player_data_cache[xuid] = patched_data
+            
+            if patched_data.get("name") == name:
                 self.player_data_cache[xuid][column] = value
+
                 if column == "name":
                     self.player_data_cache[value] = self.player_data_cache.pop(xuid)
-                break 
+                break
 
 class grieflog(DatabaseManager):
     """Handles actions related to grief logs and session tracking."""

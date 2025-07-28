@@ -38,7 +38,7 @@ def log(self: "PrimeBDS", message, type):
                 or (config_tags & tags)
                 or player.is_op
         ):
-            if db.enabled_logs(player.xuid):
+            if bool(user.enabled_ms):
                 players_to_notify.append(player)
 
     # Send messages to players asynchronously

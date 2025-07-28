@@ -1,7 +1,6 @@
-from endstone import ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.configUtil import load_config
+from endstone_primebds.handlers.chat import handle_mute_status
 from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.loggingUtil import log
 from endstone_primebds.utils.modUtil import format_time_remaining
@@ -37,19 +36,21 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not target:
         mod_log = db.get_offline_mod_log(player_name)
         if not mod_log:
-            sender.send_message(f"§6Player §e{player_name} not found.")
+            sender.send_message(f"§6Player §e{player_name} not found")
             db.close_connection()
             return False
         if mod_log.is_muted:
-            sender.send_message(f"§6Player §e{player_name} is already muted.")
+            sender.send_message(f"§6Player §e{player_name} is already muted")
             db.close_connection()
             return False
+        
+    handle_mute_status(target)
 
     try:
         duration_number = int(args[1])
         duration_unit = args[2].lower()
     except ValueError:
-        sender.send_message(f"Invalid duration format. Use an integer followed by a time unit.")
+        sender.send_message(f"Invalid duration format. Use an integer followed by a time unit")
         return False
 
     time_units = {
@@ -63,7 +64,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     }
 
     if duration_unit not in time_units:
-        sender.send_message(f"Invalid time unit. Use: second, minute, hour, day, week, month, year.")
+        sender.send_message(f"Invalid time unit. Use: second, minute, hour, day, week, month, year")
         return False
 
     mute_duration = time_units[duration_unit]
@@ -75,7 +76,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if target:
         if db.get_mod_log(target.xuid).is_muted:
-            sender.send_message(f"§6Player §e{player_name} is already muted.")
+            sender.send_message(f"§6Player §e{player_name} is already muted")
             db.close_connection()
             return False
         target.send_message(message)

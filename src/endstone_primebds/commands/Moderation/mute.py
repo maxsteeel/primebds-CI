@@ -1,7 +1,7 @@
 from endstone import ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.configUtil import load_config
+from endstone_primebds.handlers.chat import handle_mute_status
 from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.loggingUtil import log
 from endstone_primebds.utils.modUtil import format_time_remaining
@@ -31,6 +31,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     player_name = args[0].strip('"')
     target = self.server.get_player(player_name)
+
+    if target:
+        handle_mute_status(target)
 
     db = UserDB("users.db")
 

@@ -118,6 +118,10 @@ class PrimeBDS(Plugin):
 
     def on_enable(self):
         self.register_events(self)
+
+        db = UserDB("users.db")
+        db.migrate_user_table()
+        db.close_connection()
         
         for player in self.server.online_players:
             self.reload_custom_perms(player)

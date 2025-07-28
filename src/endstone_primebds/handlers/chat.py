@@ -33,6 +33,8 @@ def handle_mute_status(player: Player) -> bool:
         player.send_message(f"§6You are permanently muted for §e{reason}")
     else:
         remaining = format_time_remaining(mute_data["mute_time"])
+        if remaining == "":
+            remaining = "0 seconds"
         player.send_message(f"§6You are muted for §e\"{reason}\" §6which expires in §e{remaining}")
     return False
 
