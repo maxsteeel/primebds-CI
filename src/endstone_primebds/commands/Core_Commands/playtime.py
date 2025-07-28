@@ -34,29 +34,25 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         total_playtime_minutes %= 60
         total_playtime_seconds %= 60
 
-        # Fetch leaderboard information
         leaderboard = dbgl.get_all_playtimes()
+        leaderboard = sorted(leaderboard, key=lambda x: x['total_playtime'], reverse=True)
 
-        # Find the player's rank
         player_rank = None
         for index, entry in enumerate(leaderboard):
             if entry['name'] == player_name:
                 player_rank = index + 1
                 break
 
-        # Determine the rank suffix
         if player_rank:
             rank_suffix = get_rank_suffix(player_rank)
         else:
             rank_suffix = "N/A"
 
-        # Send the total playtime and rank
         sender.send_message(
             f"§eYour Playtime: §r{total_playtime_days}d {total_playtime_hours}h {total_playtime_minutes}m {total_playtime_seconds}s §7§o({player_rank}{rank_suffix})§r")
 
         dbgl.close_connection()
     elif len(args) == 1 and args[0].lower() == 'true':
-        # Display leaderboard
         dbgl = grieflog("grieflog.db")
         leaderboard = dbgl.get_all_playtimes()
         leaderboard = sorted(leaderboard, key=lambda x: x['total_playtime'], reverse=True)
@@ -83,7 +79,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         dbgl.close_connection()
     else:
-        # If incorrect arguments are passed
         sender.send_message(f"Usage: /playtime [leaderboard]")
 
     return True
