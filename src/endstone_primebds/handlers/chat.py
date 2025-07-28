@@ -12,9 +12,10 @@ if TYPE_CHECKING:
 
 def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
     if not handle_mute_status(ev.player):
-        ev.is_cancelled = True
+        ev.cancel() # Utilize until fix then switch to ev.is_cancelled = true
         return False
 
+    
     
     discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")
     return True
