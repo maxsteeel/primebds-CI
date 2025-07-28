@@ -132,8 +132,6 @@ class PrimeBDS(Plugin):
                 dbgl.close_connection()
 
         if config["modules"]["check_prolonged_death_screen"]["enabled"] or config["modules"]["check_afk"]["enabled"]:
-            if config["modules"]["check_prolonged_death_screen"]["enabled"]:
-                print(f"[PrimeBDS] doimmediaterespawn gamerule is now set to true since prolonged deathscreen check is enabled")
             interval_function(self)
 
         self.check_for_inactive_sessions()
