@@ -67,108 +67,120 @@ class GriefAction:
 
 # DB
 class DatabaseManager:
+    _lock = threading.Lock()
+    _thread_local = threading.local()
+
     def __init__(self, db_name: str):
-        """Initialize the database connection."""
+        """Initialize the database manager (thread-safe)."""
         self.db_path = os.path.join(DB_FOLDER, db_name if db_name.endswith('.db') else db_name + '.db')
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        self.cursor = self.conn.cursor()
+
+    def _get_conn(self):
+        """Get or create a SQLite connection for the current thread."""
+        if not hasattr(self._thread_local, "conn"):
+            self._thread_local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._thread_local.cursor = self._thread_local.conn.cursor()
+        return self._thread_local.conn, self._thread_local.cursor
 
     def create_table(self, table_name: str, columns: Dict[str, str]):
-        """Create a table if it doesn't exist.
-        Args:
-            table_name (str): Name of the table.
-            columns (Dict[str, str]): Column definitions as a dictionary.
-        """
+        """Create a table if it doesn't exist."""
+        conn, cursor = self._get_conn()
         column_definitions = ', '.join([f"{col} {dtype}" for col, dtype in columns.items()])
         query = f"CREATE TABLE IF NOT EXISTS {table_name} ({column_definitions})"
-        self.cursor.execute(query)
-        self.conn.commit()
+        with self._lock:
+            cursor.execute(query)
+            conn.commit()
 
     def insert(self, table_name: str, data: Dict[str, Any]):
         """Insert a row into the table, adding missing columns automatically."""
+        conn, cursor = self._get_conn()
+        with self._lock:
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            existing_columns = {row[1] for row in cursor.fetchall()}
 
-        self.cursor.execute(f"PRAGMA table_info({table_name})")
-        existing_columns = {row[1] for row in self.cursor.fetchall()}  # column names set
+            for col in data.keys():
+                if col not in existing_columns:
+                    value = data[col]
+                    if isinstance(value, int):
+                        col_type = "INTEGER"
+                        default = 0
+                    elif isinstance(value, float):
+                        col_type = "REAL"
+                        default = 0.0
+                    elif isinstance(value, bool):
+                        col_type = "INTEGER"
+                        default = 0
+                    else:
+                        col_type = "TEXT"
+                        default = "''"
 
-        for col in data.keys():
-            if col not in existing_columns:
-                value = data[col]
-                if isinstance(value, int):
-                    col_type = "INTEGER"
-                    default = 0
-                elif isinstance(value, float):
-                    col_type = "REAL"
-                    default = 0.0
-                elif isinstance(value, bool):
-                    col_type = "INTEGER"
-                    default = 0
-                else:
-                    col_type = "TEXT"
-                    default = "''"
+                    alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col} {col_type} DEFAULT {default}"
+                    cursor.execute(alter_sql)
 
-                alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col} {col_type} DEFAULT {default}"
-                self.cursor.execute(alter_sql)
-                self.conn.commit()
-
-        columns = ', '.join(data.keys())
-        placeholders = ', '.join(['?' for _ in data.values()])
-        query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-        self.cursor.execute(query, tuple(data.values()))
-        self.conn.commit()
+            columns = ', '.join(data.keys())
+            placeholders = ', '.join(['?' for _ in data.values()])
+            query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
+            cursor.execute(query, tuple(data.values()))
+            conn.commit()
 
     def ensure_user_table_columns(self):
-        self.cursor.execute("PRAGMA table_info(users)")
-        existing_columns = [col[1] for col in self.cursor.fetchall()]
+        conn, cursor = self._get_conn()
+        with self._lock:
+            cursor.execute("PRAGMA table_info(users)")
+            existing_columns = [col[1] for col in cursor.fetchall()]
 
-        for f in fields(User):
-            if f.name not in existing_columns:
-                self.cursor.execute(
-                    f"ALTER TABLE users ADD COLUMN {f.name} {self.get_sql_type(f.type)} DEFAULT 0"
-                )
-        self.conn.commit()
+            for f in fields(User):
+                if f.name not in existing_columns:
+                    cursor.execute(
+                        f"ALTER TABLE users ADD COLUMN {f.name} {self.get_sql_type(f.type)} DEFAULT 0"
+                    )
+            conn.commit()
 
     def get_sql_type(self, py_type):
         mapping = {int: "INTEGER", str: "TEXT", float: "REAL"}
         return mapping.get(py_type, "TEXT")
 
     def fetch_all(self, table_name: str) -> List[Dict[str, Any]]:
-        """Fetch all rows from a table."""
-        self.cursor.execute(f"SELECT * FROM {table_name}")
-        columns = [desc[0] for desc in self.cursor.description]
-        return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+        conn, cursor = self._get_conn()
+        with self._lock:
+            cursor.execute(f"SELECT * FROM {table_name}")
+            columns = [desc[0] for desc in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     def fetch_by_condition(self, table_name: str, condition: str, params: Tuple) -> List[Dict[str, Any]]:
-        """Fetch rows based on a condition."""
-        query = f"SELECT * FROM {table_name} WHERE {condition}"
-        self.cursor.execute(query, params)
-        columns = [desc[0] for desc in self.cursor.description]
-        return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+        conn, cursor = self._get_conn()
+        with self._lock:
+            query = f"SELECT * FROM {table_name} WHERE {condition}"
+            cursor.execute(query, params)
+            columns = [desc[0] for desc in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     def update(self, table_name: str, updates: Dict[str, Any], condition: str, params: Tuple):
-        update_clause = ', '.join([f"{col} = ?" for col in updates.keys()])
-        query = f"UPDATE {table_name} SET {update_clause} WHERE {condition}"
-        
-        # Combine update values and condition params
-        values = tuple(updates.values())
-        
-        if not isinstance(params, tuple):
-            params = (params,)
-        
-        all_params = values + params
+        conn, cursor = self._get_conn()
+        with self._lock:
+            update_clause = ', '.join([f"{col} = ?" for col in updates.keys()])
+            query = f"UPDATE {table_name} SET {update_clause} WHERE {condition}"
 
-        self.cursor.execute(query, all_params)
-        self.conn.commit()
+            values = tuple(updates.values())
+            if not isinstance(params, tuple):
+                params = (params,)
+
+            all_params = values + params
+            cursor.execute(query, all_params)
+            conn.commit()
 
     def delete(self, table_name: str, condition: str, params: Tuple):
-        """Delete rows from the table."""
-        query = f"DELETE FROM {table_name} WHERE {condition}"
-        self.cursor.execute(query, params)
-        self.conn.commit()
+        conn, cursor = self._get_conn()
+        with self._lock:
+            query = f"DELETE FROM {table_name} WHERE {condition}"
+            cursor.execute(query, params)
+            conn.commit()
 
     def close_connection(self):
-        """Close the database connection."""
-        if self.conn:
-            self.conn.close()
+        """Close the thread-local database connection."""
+        if hasattr(self._thread_local, "conn"):
+            self._thread_local.conn.close()
+            del self._thread_local.conn
+            del self._thread_local.cursor
 
 class UserDB(DatabaseManager):
     def __init__(self, db_name: str):
@@ -222,7 +234,7 @@ class UserDB(DatabaseManager):
         self.create_table('punishment_logs', punishment_log_columns)
 
     def save_user(self, player):
-        """Checks if a user exists and saves them if not, updating cache."""
+        """Primary data saving for users."""
         xuid = player.xuid
         uuid = str(player.unique_id)
         name = player.name
@@ -232,73 +244,31 @@ class UserDB(DatabaseManager):
         last_join = int(time.time())
         last_leave = 0
         ip = str(player.address)
-
-        # Determine rank
         internal_rank = "Operator" if player.is_op else "Default"
 
-        user = self.player_data_cache.get(xuid)
-
-        if not user:
-            self.cursor.execute("SELECT * FROM users WHERE xuid = ?", (xuid,))
-            user = self.cursor.fetchone()
-
+        user = self.get_from_cache(xuid) or self.fetch_one("SELECT * FROM users WHERE xuid = ?", (xuid,))
         if not user:
             data = {
-                'xuid': xuid,
-                'uuid': uuid,
-                'name': name,
-                'ping': ping,
-                'device_os': device,
-                'client_ver': client_ver,
-                'last_join': last_join,
-                'last_leave': last_leave,
-                'internal_rank': internal_rank,
-                'enabled_ms': 1,
-                'is_afk': 0,
-                'enabled_ss': 0
+                'xuid': xuid, 'uuid': uuid, 'name': name, 'ping': ping, 'device_os': device,
+                'client_ver': client_ver, 'last_join': last_join, 'last_leave': last_leave,
+                'internal_rank': internal_rank, 'enabled_ms': 1, 'is_afk': 0, 'enabled_ss': 0
             }
-
             mod_data = {
-                'xuid': xuid,
-                'name': name,
-                'is_muted': 0,
-                'mute_time': 0,
-                'mute_reason': "None",
-                'is_banned': 0,
-                'banned_time': 0,
-                'ban_reason': "None",
-                'ip_address': ip,
-                'is_ip_banned': 0
+                'xuid': xuid, 'name': name, 'is_muted': 0, 'mute_time': 0, 'mute_reason': "None",
+                'is_banned': 0, 'banned_time': 0, 'ban_reason': "None", 'ip_address': ip, 'is_ip_banned': 0
             }
-
             self.insert('users', data)
             self.insert('mod_logs', mod_data)
-
             for f in fields(User):
                 data.setdefault(f.name, f.default if f.default is not None else 0)
-
             self.player_data_cache[xuid] = data
-            return True
         else:
-            condition = 'xuid = ?'
-            params = (xuid,)
-            updates = {
-                'uuid': uuid,
-                'name': name,
-                'ping': ping,
-                'device_os': device,
-                'client_ver': client_ver,
-                'is_afk': 0
-            }
-
-            self.update('users', updates, condition, params)
-
-            # Update cache and fill missing fields
+            updates = {'uuid': uuid, 'name': name, 'ping': ping, 'device_os': device, 'client_ver': client_ver, 'is_afk': 0}
+            self.update('users', updates, 'xuid = ?', (xuid,))
             if xuid in self.player_data_cache:
                 self.player_data_cache[xuid].update(updates)
                 for f in fields(User):
                     self.player_data_cache[xuid].setdefault(f.name, f.default if f.default is not None else 0)
-            return True
 
     def get_from_cache(self, xuid: str, name: str = None) -> Optional[dict]:
         """Private method to check cache for user or mod log data."""
@@ -314,36 +284,20 @@ class UserDB(DatabaseManager):
     
     def migrate_user_table(self):
         """Add missing columns to 'users' table according to User dataclass fields."""
-        self.cursor.execute("PRAGMA table_info(users)")
-        existing_columns = {row[1] for row in self.cursor.fetchall()}
-
-        type_map = {
-            int: "INTEGER",
-            float: "REAL",
-            str: "TEXT",
-            bool: "INTEGER",
-        }
+        existing_columns = {row[1] for row in self.execute("PRAGMA table_info(users)").fetchall()}
+        type_map = {int: "INTEGER", float: "REAL", str: "TEXT", bool: "INTEGER"}
 
         for f in fields(User):
             if f.name not in existing_columns:
                 col_type = type_map.get(f.type, "TEXT")
-                # Prepare default value as a literal for SQL
                 default_val = f.default if f.default is not None else 0
-
-                # For string types, wrap default_val in quotes
-                if col_type == "TEXT":
-                    default_literal = f"'{default_val}'"
-                else:
-                    default_literal = str(default_val)
+                default_literal = f"'{default_val}'" if col_type == "TEXT" else str(default_val)
 
                 try:
-                    sql = f"ALTER TABLE users ADD COLUMN {f.name} {col_type} DEFAULT {default_literal}"
-                    self.cursor.execute(sql)
+                    self.execute(f"ALTER TABLE users ADD COLUMN {f.name} {col_type} DEFAULT {default_literal}")
                     print(f"Added missing column '{f.name}' to users table.")
                 except sqlite3.OperationalError as e:
                     print(f"Warning: Could not add column '{f.name}': {e}")
-
-        self.conn.commit()
 
     def patch_user_fields(self, data: dict) -> dict:
         """Clean data dict to only User fields and fill missing with defaults."""
@@ -362,52 +316,18 @@ class UserDB(DatabaseManager):
 
         return data
 
-    def get_mod_log(self, xuid: str) -> Optional[ModLog]:
-        """Retrieve moderation log for a user, using cache when available."""
-        cached_data = self.get_from_cache(xuid)
-        if cached_data and "mod_log" in cached_data:
-            return cached_data["mod_log"]
-
-        query = "SELECT * FROM mod_logs WHERE xuid = ?"
-        self.cursor.execute(query, (xuid,))
-        result = self.cursor.fetchone()
-
-        if result:
-            mod_log = ModLog(
-                xuid=result[0],
-                name=result[1],
-                is_muted=bool(result[2]),
-                mute_time=result[3],
-                mute_reason=result[4],
-                is_banned=bool(result[5]),
-                banned_time=result[6],
-                ban_reason=result[7],
-                ip_address=result[8],
-                is_ip_banned=bool(result[9]),
-            )
-
-            self.player_data_cache[xuid] = self.player_data_cache.get(xuid, {})
-            self.player_data_cache[xuid]["mod_log"] = mod_log
-
-            return mod_log
-        return None
-
     def get_online_user(self, xuid: str) -> Optional[User]:
         cached_data = self.get_from_cache(xuid)
         if cached_data:
             return User(**cached_data)
 
-        query = "SELECT * FROM users WHERE xuid = ?"
-        self.cursor.execute(query, (xuid,))
-        result = self.cursor.fetchone()
-
+        result = self.fetch_one("SELECT * FROM users WHERE xuid = ?", (xuid,))
         if result:
-            column_names = [desc[0] for desc in self.cursor.description]
+            column_names = [desc[0] for desc in self.execute("PRAGMA table_info(users)").fetchall()]
             result_dict = self.patch_user_fields(dict(zip(column_names, result)))
             user = User(**result_dict)
             self.player_data_cache[xuid] = user.__dict__
             return user
-
         return None
 
     def get_offline_user(self, name: str) -> Optional[User]:
@@ -417,158 +337,92 @@ class UserDB(DatabaseManager):
             if patched_data.get("name") == name:
                 return User(**patched_data)
 
-        query = "SELECT * FROM users WHERE name = ?"
-        self.cursor.execute(query, (name,))
-        result = self.cursor.fetchone()
-
+        result = self.fetch_one("SELECT * FROM users WHERE name = ?", (name,))
         if result:
-            column_names = [desc[0] for desc in self.cursor.description]
+            column_names = [desc[0] for desc in self.execute("PRAGMA table_info(users)").fetchall()]
             result_dict = self.patch_user_fields(dict(zip(column_names, result)))
             user = User(**result_dict)
             self.player_data_cache[result_dict['xuid']] = user.__dict__
             return user
+        return None
 
+    def get_mod_log(self, xuid: str) -> Optional[ModLog]:
+        cached = self.get_from_cache(xuid)
+        if cached and "mod_log" in cached:
+            return cached["mod_log"]
+        row = self.fetch_one("SELECT * FROM mod_logs WHERE xuid = ?", (xuid,))
+        if row:
+            mod_log = ModLog(*row)
+            self.player_data_cache.setdefault(xuid, {})["mod_log"] = mod_log
+            return mod_log
         return None
 
     def get_all_users(self) -> list[dict]:
-        """Fetches all players and their info from the database."""
-        self.cursor.execute("SELECT * FROM users")
-        columns = [col[0] for col in self.cursor.description]
-        return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
-
+        rows = self.execute("SELECT * FROM users").fetchall()
+        columns = [col[0] for col in self.execute("PRAGMA table_info(users)").fetchall()]
+        return [dict(zip(columns, row)) for row in rows]
+    
     def add_ban(self, xuid, expiration: int, reason: str, ip_ban: bool = False):
-        """Bans a player by updating the mod_logs table."""
-        updates = {
-            'is_banned': 1,
-            'banned_time': expiration,
-            'ban_reason': reason,
-            'is_ip_banned': ip_ban
-        }
-        condition = 'xuid = ?'
-        params = (xuid,)
-
-        self.update('mod_logs', updates, condition, params)
-
-        # Log ban action
-        log_data = {
-            'xuid': xuid,
-            'name': self.get_name_by_xuid(xuid),
-            'action_type': 'Ban',
-            'reason': reason,
-            'timestamp': int(time.time()),
-            'duration': expiration
-        }
-        self.insert('punishment_logs', log_data)
+        self.update('mod_logs', {'is_banned': 1, 'banned_time': expiration, 'ban_reason': reason, 'is_ip_banned': ip_ban}, 'xuid = ?', (xuid,))
+        self.insert('punishment_logs', {
+            'xuid': xuid, 'name': self.get_name_by_xuid(xuid), 'action_type': 'Ban',
+            'reason': reason, 'timestamp': int(time.time()), 'duration': expiration
+        })
 
     def add_mute(self, xuid: str, expiration: int, reason: str):
-
-        updates = {
-            'is_muted': 1,
-            'mute_time': expiration,
-            'mute_reason': reason
-        }
-        condition = 'xuid = ?'
-        params = (xuid,)
-        self.update('mod_logs', updates, condition, params)
-
-        # Log mute action
-        log_data = {
-            'xuid': xuid,
-            'name': self.get_name_by_xuid(xuid),
-            'action_type': 'Mute',
-            'reason': reason,
-            'timestamp': int(time.time()),
-            'duration': expiration
-        }
-        self.insert('punishment_logs', log_data)
+        self.update('mod_logs', {'is_muted': 1, 'mute_time': expiration, 'mute_reason': reason}, 'xuid = ?', (xuid,))
+        self.insert('punishment_logs', {
+            'xuid': xuid, 'name': self.get_name_by_xuid(xuid), 'action_type': 'Mute',
+            'reason': reason, 'timestamp': int(time.time()), 'duration': expiration
+        })
 
     def remove_ban(self, name: str):
-        """Bans a player by updating the mod_logs table."""
-        updates = {
-            'is_banned': 0,
-            'banned_time': 0,
-            'ban_reason': "None",
-            'is_ip_banned': 0
-        }
-        condition = 'name = ?'
-        params = (name,)
-
-        self.update('mod_logs', updates, condition, params)
-
-        # Log unban action
-        log_data = {
-            'xuid': self.get_xuid_by_name(name),
-            'name': name,
-            'action_type': 'Unban',
-            'reason': 'Ban Removed',
-            'timestamp': int(time.time()),
-            'duration': 0
-        }
-        self.insert('punishment_logs', log_data)
+        self.update('mod_logs', {'is_banned': 0, 'banned_time': 0, 'ban_reason': "None", 'is_ip_banned': 0}, 'name = ?', (name,))
+        self.insert('punishment_logs', {
+            'xuid': self.get_xuid_by_name(name), 'name': name, 'action_type': 'Unban',
+            'reason': 'Ban Removed', 'timestamp': int(time.time()), 'duration': 0
+        })
 
     def check_ip_ban(self, ip: str) -> bool:
-        """Checks if the given IP address matches a user who is IP banned."""
-        # Strip the port if the IP has one
         ip_base = ip.split(':')[0]
+        return bool(self.fetch_one("SELECT 1 FROM mod_logs WHERE ip_address LIKE ? AND is_ip_banned = 1 LIMIT 1", (f"{ip_base}%",)))
 
-        query = "SELECT 1 FROM mod_logs WHERE ip_address LIKE ? AND is_ip_banned = 1 LIMIT 1"
-        self.cursor.execute(query, (f"{ip_base}%",))
-        result = self.cursor.fetchone()
-
-        return result is not None
-
-    def remove_mute(self,  name: str):
-        updates = {
-            'is_muted': 0,
-            'mute_time': 0,
-            'mute_reason': "None"
-        }
-        condition = 'name = ?'
-        params = (name,)
-        self.update('mod_logs', updates, condition, params)
-
-        # Log unmute action
-        log_data = {
-            'xuid': self.get_xuid_by_name(name),
-            'name': name,
-            'action_type': 'Unmute',
-            'reason': 'Mute Expired',
-            'timestamp': int(time.time()),
-            'duration': 0
-        }
-        self.insert('punishment_logs', log_data)
+    def remove_mute(self, name: str):
+        self.update('mod_logs', {'is_muted': 0, 'mute_time': 0, 'mute_reason': "None"}, 'name = ?', (name,))
+        self.insert('punishment_logs', {
+            'xuid': self.get_xuid_by_name(name), 'name': name, 'action_type': 'Unmute',
+            'reason': 'Mute Expired', 'timestamp': int(time.time()), 'duration': 0
+        })
 
     def print_punishment_history(self, name: str, page: int = 1):
-        """Retrieve all punishments for a user, showing active ones (ban/mute) first and paginate the results."""
-
-        query_mod_log = """
-            SELECT is_muted, mute_time, mute_reason, is_banned, banned_time, ban_reason, is_ip_banned 
-            FROM mod_logs 
+        """Prints punishment history for a named player"""
+        mod_log_query = """
+            SELECT is_muted, mute_time, mute_reason, is_banned, banned_time, ban_reason, is_ip_banned
+            FROM mod_logs
             WHERE name = ?
         """
-        self.cursor.execute(query_mod_log, (name,))
-        mod_log_result = self.cursor.fetchone()
-
-        if not mod_log_result:
+        mod_log = self.fetch_one(mod_log_query, (name,))
+        if not mod_log:
             return False
 
-        is_muted, mute_time, mute_reason, is_banned, banned_time, ban_reason, is_ip_banned = mod_log_result
-
-        query_active_punishments = """
-            SELECT action_type, timestamp 
-            FROM punishment_logs 
-            WHERE name = ? AND (action_type = 'Ban' OR action_type = 'Mute') 
-            ORDER BY timestamp DESC
-        """
-        self.cursor.execute(query_active_punishments, (name,))
-        active_punishment_logs = self.cursor.fetchall()
-
-        active_punishments = {}
-        active_timestamps = set()
-
+        is_muted, mute_time, mute_reason, is_banned, banned_time, ban_reason, is_ip_banned = mod_log
         current_time = int(time.time())
 
-        for action_type, timestamp in active_punishment_logs:
+        punishment_query = """
+            SELECT action_type, reason, timestamp, duration
+            FROM punishment_logs
+            WHERE name = ?
+            AND NOT (action_type = 'Unmute' AND reason = 'Mute Expired')
+            ORDER BY timestamp DESC
+        """
+        all_logs = self.execute(punishment_query, (name,)).fetchall()
+        if not all_logs:
+            return False
+
+        active_punishments = {}
+        past_punishments = []
+
+        for action_type, reason, timestamp, duration in all_logs:
             formatted_time = TimezoneUtils.convert_to_timezone(timestamp, 'EST')
 
             if action_type == "Ban" and is_banned and banned_time > current_time and "Ban" not in active_punishments:
@@ -580,8 +434,6 @@ class UserDB(DatabaseManager):
                     f"§7(§e{ban_expires_in}§7)\n"
                     f"§oDate Issued: §7{formatted_time}{ColorFormat.RESET}"
                 )
-                active_timestamps.add(timestamp)
-
             elif action_type == "Mute" and is_muted and mute_time > current_time and "Mute" not in active_punishments:
                 mute_expires_in = format_time_remaining(mute_time, True)
                 active_punishments["Mute"] = (
@@ -590,63 +442,29 @@ class UserDB(DatabaseManager):
                     f"§7(§e{mute_expires_in}§7)\n"
                     f"§oDate Issued: §7{formatted_time}{ColorFormat.RESET}"
                 )
-                active_timestamps.add(timestamp)
-
-        query = """
-            SELECT action_type, reason, timestamp, duration 
-            FROM punishment_logs 
-            WHERE name = ? 
-            AND NOT (action_type = 'Unmute' AND reason = 'Mute Expired')
-            ORDER BY timestamp DESC
-        """
-
-        self.cursor.execute(query, (name,))
-        result = self.cursor.fetchall()
-
-        if not result:
-            return False
-
-        past_punishments = []
-
-        for row in result:
-            action_type, reason, timestamp, duration = row
-            formatted_time = TimezoneUtils.convert_to_timezone(timestamp, 'EST')
-
-            time_status = "EXPIRED"
-            punishment_entry = (
-                f"{ColorFormat.BLUE}{action_type} §7- §e{reason} "
-                f"§7(§e{time_status}§7)\n"
-                f"§oDate Issued: §7{formatted_time}{ColorFormat.RESET}"
-            )
-
-            if timestamp not in active_timestamps:
-                past_punishments.append(punishment_entry)
+            else:
+                past_punishments.append(
+                    f"{ColorFormat.BLUE}{action_type} §7- §e{reason} "
+                    f"§7(§eEXPIRED§7)\n"
+                    f"§oDate Issued: §7{formatted_time}{ColorFormat.RESET}"
+                )
 
         per_page = 5
         total_pages = (len(past_punishments) + per_page - 1) // per_page
-        start = (page - 1) * per_page
-        end = start + per_page
-        paginated_history = past_punishments[start:end]
+        start, end = (page - 1) * per_page, (page - 1) * per_page + per_page
+        paginated_past = past_punishments[start:end]
 
-        # Build response
         msg = [f"Punishment Information\n---------------"]
 
         if active_punishments:
-            msg.append(
-                f"{ColorFormat.GREEN}Active §6Punishments for §e{name}§6:"
-            )
+            msg.append(f"{ColorFormat.GREEN}Active §6Punishments for §e{name}§6:")
             for _, entry in active_punishments.values():
                 msg.append(f"§7- {entry}")
-            msg.append(f"§6---------------")
+            msg.append("§6---------------")
 
-        msg.append(
-            f"{ColorFormat.DARK_RED}Past §6Punishments for §e{name}§6:§r"
-        )
-
-        for entry in paginated_history:
-            msg.append(f"§7- {entry}")
-
-        msg.append(f"§6---------------")
+        msg.append(f"{ColorFormat.DARK_RED}Past §6Punishments for §e{name}§6:§r")
+        msg.extend(f"§7- {entry}" for entry in paginated_past)
+        msg.append("§6---------------")
 
         if page < total_pages:
             msg.append(f"§8Use §e/punishments {name} {page + 1} §8for more.")
@@ -654,117 +472,46 @@ class UserDB(DatabaseManager):
         return "\n".join(msg)
 
     def get_punishment_logs(self, name: str) -> Optional[List[PunishmentLog]]:
-        """Fetches all punishment logs for a given player based on their name."""
-        query = "SELECT * FROM punishment_logs WHERE name = ?"
-        self.cursor.execute(query, (name,))
-        results = self.cursor.fetchall() 
+        rows = self.execute("SELECT * FROM punishment_logs WHERE name = ?", (name,)).fetchall()
+        return [PunishmentLog(*row) for row in rows] if rows else None
 
-        if results:
-            punishment_logs = []
-            for result in results:
-                punishment_logs.append(
-                    PunishmentLog(
-                        id=result[0],
-                        xuid=result[1],
-                        name=result[2],
-                        action_type=result[3],
-                        reason=result[4],
-                        timestamp=result[5],
-                        duration=result[6] if result[6] is not None else None
-                    )
-                )
-            return punishment_logs
-        return None
+    def delete_all_punishment_logs_by_name(self, name: str) -> bool:
+        cursor = self.execute("DELETE FROM punishment_logs WHERE name = ?", (name,))
+        return cursor.rowcount > 0
 
-    def delete_all_punishment_logs_by_name(self, name: str):
-        """Deletes all punishment logs for a specific player by name."""
-        query = "DELETE FROM punishment_logs WHERE name = ?"
-        self.cursor.execute(query, (name,))
-        self.conn.commit()
-
-        if self.cursor.rowcount > 0:
-            return True
-        else:
-            return False
-
-    def remove_punishment_log_by_id(self, name: str, log_id: int):
-        """Removes a punishment log for a specific player based on its ID (position)."""
-        query = "DELETE FROM punishment_logs WHERE name = ? AND id = ?"
-        self.cursor.execute(query, (name, log_id))
-        self.conn.commit()
-
-        if self.cursor.rowcount > 0:
-            return True
-        else:
-            return False
-
-    def get_xuid_by_name(self, player_name: str) -> str:
-        """Fetch the xuid of a player by their name."""
-        query = "SELECT xuid FROM mod_logs WHERE name = ?"
-        self.cursor.execute(query, (player_name,))
-        result = self.cursor.fetchone()
-        if result:
-            return result[0]
-
-    def get_name_by_xuid(self, xuid: str) -> str:
-        """Fetch the xuid of a player by their name."""
-        query = "SELECT name FROM mod_logs WHERE xuid = ?"
-        self.cursor.execute(query, (xuid,))
-        result = self.cursor.fetchone()
-        if result:
-            return result[0]
+    def remove_punishment_log_by_id(self, name: str, log_id: int) -> bool:
+        cursor = self.execute("DELETE FROM punishment_logs WHERE name = ? AND id = ?", (name, log_id))
+        return cursor.rowcount > 0
 
     def get_offline_mod_log(self, name: str) -> Optional[ModLog]:
-        """Retrieves a user's moderation log as an object."""
-        query = "SELECT * FROM mod_logs WHERE name = ?"
-        self.cursor.execute(query, (name,))
-        result = self.cursor.fetchone()
+        row = self.fetch_one("SELECT * FROM mod_logs WHERE name = ?", (name,))
+        return ModLog(*row) if row else None
 
-        if result:
-            return ModLog(
-                xuid=result[0],
-                name=result[1],
-                is_muted=bool(result[2]),
-                mute_time=result[3],
-                mute_reason=result[4],
-                is_banned=bool(result[5]),
-                banned_time=result[6],
-                ban_reason=result[7],
-                ip_address=result[8],
-                is_ip_banned=bool(result[9]),
-            )
-        return None
+    def get_xuid_by_name(self, player_name: str) -> str:
+        row = self.fetch_one("SELECT xuid FROM mod_logs WHERE name = ?", (player_name,))
+        return row[0] if row else None
+
+    def get_name_by_xuid(self, xuid: str) -> str:
+        row = self.fetch_one("SELECT name FROM mod_logs WHERE xuid = ?", (xuid,))
+        return row[0] if row else None
 
     def update_user_data(self, name: str, column: str, value):
-        """Updates a specific column for an existing user in the 'users' table and keeps cache synced."""
-    
-        condition = 'name = ?'
-        params = (name,)
-        updates = {column: value}
-        self.update('users', updates, condition, params)
-
-        # Update cache
+        self.update('users', {column: value}, 'name = ?', (name,))
         for xuid, data in self.player_data_cache.items():
-            patched_data = self.patch_user_fields(data)
-            self.player_data_cache[xuid] = patched_data
-            
-            if patched_data.get("name") == name:
+            patched = self.patch_user_fields(data)
+            self.player_data_cache[xuid] = patched
+            if patched.get("name") == name:
                 self.player_data_cache[xuid][column] = value
-
                 if column == "name":
                     self.player_data_cache[value] = self.player_data_cache.pop(xuid)
                 break
 
 class grieflog(DatabaseManager):
-    """Handles actions related to grief logs and session tracking."""
-
     def __init__(self, db_name: str):
-        """Initialize the database connection and create tables."""
         super().__init__(db_name)
         self.create_tables()
 
     def create_tables(self):
-        """Create tables if they don't exist."""
         action_log_columns = {
             'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
             'xuid': 'TEXT',
@@ -793,84 +540,51 @@ class grieflog(DatabaseManager):
         }
         self.create_table('actions_log', action_log_columns)
         self.create_table('sessions_log', session_log_columns)
-        self.create_table('user_toggles', user_toggle_columns)  
+        self.create_table('user_toggles', user_toggle_columns)
 
-    def get_latest_logout(self, player_name: str) -> dict | None:
-        self.cursor.execute("""
+    def get_latest_logout(self, player_name: str):
+        row = self.fetchone("""
             SELECT * FROM actions_log
             WHERE name = ? AND action = 'Logout'
             ORDER BY timestamp DESC
             LIMIT 1
         """, (player_name,))
-        row = self.cursor.fetchone()
         if not row:
             return None
-        return dict(zip([desc[0] for desc in self.cursor.description], row))
+        columns = self.get_column_names('actions_log')
+        return dict(zip(columns, row))
 
     def set_user_toggle(self, xuid: str, name: str):
-        """Toggles the inspect mode for a player."""
-
         existing_toggle = self.get_user_toggle(xuid, name)
-
         if existing_toggle:
-            new_toggle = not existing_toggle[3]  # Assuming 'inspect_mode' is at index 3
-            updates = {'inspect_mode': new_toggle}
-            condition = 'xuid = ?'
-            params = (xuid,)
-
-            try:
-                self.update('user_toggles', updates, condition, params)
-            except Exception as e:
-                print(f"Error updating data: {e}")
+            new_toggle = not existing_toggle[3]  # Assuming 'inspect_mode' at index 3
+            self.update('user_toggles', {'inspect_mode': new_toggle}, 'xuid = ?', (xuid,))
         else:
-            data = {'xuid': xuid, 'name': name, 'inspect_mode': True}
-            try:
-                self.insert('user_toggles', data)
-            except Exception as e:
-                print(f"Error inserting data: {e}")
-
-        self.conn.commit()
+            self.insert('user_toggles', {'xuid': xuid, 'name': name, 'inspect_mode': True})
 
     def get_user_toggle(self, xuid: str, name: str):
-        """Gets the current inspect mode toggle for a player.
-        If no result exists, insert a new default value with name and inspect_mode.
-        """
-        query = "SELECT * FROM user_toggles WHERE xuid = ?"
-        self.cursor.execute(query, (xuid,))
-        result = self.cursor.fetchone()
+        row = self.fetchone("SELECT * FROM user_toggles WHERE xuid = ?", (xuid,))
+        if row is None:
+            self.execute(
+                "INSERT INTO user_toggles (xuid, name, inspect_mode) VALUES (?, ?, ?)",
+                (xuid, name, 0)
+            )
+            self.commit()
+            row = self.fetchone("SELECT * FROM user_toggles WHERE xuid = ?", (xuid,))
+        return row
 
-        if result is None:
-            default_value = 0  
-            insert_query = """
-                INSERT INTO user_toggles (xuid, name, inspect_mode) 
-                VALUES (?, ?, ?)
-            """
-            self.cursor.execute(insert_query, (xuid, name, default_value))
-            self.conn.commit()
-
-            self.cursor.execute(query, (xuid,))
-            result = self.cursor.fetchone()
-
-        return result
-
-    def fetch_all_as_dicts(self, query: str, params: tuple = ()) -> list[dict]:
-        """Helper to run a query and return list of dicts keyed by column name."""
-        self.cursor.execute(query, params)
-        rows = self.cursor.fetchall()
-
-        self.cursor.execute("PRAGMA table_info(actions_log);")
-        columns = [col[1] for col in self.cursor.fetchall()]
-
+    def fetch_all_as_dicts(self, query: str, params: tuple = ()):
+        rows = self.execute(query, params).fetchall()
+        columns = self.get_column_names('actions_log')
         result = []
         for row in rows:
-            row_dict = {columns[i]: row[i] for i in range(len(columns))}
-            if 'x' in columns and 'y' in columns and 'z' in columns:
-                row_dict['location'] = f"{row_dict['x']},{row_dict['y']},{row_dict['z']}"
-            result.append(row_dict)
-
+            d = {columns[i]: row[i] for i in range(len(columns))}
+            if all(c in columns for c in ('x', 'y', 'z')):
+                d['location'] = f"{d['x']},{d['y']},{d['z']}"
+            result.append(d)
         return result
 
-    def get_logs_by_coordinates(self, x: float, y: float, z: float, player_name: str = None) -> list[dict]:
+    def get_logs_by_coordinates(self, x: float, y: float, z: float, player_name: str = None):
         query = "SELECT * FROM actions_log WHERE x = ? AND y = ? AND z = ?"
         params = (x, y, z)
         if player_name:
@@ -878,29 +592,23 @@ class grieflog(DatabaseManager):
             params += (player_name,)
         return self.fetch_all_as_dicts(query, params)
 
-    def get_logs_by_player(self, player_name: str) -> list[dict]:
-        query = "SELECT * FROM actions_log WHERE name = ?"
-        return self.fetch_all_as_dicts(query, (player_name,))
+    def get_logs_by_player(self, player_name: str):
+        return self.fetch_all_as_dicts("SELECT * FROM actions_log WHERE name = ?", (player_name,))
 
-    def get_logs_within_radius(self, x: float, y: float, z: float, radius: float) -> list[dict]:
+    def get_logs_within_radius(self, x: float, y: float, z: float, radius: float):
         query = """
-        SELECT * FROM actions_log
-        WHERE (POWER(x - ?, 2) + POWER(y - ?, 2) + POWER(z - ?, 2)) <= POWER(?, 2)
+            SELECT * FROM actions_log
+            WHERE (POWER(x - ?, 2) + POWER(y - ?, 2) + POWER(z - ?, 2)) <= POWER(?, 2)
         """
-        params = (x, y, z, radius)
-        return self.fetch_all_as_dicts(query, params)
+        return self.fetch_all_as_dicts(query, (x, y, z, radius))
 
-    def log_action(self, xuid: str, name: str, action: str, location, timestamp: int, block_type: str = None,
-                   block_state: str = None, dim: str = None):
-        """Logs an action performed by a player, stores x, y, z as separate coordinates, and includes block data if available."""
-        # Parse the location if it's a Vec object (assuming it has x, y, z attributes)
-        if isinstance(location, Vector):
+    def log_action(self, xuid: str, name: str, action: str, location, timestamp: int,
+                   block_type: str = None, block_state: str = None, dim: str = None):
+        if hasattr(location, 'x') and hasattr(location, 'y') and hasattr(location, 'z'):
             x, y, z = location.x, location.y, location.z
         else:
-            # If it's not a Vec, assume it's a string or already formatted location
             x, y, z = map(float, location.split(','))
 
-        # Prepare additional block data if available
         data = {
             'xuid': xuid,
             'name': name,
@@ -910,200 +618,85 @@ class grieflog(DatabaseManager):
             'z': z,
             'dim': dim,
             'timestamp': timestamp,
+            'block_type': block_type,
+            'block_state': block_state,
         }
-
-        if block_type:
-            data['block_type'] = block_type  # Log block type (if applicable)
-
-        if block_state:
-            data['block_state'] = block_state  # Log block state (if applicable)
+        # Remove None values
+        data = {k: v for k, v in data.items() if v is not None}
 
         self.insert('actions_log', data)
 
     def start_session(self, xuid: str, name: str, start_time: int):
-        """Logs the start of a player session and automatically ends any previous sessions in case of a crash."""
-        # Fetch the latest session for this player
         current_session = self.get_current_session(xuid)
         if current_session:
-            # Automatically end any previous session if it is still open
             self.end_session(xuid, int(time.time()))
-
-        # Now log the new session as a start
-        data = {
-            'xuid': xuid,
-            'name': name,
-            'start_time': start_time,
-            'end_time': None
-        }
-        self.insert('sessions_log', data)
+        self.insert('sessions_log', {'xuid': xuid, 'name': name, 'start_time': start_time, 'end_time': None})
 
     def end_session(self, xuid: str, end_time: int):
-        """Logs the end of a player session."""
-        query = """
-            UPDATE sessions_log
-            SET end_time = ?
-            WHERE xuid = ? AND end_time IS NULL
-        """
-        self.cursor.execute(query, (end_time, xuid))
-        self.conn.commit()
+        self.execute(
+            "UPDATE sessions_log SET end_time = ? WHERE xuid = ? AND end_time IS NULL",
+            (end_time, xuid)
+        )
+        self.commit()
 
     def get_current_session(self, xuid: str):
-        """Fetches the most recent active session for a player (where end_time is None)."""
-        query = "SELECT * FROM sessions_log WHERE xuid = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1"
-        self.cursor.execute(query, (xuid,))
-        result = self.cursor.fetchone()
+        return self.fetchone(
+            "SELECT * FROM sessions_log WHERE xuid = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1",
+            (xuid,)
+        )
 
-        if result:
-            return result  # Returns the session data if an active session is found
-        return None  # Return None if there is no active session
-
-    def get_user_sessions(self, xuid: str) -> list[dict]:
-        """
-        Gets all sessions for a player with start and end times.
-        Automatically calculates the duration for active sessions.
-        """
-        query = "SELECT start_time, end_time FROM sessions_log WHERE xuid = ?"
-        self.cursor.execute(query, (xuid,))
-        sessions = self.cursor.fetchall()
-
+    def get_user_sessions(self, xuid: str):
+        rows = self.execute("SELECT start_time, end_time FROM sessions_log WHERE xuid = ?", (xuid,)).fetchall()
+        now = int(time.time())
         result = []
-        for start_time, end_time in sessions:
-            if end_time is None:
-                duration = int(time.time()) - start_time
-                end_time_display = None
-            else:
-                duration = end_time - start_time
-                end_time_display = end_time
-
-            result.append({
-                'start_time': start_time,
-                'end_time': end_time_display,
-                'duration': duration
-            })
+        for start_time, end_time in rows:
+            duration = (now - start_time) if end_time is None else (end_time - start_time)
+            result.append({'start_time': start_time, 'end_time': end_time, 'duration': duration})
         return result
 
-    def get_total_playtime(self, xuid: str) -> int:
-        """
-        Gets the total playtime of a player in seconds.
-        Automatically calculates ongoing session times if still active.
-        """
-        query = "SELECT start_time, end_time FROM sessions_log WHERE xuid = ?"
-        self.cursor.execute(query, (xuid,))
-        sessions = self.cursor.fetchall()
-
+    def get_total_playtime(self, xuid: str):
+        rows = self.execute("SELECT start_time, end_time FROM sessions_log WHERE xuid = ?", (xuid,)).fetchall()
+        now = int(time.time())
         total_time = 0
-        for start_time, end_time in sessions:
-            if end_time:
-                total_time += end_time - start_time
-            else:
-                total_time += int(time.time()) - start_time  # Active session
-
+        for start_time, end_time in rows:
+            total_time += (end_time - start_time) if end_time else (now - start_time)
         return total_time
 
-    def get_all_playtimes(self) -> list[dict]:
-        """
-        Gets a list of all users and their total playtimes.
-        Includes active sessions in real-time.
-        This function now searches by player name instead of xuid.
-        """
-        query = "SELECT xuid, name FROM sessions_log GROUP BY name"
-        self.cursor.execute(query)
-        users = self.cursor.fetchall()
-
+    def get_all_playtimes(self):
+        users = self.execute("SELECT xuid, name FROM sessions_log GROUP BY name").fetchall()
         result = []
         for xuid, name in users:
             total_playtime = self.get_total_playtime(xuid)
-            result.append({
-                'xuid': xuid, 
-                'name': name,
-                'total_playtime': total_playtime
-            })
+            result.append({'xuid': xuid, 'name': name, 'total_playtime': total_playtime})
         return result
 
     def delete_logs_older_than_seconds(self, seconds: int, sendPrint=False):
-        """Deletes logs that are older than the given seconds threshold and logs the action."""
-
-        # Fetch current time
-        current_time = datetime.utcnow()
-
-        # Fetch logs and count them
-        count_query = "SELECT COUNT(*) FROM actions_log"
-        self.cursor.execute(count_query)
-        count_result = self.cursor.fetchone()
-        count = count_result[0] if count_result else 0
-
+        threshold = int(time.time()) - seconds
+        count = self.fetchone("SELECT COUNT(*) FROM actions_log")[0]
         if count == 0:
-            print("[PrimeBDS] No logs to delete.")
-            return
+            if sendPrint:
+                print("[PrimeBDS] No logs to delete.")
+            return 0
 
-        # Fetch individual logs and check timestamps
-        select_logs_query = "SELECT id, timestamp FROM actions_log"
-        self.cursor.execute(select_logs_query)
-        logs_to_delete = self.cursor.fetchall()
+        self.execute("DELETE FROM actions_log WHERE timestamp < ?", (threshold,))
+        self.commit()
 
-        # Perform deletion for each individual log that matches the condition
-        deleted_count = 0
-        for log in logs_to_delete:
-            log_id, log_timestamp = log
-
-            log_time = datetime.utcfromtimestamp(log_timestamp)
-            time_difference = (current_time - log_time).total_seconds()
-
-            # Compare the time difference with the input seconds
-            if time_difference > seconds:
-                delete_query = "DELETE FROM actions_log WHERE id = ?"
-                self.cursor.execute(delete_query, (log_id,))
-                deleted_count += 1
-
-        self.conn.commit()
-
-        time_units = [
-            ("day", 86400),
-            ("hour", 3600),
-            ("minute", 60),
-            ("second", 1)
-        ]
-
-        for unit, value in time_units:
-            if seconds >= value:
-                amount = seconds // value
-                time_string = f"{amount} {unit}{'s' if amount > 1 else ''}"
-                break
-
-        # Final Log Message
         if sendPrint:
-            print(f"[primebds - grieflog] Purged {deleted_count} logs older than {time_string}")
-
-        return deleted_count
+            # Format time string
+            units = [("day", 86400), ("hour", 3600), ("minute", 60), ("second", 1)]
+            for unit, val in units:
+                if seconds >= val:
+                    amount = seconds // val
+                    time_string = f"{amount} {unit}{'s' if amount > 1 else ''}"
+                    break
+            print(f"[primebds - grieflog] Purged logs older than {time_string}")
+        return self.fetchone("SELECT COUNT(*) FROM actions_log")[0]
 
     def delete_logs_within_seconds(self, seconds: int):
-        """Deletes logs that are within the given seconds threshold and logs the action."""
-
-        current_time = datetime.utcnow()
-
-        select_logs_query = "SELECT id, timestamp FROM actions_log"
-        self.cursor.execute(select_logs_query)
-        logs_to_delete = self.cursor.fetchall()
-
-        # Perform deletion for each individual log that matches the condition
-        deleted_count = 0
-        for log in logs_to_delete:
-            log_id, log_timestamp = log
-
-            log_time = datetime.utcfromtimestamp(log_timestamp)
-            time_difference = (current_time - log_time).total_seconds()
-
-            # Compare the time difference with the input seconds
-            if time_difference <= seconds:
-                delete_query = "DELETE FROM actions_log WHERE id = ?"
-                self.cursor.execute(delete_query, (log_id,))
-                deleted_count += 1
-
-        self.conn.commit()
-
-        return deleted_count
+        threshold = int(time.time()) - seconds
+        self.execute("DELETE FROM actions_log WHERE timestamp >= ?", (threshold,))
+        self.commit()
 
     def delete_all_logs(self):
-        """Deletes all logs."""
-        self.delete('actions_log', '1', ())  # '1' is just a condition that will match all logs
-
+        self.execute("DELETE FROM actions_log WHERE 1")
+        self.commit()
