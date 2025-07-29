@@ -54,10 +54,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                     self.server.dispatch_command(self.server.command_sender, f"op {player_name}")
                 else:
                     self.server.dispatch_command(self.server.command_sender, f"deop {player_name}")
-                    if target.is_op:
-                        sender.send_message(
-                            f"Warning: internal OP level is currently set to 4, and {player_name}'s OP status could not be revoked."
-                        )
                 self.reload_custom_perms(target)
 
                 sender.send_message(

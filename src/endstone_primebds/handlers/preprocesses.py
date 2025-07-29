@@ -21,11 +21,6 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
     if config["modules"]["discord_logging"]["commands"]["enabled"]:
         discordRelay(f"**{player.name}** ran: {command}", "cmd")
 
-    # Internal Permissions Handler
-    if ((db.get_online_user(player.xuid).internal_rank.lower() == "operator" and not player.has_permission("minecraft.kick")) or
-            (db.get_online_user(player.xuid).internal_rank.lower() == "default" and player.is_op) or not player.has_permission("primebds.command.refresh")):
-        self.reload_custom_perms(player)
-
     moderation_commands = {
         "kick", "ban", "pardon", "unban",
         "permban", "tempban", "tempmute",

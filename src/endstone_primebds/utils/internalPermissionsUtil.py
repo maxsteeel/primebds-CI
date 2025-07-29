@@ -1,5 +1,8 @@
-from endstone import Player
+from typing import TYPE_CHECKING
 from endstone_primebds.utils.dbUtil import UserDB
+
+if TYPE_CHECKING:
+    from endstone_primebds.primebds import PrimeBDS
 
 # Define ranks in order of hierarchy
 RANKS = ["Default", "Helper", "Mod", "Operator"]
@@ -9,99 +12,55 @@ MANAGED_PERMISSIONS_LIST = [
     "minecraft.command.kick",
     "endstone.command.ban",
     "endstone.command.unban",
-    "primebds.command.bottom",
-    "primebds.command.check",
-    "primebds.command.fly",
-    "primebds.command.nickname",
-    "primebds.command.ping",
-    "primebds.command.playtime",
-    "primebds.command.popup",
-    "primebds.command.refresh",
-    "primebds.command.spectate",
-    "primebds.command.speed",
-    "primebds.command.tip",
-    "primebds.command.toast",
-    "primebds.command.top",
-    "primebds.command.ipban",
-    "primebds.command.mute",
-    "primebds.command.permban",
-    "primebds.command.punishments",
-    "primebds.command.removeban",
-    "primebds.command.tempban",
-    "primebds.command.tempmute",
-    "primebds.command.unmute",
-    "primebds.command.activity",
-    "primebds.command.activitylist",
-    "primebds.command.bossbar",
-    "primebds.command.grieflog",
-    "primebds.command.inspect",
-    "primebds.command.levelscores",
-    "primebds.command.monitor",
-    "primebds.command.primebds",
-    "primebds.command.reloadscripts",
-    "primebds.command.setrank",
-    "primebds.command.updatepacks",
-    "primebds.command.viewscriptprofiles",
-    "primebds.command.world",
-    "primebds.command.alist",
-    "primebds.command.gma",
-    "primebds.command.gmc",
-    "primebds.command.gms",
-    "primebds.command.gmsp",
-    "primebds.command.send",
-    "primebds.command.offlinetp",
-    "primebds.command.feed",
-    "primebds.command.heal",
-    "primebds.command.modspy",
-    "primebds.command.plist",
-    "primebds.command.socialspy",
-    "primebds.command.invsee",
-    "primebds.command.enderchest",
-    "primebds.command.globalmute",
     "primebds.globalmute.exempt",
     "primebds.mute.exempt",
     "primebds.ban.exempt",
     "primebds.kick.exempt"
 ]
 
-def perm(name: str) -> str:
-    """Helper to safely get the string from MANAGED_PERMISSIONS_LIST."""
-    return next((p for p in MANAGED_PERMISSIONS_LIST if p.endswith(name)), name)
+def load_perms(self: "PrimeBDS"):
+    primebds_perms = [
+        perm_name
+        for perm_name in self.permissions.keys()
+        if perm_name.startswith("primebds.command.")
+    ]
+
+    MANAGED_PERMISSIONS_LIST.extend(primebds_perms)
 
 PERMISSIONS = {
     "Default": [
-        perm("spectate"),
-        perm("ping"),
-        perm("playtime"),
-        perm("refresh"),
+        "primebds.command.spectate",
+        "primebds.command.ping",
+        "primebds.command.playtime",
+        "primebds.command.refresh",
     ],
     "Helper": [
-        perm("check"),
-        perm("monitor"),
-        perm("activity"),
-        perm("activitylist"),
-        perm("inspect"),
-        perm("grieflog"),
-        perm("socialspy"),
-        perm("invsee"),
-        perm("enderchest"),
+        "primebds.command.check",
+        "primebds.command.monitor",
+        "primebds.command.activity",
+        "primebds.command.activitylist",
+        "primebds.command.inspect",
+        "primebds.command.grieflog",
+        "primebds.command.socialspy",
+        "primebds.command.invsee",
+        "primebds.command.enderchest",
     ],
     "Mod": [
-        perm("ipban"),
-        perm("mute"),
-        perm("permban"),
-        perm("punishments"),
-        perm("removeban"),
-        perm("tempban"),
-        perm("tempmute"),
-        perm("unmute"),
-        perm("nickname"),
-        perm("modspy"),
-        perm("offlinetp"),
-        perm("plist"),
-        perm("kick"),
-        perm("ban"),
-        perm("unban")
+        "primebds.command.ipban",
+        "primebds.command.mute",
+        "primebds.command.permban",
+        "primebds.command.punishments",
+        "primebds.command.removeban",
+        "primebds.command.tempban",
+        "primebds.command.tempmute",
+        "primebds.command.unmute",
+        "primebds.command.nickname",
+        "primebds.command.modspy",
+        "primebds.command.offlinetp",
+        "primebds.command.plist",
+        "primebds.command.kick",
+        "primebds.command.ban",
+        "primebds.command.unban",
     ],
     "Operator": ["*"],
 }
@@ -109,17 +68,22 @@ PERMISSIONS = {
 def get_permissions(rank: str) -> list[str]:
     """Returns a list of all permissions for a given rank, including inherited ones."""
     if rank.lower() == "operator":
-        return MANAGED_PERMISSIONS_LIST
+        return list(set(MANAGED_PERMISSIONS_LIST))
 
     inherited_permissions = []
-    rank_order = RANKS
+    seen = set()
 
-    for r in rank_order:
-        inherited_permissions.extend(PERMISSIONS.get(r, []))
+    for r in RANKS:
+        for perm in PERMISSIONS.get(r, []):
+            if perm not in seen:
+                inherited_permissions.append(perm)
+                seen.add(perm)
+
         if r.lower() == rank.lower():
-            break  # Stop once we reach the requested rank
+            break
 
     return inherited_permissions
+
 
 def check_perms(player_or_user, perm: str) -> bool:
     """Check if a player object or DB user has a given permission, including inherited perms."""

@@ -17,7 +17,7 @@ from endstone_primebds.commands.Server_Management.monitor import clear_all_inter
 from endstone_primebds.utils.configUtil import load_config
 
 from endstone_primebds.utils.dbUtil import UserDB, grieflog
-from endstone_primebds.utils.internalPermissionsUtil import get_permissions
+from endstone_primebds.utils.internalPermissionsUtil import load_perms, get_permissions, MANAGED_PERMISSIONS_LIST
 
 def plugin_text():
     print(
@@ -119,6 +119,7 @@ class PrimeBDS(Plugin):
 
     def on_enable(self):
         self.register_events(self)
+        load_perms(self)
 
         db = UserDB("users.db")
         db.migrate_user_table()
@@ -192,11 +193,6 @@ class PrimeBDS(Plugin):
         db.save_user(player)
         user = db.get_online_user(player.xuid)
 
-        if player.has_permission("minecraft.kick"):
-            db.update_user_data(player.name, 'internal_rank', "Operator")
-        elif user.internal_rank.lower() == "operator" and not player.has_permission("minecraft.kick"):
-            db.update_user_data(player.name, 'internal_rank', "Default")
-
         # Remove Overwritten Permissions
         player.add_attachment(self, "endstone.command.ban", False)
         player.add_attachment(self, "endstone.command.unban", False)
@@ -207,8 +203,7 @@ class PrimeBDS(Plugin):
         permissions = get_permissions(user.internal_rank)
 
         # Reset Permissions
-        perms = self.permissions
-        for p in perms:
+        for p in MANAGED_PERMISSIONS_LIST:
             player.add_attachment(self, p, False)
 
         # Apply Perms
