@@ -194,8 +194,15 @@ class PrimeBDS(Plugin):
 
         if player.has_permission("minecraft.kick"):
             db.update_user_data(player.name, 'internal_rank', "Operator")
-        elif user.internal_rank == "Operator" and not player.has_permission("minecraft.kick"):
+        elif user.internal_rank.lower() == "operator" and not player.has_permission("minecraft.kick"):
             db.update_user_data(player.name, 'internal_rank', "Default")
+
+        # Remove Overwritten Permissions
+        player.add_attachment(self, "endstone.command.ban", False)
+        player.add_attachment(self, "endstone.command.unban", False)
+        player.add_attachment(self, "endstone.command.banip", False)
+        player.add_attachment(self, "endstone.command.unbanip", False)
+        player.add_attachment(self, "endstone.command.banlist", False)
 
         permissions = get_permissions(user.internal_rank)
 
@@ -205,19 +212,9 @@ class PrimeBDS(Plugin):
             player.add_attachment(self, p, False)
 
         # Apply Perms
-        if "*" in permissions:
-            for perm in perms:
-                player.add_attachment(self, perm, True)
-        else:
-            for perm in permissions:
-                player.add_attachment(self, perm, True)
-
-        # Remove Overwritten Permissions
-        player.add_attachment(self, "endstone.command.ban", True)
-        player.add_attachment(self, "endstone.command.banip", False)
-        player.add_attachment(self, "endstone.command.unban", True)
-        player.add_attachment(self, "endstone.command.unbanip", False)
-        player.add_attachment(self, "endstone.command.banlist", False)
+        #print(f"{player.name}'s perms: {permissions}") # DEBUG
+        for perm in permissions:
+            player.add_attachment(self, perm, True)
 
         player.update_commands()
         player.recalculate_permissions()

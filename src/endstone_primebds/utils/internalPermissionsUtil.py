@@ -2,10 +2,13 @@ from endstone import Player
 from endstone_primebds.utils.dbUtil import UserDB
 
 # Define ranks in order of hierarchy
-RANKS = ["default", "helper", "mod", "operator"]
+RANKS = ["Default", "Helper", "Mod", "Operator"]
 
 # Define permissions associated with each rank
-PERMISSIONS_LIST = [
+MANAGED_PERMISSIONS_LIST = [
+    "minecraft.command.kick",
+    "endstone.command.ban",
+    "endstone.command.unban",
     "primebds.command.bottom",
     "primebds.command.check",
     "primebds.command.fly",
@@ -62,17 +65,17 @@ PERMISSIONS_LIST = [
 ]
 
 def perm(name: str) -> str:
-    """Helper to safely get the string from PERMISSIONS_LIST."""
-    return next((p for p in PERMISSIONS_LIST if p.endswith(name)), name)
+    """Helper to safely get the string from MANAGED_PERMISSIONS_LIST."""
+    return next((p for p in MANAGED_PERMISSIONS_LIST if p.endswith(name)), name)
 
 PERMISSIONS = {
-    "default": [
+    "Default": [
         perm("spectate"),
         perm("ping"),
         perm("playtime"),
         perm("refresh"),
     ],
-    "helper": [
+    "Helper": [
         perm("check"),
         perm("monitor"),
         perm("activity"),
@@ -83,7 +86,7 @@ PERMISSIONS = {
         perm("invsee"),
         perm("enderchest"),
     ],
-    "mod": [
+    "Mod": [
         perm("ipban"),
         perm("mute"),
         perm("permban"),
@@ -96,36 +99,51 @@ PERMISSIONS = {
         perm("modspy"),
         perm("offlinetp"),
         perm("plist"),
-        perm("globalmute.exempt"),
-
+        perm("kick"),
+        perm("ban"),
+        perm("unban")
     ],
-    "operator": ["*"],
+    "Operator": ["*"],
 }
 
 def get_permissions(rank: str) -> list[str]:
     """Returns a list of all permissions for a given rank, including inherited ones."""
+    if rank.lower() == "operator":
+        return MANAGED_PERMISSIONS_LIST
+
     inherited_permissions = []
     rank_order = RANKS
 
     for r in rank_order:
         inherited_permissions.extend(PERMISSIONS.get(r, []))
-        if r == rank:
+        if r.lower() == rank.lower():
             break  # Stop once we reach the requested rank
 
     return inherited_permissions
 
-def check_perms(player: Player, perm: str) -> bool:
-    """Check if a rank has a given permission."""
-    db = UserDB("users.db")
-    rank = db.get_online_user(player.xuid).internal_rank.lower()
-    db.close_connection()
-    rank_perms = PERMISSIONS.get(rank, [])
+def check_perms(player_or_user, perm: str) -> bool:
+    """Check if a player object or DB user has a given permission, including inherited perms."""
+    db = None
+    rank = None
 
-    # If admin or '*' is present, they have all permissions
-    if "*" in rank_perms:
-        return True
+    try:
+        if hasattr(player_or_user, "internal_rank"):
+            rank = getattr(player_or_user, "internal_rank", "").lower()
 
-    return perm in rank_perms
+        elif hasattr(player_or_user, "xuid"):
+            db = UserDB("users.db")
+            user = db.get_online_user(player_or_user.xuid)
+            if user and hasattr(user, "internal_rank"):
+                rank = user.internal_rank.lower()
+
+        if rank:
+            rank_perms = get_permissions(rank)
+            return "*" in rank_perms or perm in rank_perms
+
+        return False
+    finally:
+        if db:
+            db.close_connection()
 
 def check_internal_rank(user1_rank: str, user2_rank: str) -> bool:
     """

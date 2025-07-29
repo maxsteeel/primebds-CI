@@ -8,7 +8,6 @@ from endstone_primebds.utils.configUtil import load_config, save_config
 from collections import defaultdict, OrderedDict
 
 # Global storage for preloaded commands
-moderation_commands = set() # MOD SYSTEM REQ
 preloaded_commands = {}
 preloaded_permissions = {}
 preloaded_handlers = {}
@@ -188,7 +187,7 @@ def preload_settings():
 
 def preload_commands():
     """Preload all command modules before PrimeBDS is instantiated, respecting the config."""
-    global preloaded_commands, preloaded_permissions, preloaded_handlers, moderation_commands
+    global preloaded_commands, preloaded_permissions, preloaded_handlers
 
     commands_base_path = os.path.join(os.path.dirname(endstone_primebds.__file__), 'commands')
     config = load_config()
@@ -218,12 +217,6 @@ def preload_commands():
                     if config["commands"][cmd]["enabled"]:
                         preloaded_commands[cmd] = details
                         preloaded_handlers[cmd] = module.handler
-
-                        # Check if the command belongs to "Moderation"
-                        if package_path.lower() == "moderation":
-                            moderation_commands.add(cmd)  # Add main command
-                            aliases = details.get("aliases", [])  # Get aliases if available
-                            moderation_commands.update(aliases)  # Add aliases to the set
 
                         grouped_commands[package_path].append((cmd, details.get('description', 'No description')))
                     else:
@@ -260,4 +253,4 @@ def preload_commands():
 preload_settings()
 preload_commands()
 
-__all__ = [preloaded_commands, preloaded_permissions, preloaded_handlers, moderation_commands]
+__all__ = [preloaded_commands, preloaded_permissions, preloaded_handlers]

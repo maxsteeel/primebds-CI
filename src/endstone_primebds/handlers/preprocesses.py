@@ -6,7 +6,6 @@ from endstone_primebds.utils.configUtil import load_config
 from endstone_primebds.utils.dbUtil import UserDB
 from endstone_primebds.utils.internalPermissionsUtil import check_perms
 from endstone_primebds.utils.loggingUtil import log, discordRelay
-from endstone_primebds.commands import moderation_commands
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -23,45 +22,65 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         discordRelay(f"**{player.name}** ran: {command}", "cmd")
 
     # Internal Permissions Handler
-    if ((db.get_online_user(player.xuid).internal_rank == "Operator" and not player.has_permission("minecraft.kick")) or
-            (db.get_online_user(player.xuid).internal_rank == "Default" and player.is_op) or not player.has_permission("primebds.command.refresh")):
+    if ((db.get_online_user(player.xuid).internal_rank.lower() == "operator" and not player.has_permission("minecraft.kick")) or
+            (db.get_online_user(player.xuid).internal_rank.lower() == "default" and player.is_op) or not player.has_permission("primebds.command.refresh")):
         self.reload_custom_perms(player)
 
-    existing_moderation_commands = {"kick", "ban", "pardon", "unban"}
-    if args and (cmd in moderation_commands or cmd in existing_moderation_commands):
+    moderation_commands = {
+        "kick", "ban", "pardon", "unban",
+        "permban", "tempban", "tempmute",
+        "mute", "ipban"
+    }
+    
+    is_exempt = False
+    if args and cmd in moderation_commands:
+        if len(args) < 2:
+            event.player.send_message("§cInvalid or missing target for this command.")
+            event.is_cancelled = True
+            db.close_connection()
+            return True
+        
         target = db.get_offline_user(args[1])
 
         if any("@" in arg for arg in args):
-            event.player.send_message(f"§cTarget selectors are invalid for this command")
+            event.player.send_message("§cTarget selectors are invalid for this command")
             event.is_cancelled = True
+            db.close_connection()
+            return True
 
         if target is not None:
-            if cmd == "kick" and check_perms(target, "kick.exempt"):
-                event.is_cancelled = True
+            print(target.name)
+            if cmd == "kick" and check_perms(target, "primebds.kick.exempt"):
                 event.player.send_message(f"§6Player §e{target.name} §6is exempt from being kicked")
+                is_exempt = True
 
-            if cmd in {"mute", "tempmute"} and check_perms(target, "mute.exempt"):
-                event.is_cancelled = True
+            elif cmd in {"mute", "tempmute"} and check_perms(target, "primebds.mute.exempt"):
                 event.player.send_message(f"§6Player §e{target.name} §6is exempt from being muted")
+                is_exempt = True
 
-            if cmd in {"permban", "tempban", "ipban", "ban"} and check_perms(target, "ban.exempt"):
-                event.is_cancelled = True
+            elif cmd in {"permban", "tempban", "ipban", "ban"} and check_perms(target, "primebds.ban.exempt"):
                 event.player.send_message(f"§6Player §e{target.name} §6is exempt from being banned")
+                is_exempt = True
 
-    
-    if cmd == "ban": # Override
+    if is_exempt:
+        event.is_cancelled = True
+        db.close_connection()
+        return True
+
+    # Overrides
+    if cmd == "ban":
         args[0] = "permban"
         player.perform_command(" ".join(args))
         event.is_cancelled = True
         db.close_connection()
         return False
-    elif cmd == "unban" or cmd == "pardon": # Override
-        args[0] = "removeban"
+    elif cmd in {"unban", "pardon"}:
         player.perform_command(" ".join(args))
         event.is_cancelled = True
         db.close_connection()
         return False
-    elif args and cmd == "op": # Override
+        
+    if args and cmd == "op": # Override
         self.server.dispatch_command(self.server.command_sender, f"setrank \"{args[1]}\" operator")
         event.is_cancelled = True
         db.close_connection()
@@ -94,7 +113,6 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
 
     # Social Spy
     if cmd in msg_cmds and args:
-
         if db.get_mod_log(player.xuid).is_muted:
             handle_mute_status(player)
             event.is_cancelled = True
