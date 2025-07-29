@@ -5,17 +5,22 @@ from endstone import Player
 from endstone.event import PlayerChatEvent
 from endstone_primebds.utils.loggingUtil import discordRelay
 from endstone_primebds.utils.dbUtil import UserDB
+from endstone_primebds.utils.internalPermissionsUtil import check_perms
 from endstone_primebds.utils.modUtil import format_time_remaining
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
 def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
-    if not handle_mute_status(ev.player):
+
+    if self.globalmute == 1 and not check_perms(ev.player, "primebds.globalmute.exempt"):
+        ev.player.send_message(f"§cGlobal chat is currently Disabled")
         ev.cancel() # Utilize until fix then switch to ev.is_cancelled = true
         return False
 
-
+    if not handle_mute_status(ev.player):
+        ev.cancel() # Utilize until fix then switch to ev.is_cancelled = true
+        return False
     
     discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")
     return True
