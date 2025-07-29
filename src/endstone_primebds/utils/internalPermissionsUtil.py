@@ -84,7 +84,6 @@ def get_permissions(rank: str) -> list[str]:
 
     return inherited_permissions
 
-
 def check_perms(player_or_user, perm: str) -> bool:
     """Check if a player object or DB user has a given permission, including inherited perms."""
     db = None
