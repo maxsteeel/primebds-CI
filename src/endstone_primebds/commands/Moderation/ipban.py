@@ -24,11 +24,6 @@ command, permission = create_command(
 
 # IPBAN COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    if len(args) < 2:
-        sender.send_message(
-            f"Usage: /ipban <player> <duration> (unit) [reason] or /ipban <player> forever [reason]")
-        return False
-    
     if any("@" in arg for arg in args):
         sender.send_message(f"§cTarget selectors are invalid for this command")
         return False

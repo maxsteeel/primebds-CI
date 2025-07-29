@@ -38,12 +38,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         # If the player is offline, look them up by name in the database
         mod_log = db.get_offline_mod_log(player_name)
         if not mod_log:
-            sender.send_message(f"§6Player §e{player_name} not found.")
+            sender.send_message(f"§6Player §e{player_name} not found")
             db.close_connection()
             return False
         # Check if the player is already banned
         if mod_log.is_banned:
-            sender.send_message(f"§6Player §e{player_name} is already banned.")
+            sender.send_message(f"§6Player §e{player_name} is already banned")
             db.close_connection()
             return False
 
@@ -51,7 +51,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         duration_number = int(args[1])
         duration_unit = args[2].lower()
     except ValueError:
-        sender.send_message(f"Invalid duration format. Use an integer followed by a time unit.")
+        sender.send_message(f"Invalid duration format. Use an integer followed by a time unit")
         return False
 
     # Supported time units
@@ -66,7 +66,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     }
 
     if duration_unit not in time_units:
-        sender.send_message(f"Invalid time unit. Use: second, minute, hour, day, week, month, year.")
+        sender.send_message(f"Invalid time unit. Use: second, minute, hour, day, week, month, year")
         return False
 
     ban_duration = time_units[duration_unit]

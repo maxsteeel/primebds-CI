@@ -53,7 +53,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             return False
 
         if not mod_log:
-            sender.send_message(f"§6Player '{player_name}' not found.")
+            sender.send_message(f"§6Player '{player_name}' not found")
             db.close_connection()
             return False
 
