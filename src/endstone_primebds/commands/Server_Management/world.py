@@ -50,10 +50,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     if subaction == "cmd":
-        if len(args) < 3:
-            send_feedback("[PrimeBDS] Usage: /world <world_name> cmd <command>")
-            return False
-
         command_to_run = " ".join(args[2:])
 
         if server_properties is None:
@@ -128,10 +124,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     elif subaction == "send":
-        if len(args) < 3:
-            send_feedback("[PrimeBDS] Usage: /world <world_name> send <player>")
-            return False
-
         world_name = args[1]
         targets = get_matching_actors(self, args[2], sender)
 
@@ -178,10 +170,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 return False
 
     elif subaction == "create":
-        if len(args) < 4:
-            send_feedback("[PrimeBDS] Usage: /world create <world_name> <ip> <port>")
-            return False
-        
         main_level = server_properties.get("level-name", "Unknown")
         if self.server.level.name != main_level:
             send_feedback(f"[PrimeBDS] Worlds can only be created from the main world")
