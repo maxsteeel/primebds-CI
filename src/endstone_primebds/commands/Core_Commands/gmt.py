@@ -1,0 +1,37 @@
+from endstone import Player, GameMode
+from endstone.command import CommandSender
+from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from endstone_primebds.primebds import PrimeBDS
+
+# Register command
+command, permission = create_command(
+    "gmt",
+    "Toggles you between survival and creative mode!",
+    ["/gmt [player: player]"],
+    ["primebds.command.gmt"]
+)
+
+# GMT COMMAND FUNCTIONALITY
+def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
+    if len(args) == 0:
+        if not isinstance(sender, Player):
+            sender.send_message("This command can only be executed by a player")
+            return False
+        if sender.game_mode == GameMode.CREATIVE:
+            sender.perform_command("gamemode survival @s")
+        else:
+            sender.perform_command("gamemode creative @s")
+        return True
+
+    targets = get_matching_actors(self, args[0], sender)
+    for target in targets:
+        if target.game_mode == GameMode.CREATIVE:
+            sender.perform_command(f"gamemode survival {target.name}")
+        else:
+            sender.perform_command(f"gamemode creative {target.name}")
+
+    return True
