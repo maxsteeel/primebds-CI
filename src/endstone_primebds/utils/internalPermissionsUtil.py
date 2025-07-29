@@ -1,5 +1,8 @@
+from endstone import Player
+from endstone_primebds.utils.dbUtil import UserDB
+
 # Define ranks in order of hierarchy
-RANKS = ["Default", "Helper", "Mod", "Operator"]
+RANKS = ["default", "helper", "mod", "operator"]
 
 # Define permissions associated with each rank
 PERMISSIONS_LIST = [
@@ -50,52 +53,59 @@ PERMISSIONS_LIST = [
     "primebds.command.plist",
     "primebds.command.socialspy",
     "primebds.command.invsee",
-    "primebds.command.enderchest"
+    "primebds.command.enderchest",
+    "primebds.command.globalmute",
+    "primebds.globalmute.exempt",
+    "primebds.mute.exempt",
+    "primebds.ban.exempt",
+    "primebds.kick.exempt"
 ]
 
-def cmd(name: str) -> str:
+def perm(name: str) -> str:
     """Helper to safely get the string from PERMISSIONS_LIST."""
     return next((p for p in PERMISSIONS_LIST if p.endswith(name)), name)
 
 PERMISSIONS = {
-    "Default": [
-        cmd("spectate"),
-        cmd("ping"),
-        cmd("playtime"),
-        cmd("refresh"),
+    "default": [
+        perm("spectate"),
+        perm("ping"),
+        perm("playtime"),
+        perm("refresh"),
     ],
-    "Helper": [
-        cmd("check"),
-        cmd("monitor"),
-        cmd("activity"),
-        cmd("activitylist"),
-        cmd("inspect"),
-        cmd("grieflog"),
-        cmd("socialspy"),
-        cmd("invsee"),
-        cmd("enderchest"),
+    "helper": [
+        perm("check"),
+        perm("monitor"),
+        perm("activity"),
+        perm("activitylist"),
+        perm("inspect"),
+        perm("grieflog"),
+        perm("socialspy"),
+        perm("invsee"),
+        perm("enderchest"),
     ],
-    "Mod": [
-        cmd("ipban"),
-        cmd("mute"),
-        cmd("permban"),
-        cmd("punishments"),
-        cmd("removeban"),
-        cmd("tempban"),
-        cmd("tempmute"),
-        cmd("unmute"),
-        cmd("nickname"),
-        cmd("modspy"),
-        cmd("offlinetp"),
-        cmd("plist")
+    "mod": [
+        perm("ipban"),
+        perm("mute"),
+        perm("permban"),
+        perm("punishments"),
+        perm("removeban"),
+        perm("tempban"),
+        perm("tempmute"),
+        perm("unmute"),
+        perm("nickname"),
+        perm("modspy"),
+        perm("offlinetp"),
+        perm("plist"),
+        perm("globalmute.exempt"),
+
     ],
-    "Operator": ["*"],
+    "operator": ["*"],
 }
 
 def get_permissions(rank: str) -> list[str]:
     """Returns a list of all permissions for a given rank, including inherited ones."""
     inherited_permissions = []
-    rank_order = ["Default", "Helper", "Mod", "Operator"]
+    rank_order = RANKS
 
     for r in rank_order:
         inherited_permissions.extend(PERMISSIONS.get(r, []))
@@ -104,8 +114,11 @@ def get_permissions(rank: str) -> list[str]:
 
     return inherited_permissions
 
-def check_perms(rank: str, perm: str) -> bool:
+def check_perms(player: Player, perm: str) -> bool:
     """Check if a rank has a given permission."""
+    db = UserDB("users.db")
+    rank = db.get_online_user(player.xuid).internal_rank.lower()
+    db.close_connection()
     rank_perms = PERMISSIONS.get(rank, [])
 
     # If admin or '*' is present, they have all permissions

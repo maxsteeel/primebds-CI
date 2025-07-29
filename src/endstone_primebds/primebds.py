@@ -56,8 +56,9 @@ class PrimeBDS(Plugin):
 
     def __init__(self):
         super().__init__()
-        # /monitor
+        # Command Controls
         self.monitor_intervals = {}
+        self.globalmute = 0
 
         # Multiworld Handler
         self.multiworld_processes = {}
@@ -212,9 +213,9 @@ class PrimeBDS(Plugin):
                 player.add_attachment(self, perm, True)
 
         # Remove Overwritten Permissions
-        player.add_attachment(self, "endstone.command.ban", False)
+        player.add_attachment(self, "endstone.command.ban", True)
         player.add_attachment(self, "endstone.command.banip", False)
-        player.add_attachment(self, "endstone.command.unban", False)
+        player.add_attachment(self, "endstone.command.unban", True)
         player.add_attachment(self, "endstone.command.unbanip", False)
         player.add_attachment(self, "endstone.command.banlist", False)
 

@@ -34,7 +34,7 @@ def log(self: "PrimeBDS", message, type):
         tags = set(player.scoreboard_tags or [])
 
         # check perms, custom-tag overlap, or OP status
-        if (check_perms(user.internal_rank, "primebds.command.modspy")
+        if (check_perms(player, "primebds.command.modspy")
                 or (config_tags & tags)
                 or player.is_op
         ):
