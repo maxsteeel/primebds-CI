@@ -161,16 +161,11 @@ class PrimeBDS(Plugin):
 
         # Fetch players with active sessions (where end_time is NULL)
         query = "SELECT xuid, name, start_time FROM sessions_log WHERE end_time IS NULL"
-        dbgl.cursor.execute(query)
-        active_sessions = dbgl.cursor.fetchall()
+        active_sessions = dbgl.execute(query).fetchall()
 
         MAX_SESSION_TIME = 10800  # 3 hours in seconds
 
-        for session in active_sessions:
-            xuid = session[0]
-            player_name = session[1]
-            start_time = session[2]
-
+        for xuid, player_name, start_time in active_sessions:
             # Check if the player is online
             player = self.server.get_player(player_name)
             if not player:  # If player is not online
@@ -183,7 +178,8 @@ class PrimeBDS(Plugin):
                 # End the session with the calculated end_time
                 dbgl.end_session(xuid, end_time)
                 print(
-                    f"[PrimeBDS] Ended session for offline player {player_name} (XUID: {xuid}) with end_time: {end_time}")
+                    f"[PrimeBDS] Ended session for offline player {player_name} (XUID: {xuid}) with end_time: {end_time}"
+                )
 
         dbgl.close_connection()
 

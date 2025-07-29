@@ -73,6 +73,14 @@ class DatabaseManager:
         """Initialize the database manager (thread-safe)."""
         self.db_path = os.path.join(DB_FOLDER, db_name if db_name.endswith('.db') else db_name + '.db')
 
+    def execute(self, query: str, params: Tuple = ()) -> sqlite3.Cursor:
+        """Execute a raw SQL query with thread safety and return the cursor."""
+        conn, cursor = self.get_conn()
+        with self._lock:
+            cursor.execute(query, params)
+            conn.commit()
+            return cursor
+
     def get_conn(self):
         """Get or create a SQLite connection for the current thread."""
         if not hasattr(self._thread_local, "conn"):
@@ -156,8 +164,8 @@ class DatabaseManager:
     def get_column_names(self, table_name: str) -> list[str]:
         """Return a list of column names for the given table."""
         with self._lock:
-            conn = self.get_conn()
-            cursor = conn.execute(f"PRAGMA table_info({table_name})")
+            conn, cursor = self.get_conn()
+            cursor.execute(f"PRAGMA table_info({table_name})")
             columns = [row[1] for row in cursor.fetchall()]
         return columns
 
@@ -253,8 +261,14 @@ class UserDB(DatabaseManager):
         ip = str(player.address)
         internal_rank = "Operator" if player.is_op else "Default"
 
-        user = self.get_from_cache(xuid) or self.fetch_one("SELECT * FROM users WHERE xuid = ?", (xuid,))
+        # Check cache or database
+        user = self.get_from_cache(xuid) or self.execute(
+            "SELECT * FROM users WHERE xuid = ?", 
+            (xuid,)
+        ).fetchone()
+
         if not user:
+            # New user: insert into both tables
             data = {
                 'xuid': xuid, 'uuid': uuid, 'name': name, 'ping': ping, 'device_os': device,
                 'client_ver': client_ver, 'last_join': last_join, 'last_leave': last_leave,
@@ -266,12 +280,20 @@ class UserDB(DatabaseManager):
             }
             self.insert('users', data)
             self.insert('mod_logs', mod_data)
+
+            # Ensure all fields are present in cache
             for f in fields(User):
                 data.setdefault(f.name, f.default if f.default is not None else 0)
             self.player_data_cache[xuid] = data
         else:
-            updates = {'uuid': uuid, 'name': name, 'ping': ping, 'device_os': device, 'client_ver': client_ver, 'is_afk': 0}
+            # Existing user: update
+            updates = {
+                'uuid': uuid, 'name': name, 'ping': ping, 
+                'device_os': device, 'client_ver': client_ver, 'is_afk': 0
+            }
             self.update('users', updates, 'xuid = ?', (xuid,))
+            
+            # Update cache if present
             if xuid in self.player_data_cache:
                 self.player_data_cache[xuid].update(updates)
                 for f in fields(User):
@@ -328,9 +350,12 @@ class UserDB(DatabaseManager):
         if cached_data:
             return User(**cached_data)
 
-        result = self.fetch_one("SELECT * FROM users WHERE xuid = ?", (xuid,))
+        result = self.execute(
+            "SELECT * FROM users WHERE xuid = ?", 
+            (xuid,)
+        ).fetchone()
         if result:
-            column_names = [desc[0] for desc in self.execute("PRAGMA table_info(users)").fetchall()]
+            column_names = [row[1] for row in self.execute("PRAGMA table_info(users)").fetchall()]
             result_dict = self.patch_user_fields(dict(zip(column_names, result)))
             user = User(**result_dict)
             self.player_data_cache[xuid] = user.__dict__
@@ -344,9 +369,12 @@ class UserDB(DatabaseManager):
             if patched_data.get("name") == name:
                 return User(**patched_data)
 
-        result = self.fetch_one("SELECT * FROM users WHERE name = ?", (name,))
+        result = self.execute(
+            "SELECT * FROM users WHERE name = ?", 
+            (name,)
+        ).fetchone()
         if result:
-            column_names = [desc[0] for desc in self.execute("PRAGMA table_info(users)").fetchall()]
+            column_names = [row[1] for row in self.execute("PRAGMA table_info(users)").fetchall()]
             result_dict = self.patch_user_fields(dict(zip(column_names, result)))
             user = User(**result_dict)
             self.player_data_cache[result_dict['xuid']] = user.__dict__
@@ -357,7 +385,11 @@ class UserDB(DatabaseManager):
         cached = self.get_from_cache(xuid)
         if cached and "mod_log" in cached:
             return cached["mod_log"]
-        row = self.fetch_one("SELECT * FROM mod_logs WHERE xuid = ?", (xuid,))
+
+        row = self.execute(
+            "SELECT * FROM mod_logs WHERE xuid = ?", 
+            (xuid,)
+        ).fetchone()
         if row:
             mod_log = ModLog(*row)
             self.player_data_cache.setdefault(xuid, {})["mod_log"] = mod_log
@@ -392,7 +424,11 @@ class UserDB(DatabaseManager):
 
     def check_ip_ban(self, ip: str) -> bool:
         ip_base = ip.split(':')[0]
-        return bool(self.fetch_one("SELECT 1 FROM mod_logs WHERE ip_address LIKE ? AND is_ip_banned = 1 LIMIT 1", (f"{ip_base}%",)))
+        row = self.execute(
+            "SELECT 1 FROM mod_logs WHERE ip_address LIKE ? AND is_ip_banned = 1 LIMIT 1",
+            (f"{ip_base}%",)
+        ).fetchone()
+        return bool(row)
 
     def remove_mute(self, name: str):
         self.update('mod_logs', {'is_muted': 0, 'mute_time': 0, 'mute_reason': "None"}, 'name = ?', (name,))
@@ -403,12 +439,13 @@ class UserDB(DatabaseManager):
 
     def print_punishment_history(self, name: str, page: int = 1):
         """Prints punishment history for a named player"""
+
         mod_log_query = """
             SELECT is_muted, mute_time, mute_reason, is_banned, banned_time, ban_reason, is_ip_banned
             FROM mod_logs
             WHERE name = ?
         """
-        mod_log = self.fetch_one(mod_log_query, (name,))
+        mod_log = self.execute(mod_log_query, (name,)).fetchone()
         if not mod_log:
             return False
 
@@ -491,15 +528,15 @@ class UserDB(DatabaseManager):
         return cursor.rowcount > 0
 
     def get_offline_mod_log(self, name: str) -> Optional[ModLog]:
-        row = self.fetch_one("SELECT * FROM mod_logs WHERE name = ?", (name,))
+        row = self.execute("SELECT * FROM mod_logs WHERE name = ?", (name,)).fetchone()
         return ModLog(*row) if row else None
 
     def get_xuid_by_name(self, player_name: str) -> str:
-        row = self.fetch_one("SELECT xuid FROM mod_logs WHERE name = ?", (player_name,))
+        row = self.execute("SELECT xuid FROM mod_logs WHERE name = ?", (player_name,)).fetchone()
         return row[0] if row else None
 
     def get_name_by_xuid(self, xuid: str) -> str:
-        row = self.fetch_one("SELECT name FROM mod_logs WHERE xuid = ?", (xuid,))
+        row = self.execute("SELECT name FROM mod_logs WHERE xuid = ?", (xuid,)).fetchone()
         return row[0] if row else None
 
     def update_user_data(self, name: str, column: str, value):
@@ -570,14 +607,21 @@ class grieflog(DatabaseManager):
             self.insert('user_toggles', {'xuid': xuid, 'name': name, 'inspect_mode': True})
 
     def get_user_toggle(self, xuid: str, name: str):
-        row = self.fetchone("SELECT * FROM user_toggles WHERE xuid = ?", (xuid,))
+        row = self.execute(
+            "SELECT * FROM user_toggles WHERE xuid = ?", 
+            (xuid,)
+        ).fetchone()
+
         if row is None:
             self.execute(
                 "INSERT INTO user_toggles (xuid, name, inspect_mode) VALUES (?, ?, ?)",
                 (xuid, name, 0)
             )
-            self.commit()
-            row = self.fetchone("SELECT * FROM user_toggles WHERE xuid = ?", (xuid,))
+            row = self.execute(
+                "SELECT * FROM user_toggles WHERE xuid = ?", 
+                (xuid,)
+            ).fetchone()
+
         return row
 
     def fetch_all_as_dicts(self, query: str, params: tuple = ()):
@@ -644,13 +688,13 @@ class grieflog(DatabaseManager):
             "UPDATE sessions_log SET end_time = ? WHERE xuid = ? AND end_time IS NULL",
             (end_time, xuid)
         )
-        self.commit()
 
     def get_current_session(self, xuid: str):
-        return self.fetchone(
+        cursor = self.execute(
             "SELECT * FROM sessions_log WHERE xuid = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1",
             (xuid,)
         )
+        return cursor.fetchone()
 
     def get_user_sessions(self, xuid: str):
         rows = self.execute("SELECT start_time, end_time FROM sessions_log WHERE xuid = ?", (xuid,)).fetchall()
@@ -679,14 +723,14 @@ class grieflog(DatabaseManager):
 
     def delete_logs_older_than_seconds(self, seconds: int, sendPrint=False):
         threshold = int(time.time()) - seconds
-        count = self.fetchone("SELECT COUNT(*) FROM actions_log")[0]
+        
+        count = self.execute("SELECT COUNT(*) FROM actions_log").fetchone()[0]
         if count == 0:
             if sendPrint:
                 print("[PrimeBDS] No logs to delete.")
             return 0
 
         self.execute("DELETE FROM actions_log WHERE timestamp < ?", (threshold,))
-        self.commit()
 
         if sendPrint:
             # Format time string
@@ -697,13 +741,13 @@ class grieflog(DatabaseManager):
                     time_string = f"{amount} {unit}{'s' if amount > 1 else ''}"
                     break
             print(f"[primebds - grieflog] Purged logs older than {time_string}")
-        return self.fetchone("SELECT COUNT(*) FROM actions_log")[0]
+        
+        return self.execute("SELECT COUNT(*) FROM actions_log").fetchone()[0]
 
     def delete_logs_within_seconds(self, seconds: int):
         threshold = int(time.time()) - seconds
         self.execute("DELETE FROM actions_log WHERE timestamp >= ?", (threshold,))
-        self.commit()
 
     def delete_all_logs(self):
         self.execute("DELETE FROM actions_log WHERE 1")
-        self.commit()
+
