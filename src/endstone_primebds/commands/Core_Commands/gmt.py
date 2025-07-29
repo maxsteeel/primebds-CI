@@ -22,16 +22,20 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message("This command can only be executed by a player")
             return False
         if sender.game_mode == GameMode.CREATIVE:
-            sender.perform_command("gamemode survival @s")
+            sender.game_mode = GameMode.SURVIVAL
+            sender.send_message("Set own game mode to Survival")
         else:
-            sender.perform_command("gamemode creative @s")
+            sender.game_mode = GameMode.CREATIVE
+            sender.send_message("Set own game mode to Creative")
         return True
 
     targets = get_matching_actors(self, args[0], sender)
     for target in targets:
         if target.game_mode == GameMode.CREATIVE:
-            sender.perform_command(f"gamemode survival {target.name}")
+            target.game_mode = GameMode.SURVIVAL
+            target.send_message("Your game mode has been updated to Survival")
         else:
-            sender.perform_command(f"gamemode creative {target.name}")
+            target.game_mode = GameMode.CREATIVE
+            target.send_message("Your game mode has been updated to Creative")
 
     return True

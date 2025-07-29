@@ -1,4 +1,4 @@
-from endstone import Player
+from endstone import Player, GameMode
 from endstone.command import CommandSender
 from endstone_primebds.utils.commandUtil import create_command
 from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
@@ -21,11 +21,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         if not isinstance(sender, Player):
             sender.send_message("This command can only be executed by a player")
             return False
-        sender.perform_command("gamemode c @s")
+        sender.game_mode = GameMode.CREATIVE
+        sender.send_message("Set own game mode to Creative")
         return True
 
     targets = get_matching_actors(self, args[0], sender)
     for target in targets:
-        sender.perform_command(f"gamemode c {target.name}")
+        target.game_mode = GameMode.CREATIVE
+        target.send_message("Your game mode has been updated to Creative")
 
     return True
