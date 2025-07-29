@@ -39,10 +39,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     for target in targets:
         inv = target.ender_chest.contents
-
-        if len(inv) == 0:
-            sender.send_message(f"§6Ender Chest of §e{target.name} §6is empty")
-            return True
         
         item_list = "\n".join(
             f"§7- §e{item.type.key} §7x{item.amount}"

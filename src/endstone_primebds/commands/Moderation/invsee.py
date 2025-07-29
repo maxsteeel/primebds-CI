@@ -37,10 +37,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     for target in targets:
         inv = target.inventory.contents
-
-        if len(inv) == 0:
-            sender.send_message(f"§6Inventory of §e{target.name} §6is empty")
-            return True
         
         item_list = "\n".join(
             f"§7- §e{item.type.key} §7x{item.amount}"
