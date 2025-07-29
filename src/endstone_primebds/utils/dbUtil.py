@@ -73,7 +73,7 @@ class DatabaseManager:
         """Initialize the database manager (thread-safe)."""
         self.db_path = os.path.join(DB_FOLDER, db_name if db_name.endswith('.db') else db_name + '.db')
 
-    def _get_conn(self):
+    def get_conn(self):
         """Get or create a SQLite connection for the current thread."""
         if not hasattr(self._thread_local, "conn"):
             self._thread_local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
@@ -82,7 +82,7 @@ class DatabaseManager:
 
     def create_table(self, table_name: str, columns: Dict[str, str]):
         """Create a table if it doesn't exist."""
-        conn, cursor = self._get_conn()
+        conn, cursor = self.get_conn()
         column_definitions = ', '.join([f"{col} {dtype}" for col, dtype in columns.items()])
         query = f"CREATE TABLE IF NOT EXISTS {table_name} ({column_definitions})"
         with self._lock:
@@ -91,7 +91,7 @@ class DatabaseManager:
 
     def insert(self, table_name: str, data: Dict[str, Any]):
         """Insert a row into the table, adding missing columns automatically."""
-        conn, cursor = self._get_conn()
+        conn, cursor = self.get_conn()
         with self._lock:
             cursor.execute(f"PRAGMA table_info({table_name})")
             existing_columns = {row[1] for row in cursor.fetchall()}
@@ -122,7 +122,7 @@ class DatabaseManager:
             conn.commit()
 
     def ensure_user_table_columns(self):
-        conn, cursor = self._get_conn()
+        conn, cursor = self.get_conn()
         with self._lock:
             cursor.execute("PRAGMA table_info(users)")
             existing_columns = [col[1] for col in cursor.fetchall()]
@@ -139,22 +139,30 @@ class DatabaseManager:
         return mapping.get(py_type, "TEXT")
 
     def fetch_all(self, table_name: str) -> List[Dict[str, Any]]:
-        conn, cursor = self._get_conn()
+        conn, cursor = self.get_conn()
         with self._lock:
             cursor.execute(f"SELECT * FROM {table_name}")
             columns = [desc[0] for desc in cursor.description]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     def fetch_by_condition(self, table_name: str, condition: str, params: Tuple) -> List[Dict[str, Any]]:
-        conn, cursor = self._get_conn()
+        conn, cursor = self.get_conn()
         with self._lock:
             query = f"SELECT * FROM {table_name} WHERE {condition}"
             cursor.execute(query, params)
             columns = [desc[0] for desc in cursor.description]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
+        
+    def get_column_names(self, table_name: str) -> list[str]:
+        """Return a list of column names for the given table."""
+        with self._lock:
+            conn = self.get_conn()
+            cursor = conn.execute(f"PRAGMA table_info({table_name})")
+            columns = [row[1] for row in cursor.fetchall()]
+        return columns
 
     def update(self, table_name: str, updates: Dict[str, Any], condition: str, params: Tuple):
-        conn, cursor = self._get_conn()
+        conn, cursor = self.get_conn()
         with self._lock:
             update_clause = ', '.join([f"{col} = ?" for col in updates.keys()])
             query = f"UPDATE {table_name} SET {update_clause} WHERE {condition}"
@@ -168,7 +176,7 @@ class DatabaseManager:
             conn.commit()
 
     def delete(self, table_name: str, condition: str, params: Tuple):
-        conn, cursor = self._get_conn()
+        conn, cursor = self.get_conn()
         with self._lock:
             query = f"DELETE FROM {table_name} WHERE {condition}"
             cursor.execute(query, params)
