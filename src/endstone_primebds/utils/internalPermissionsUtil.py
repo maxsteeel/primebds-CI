@@ -84,30 +84,25 @@ def get_permissions(rank: str) -> list[str]:
 
     return inherited_permissions
 
-def check_perms(player_or_user, perm: str) -> bool:
+def check_perms(self, player_or_user, perm: str) -> bool:
     """Check if a player object or DB user has a given permission, including inherited perms."""
     db = None
     rank = None
 
-    try:
-        if hasattr(player_or_user, "internal_rank"):
-            rank = getattr(player_or_user, "internal_rank", "").lower()
+    if hasattr(player_or_user, "internal_rank"):
+        rank = getattr(player_or_user, "internal_rank", "").lower()
 
-        elif hasattr(player_or_user, "xuid"):
-            db = UserDB("users.db")
-            user = db.get_online_user(player_or_user.xuid)
-            if user and hasattr(user, "internal_rank"):
-                rank = user.internal_rank.lower()
+    elif hasattr(player_or_user, "xuid"):
+        user = self.db.get_online_user(player_or_user.xuid)
+        if user and hasattr(user, "internal_rank"):
+            rank = user.internal_rank.lower()
 
-        if rank:
-            rank_perms = get_permissions(rank)
-            return "*" in rank_perms or perm in rank_perms
+    if rank:
+        rank_perms = get_permissions(rank)
+        return "*" in rank_perms or perm in rank_perms
 
-        return False
-    finally:
-        if db:
-            db.close_connection()
-
+    return False
+            
 def check_internal_rank(user1_rank: str, user2_rank: str) -> bool:
     """
     Checks if user1 has a lower rank than user2.

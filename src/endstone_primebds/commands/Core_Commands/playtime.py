@@ -22,11 +22,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     player_name = sender.name
     player = self.server.get_player(player_name)
 
-    if len(args) == 0:
-        dbgl = grieflog("grieflog.db")
+    if len(args) == 0 or args[0].lower() == 'false':
 
         # Fetch total playtime for the player
-        total_playtime_seconds = dbgl.get_total_playtime(player.xuid)
+        total_playtime_seconds = self.dbgl.get_total_playtime(player.xuid)
         total_playtime_minutes = total_playtime_seconds // 60
         total_playtime_hours = total_playtime_minutes // 60
         total_playtime_days = total_playtime_hours // 24
@@ -34,10 +33,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         total_playtime_minutes %= 60
         total_playtime_seconds %= 60
 
-        leaderboard = dbgl.get_all_playtimes()
+        leaderboard = self.dbgl.get_all_playtimes()
+        #print(leaderboard)
         leaderboard = sorted(leaderboard, key=lambda x: x['total_playtime'], reverse=True)
 
-        player_rank = None
+        player_rank = ""
         for index, entry in enumerate(leaderboard):
             if entry['name'] == player_name:
                 player_rank = index + 1
@@ -51,10 +51,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(
             f"§eYour Playtime: §r{total_playtime_days}d {total_playtime_hours}h {total_playtime_minutes}m {total_playtime_seconds}s §7§o({player_rank}{rank_suffix})§r")
 
-        dbgl.close_connection()
+        
     elif len(args) == 1 and args[0].lower() == 'true':
-        dbgl = grieflog("grieflog.db")
-        leaderboard = dbgl.get_all_playtimes()
+        
+        leaderboard = self.dbgl.get_all_playtimes()
         leaderboard = sorted(leaderboard, key=lambda x: x['total_playtime'], reverse=True)
 
         sender.send_message(f"§rTop 10 Playtimes on the Server:")
@@ -77,13 +77,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message(
                 f"§a{rank}{rank_suffix}. §e{player_name} - §f{total_playtime_days}d {total_playtime_hours}h {total_playtime_minutes}m {total_playtime_seconds}s")
 
-        dbgl.close_connection()
+        
     else:
         sender.send_message(f"Usage: /playtime [leaderboard]")
 
     return True
 
-def get_rank_suffix(rank: int) -> str:
+def get_rank_suffix(rank) -> str:
     if 10 <= rank % 100 <= 20:
         suffix = 'th'
     else:

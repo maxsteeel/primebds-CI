@@ -18,20 +18,20 @@ if TYPE_CHECKING:
 def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
 
     # Ban System: ENHANCEMENT
-    db = UserDB("users.db")
+    
     now = datetime.now()
 
     player_xuid = ev.player.xuid
     player_ip = str(ev.player.address)
 
-    mod_log = db.get_mod_log(player_xuid)
-    is_ip_banned = db.check_ip_ban(player_ip)
+    mod_log = self.db.get_mod_log(player_xuid)
+    is_ip_banned = self.db.check_ip_ban(player_ip)
 
     # Handle IP Ban
     if is_ip_banned:
         banned_time = datetime.fromtimestamp(mod_log.banned_time)
         if now >= banned_time:  # IP Ban has expired
-            db.remove_ban(player_ip)
+            self.db.remove_ban(player_ip)
         else:  # IP Ban is still active
             formatted_expiration = format_time_remaining(mod_log.banned_time)
             message = ban_message(self.server.level.name, formatted_expiration, "IP Ban - " + mod_log.ban_reason)
@@ -43,41 +43,40 @@ def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
         if mod_log.is_banned:  # Only proceed if the player is banned
             banned_time = datetime.fromtimestamp(mod_log.banned_time)
             if now >= banned_time:  # Ban has expired
-                db.remove_ban(player_xuid)
+                self.db.remove_ban(player_xuid)
             else:  # Ban is still active
                 formatted_expiration = format_time_remaining(mod_log.banned_time)
                 message = ban_message(self.server.level.name, formatted_expiration, mod_log.ban_reason)
                 ev.kick_message = message
                 ev.is_cancelled = True  # Prevent login
 
-    db.close_connection()
+    
     return
 
 def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
     # Update Saved Data
-    db = UserDB("users.db")
-    db.save_user(ev.player)
-    db.update_user_data(ev.player.name, 'last_join', int(time.time()))
+    
+    self.db.save_user(ev.player)
+    self.db.update_user_data(ev.player.name, 'last_join', int(time.time()))
     self.reload_custom_perms(ev.player)
 
     # Ban System: ENHANCEMENT
-    mod_log = db.get_mod_log(ev.player.xuid)
+    mod_log = self.db.get_mod_log(ev.player.xuid)
     if mod_log:
         if mod_log.is_banned:
             ev.join_message = ""  # Remove join message
         else:
             # User Log
-            dbgl = grieflog("grieflog.db")
-            dbgl.start_session(ev.player.xuid, ev.player.name, int(time.time()))
+            
+            self.dbgl.start_session(ev.player.xuid, ev.player.name, int(time.time()))
             rounded_coords = Vector(
                 round(ev.player.location.x),
                 round(ev.player.location.y),
                 round(ev.player.location.z)
             )
-            dbgl.log_action(ev.player.xuid, ev.player.name, "Login", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
-            dbgl.close_connection()
+            self.dbgl.log_action(ev.player.xuid, ev.player.name, "Login", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
 
-    db.close_connection()
+    
 
     check_unset_scoreboards(self)
 
@@ -86,33 +85,31 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
 def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
 
     # Update Data On Leave
-    db = UserDB("users.db")
-    db.update_user_data(ev.player.name, 'last_leave', int(time.time()))
+    
+    self.db.update_user_data(ev.player.name, 'last_leave', int(time.time()))
 
     # Ban System: ENHANCEMENT
-    mod_log = db.get_mod_log(ev.player.xuid)
+    mod_log = self.db.get_mod_log(ev.player.xuid)
     if mod_log:
         if mod_log.is_banned:
             ev.quit_message = ""  # Remove join message
         else:
             # User Log
-            dbgl = grieflog("grieflog.db")
-            dbgl.end_session(ev.player.xuid, int(time.time()))
+            
+            self.dbgl.end_session(ev.player.xuid, int(time.time()))
             rounded_x = round(ev.player.location.x)
             rounded_y = round(ev.player.location.y)
             rounded_z = round(ev.player.location.z)
             rounded_coords = Vector(rounded_x, rounded_y, rounded_z)
-            dbgl.log_action(ev.player.xuid, ev.player.name, "Logout", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
-            dbgl.close_connection()
+            self.db.update_user_data(ev.player.name, 'last_logout_pos', rounded_coords)
+            self.db.update_user_data(ev.player.name, 'last_logout_dim', ev.player.dimension.name)
+            self.dbgl.log_action(ev.player.xuid, ev.player.name, "Logout", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
 
-    db.close_connection()
     return
 
 def handle_kick_event(self: "PrimeBDS", ev: PlayerKickEvent):
     print(ev.player.name, ev.reason)
-    dbgl = grieflog("grieflog.db")
-    dbgl.end_session(ev.player.xuid, int(time.time()))
-    dbgl.close_connection()
+    self.dbgl.end_session(ev.player.xuid, int(time.time()))
 
 def check_unset_scoreboards(self):
     current_dir = os.path.dirname(os.path.abspath(__file__))

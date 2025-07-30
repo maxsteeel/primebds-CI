@@ -32,20 +32,20 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     if isinstance(sender, Player):
-        dbgl = grieflog("grieflog.db")
+        
         player = self.server.get_player(sender.name)
 
-        toggle = dbgl.get_user_toggle(player.xuid, player.name)[3]
+        toggle = self.dbgl.get_user_toggle(player.xuid, player.name)[3]
         toggle = not toggle
 
-        dbgl.set_user_toggle(player.xuid, player.name)
+        self.dbgl.set_user_toggle(player.xuid, player.name)
 
         if toggle:
             sender.send_message(f"Inspect mode {ColorFormat.GREEN}Enabled")
         else:
             sender.send_message(f"Inspect mode §cDisabled")
 
-        dbgl.close_connection()
+        
 
     else:
         sender.send_error_message("This command can only be executed by a player")

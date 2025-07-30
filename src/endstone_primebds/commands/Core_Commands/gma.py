@@ -29,5 +29,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     for target in targets:
         target.game_mode = GameMode.ADVENTURE
         target.send_message("Your game mode has been updated to Adventure")
+    sender.send_message(f"§e{len(targets)} §rplayers were set to Adventure")
 
     return True

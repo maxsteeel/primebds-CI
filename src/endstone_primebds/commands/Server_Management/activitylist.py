@@ -32,10 +32,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     else:
         filter_type = args[0].lower()  # Filter type (highest, lowest, recent)
 
-    dbgl = grieflog("grieflog.db")
-
     # Fetch all users and their total playtimes
-    playtimes = dbgl.get_all_playtimes()
+    playtimes = self.dbgl.get_all_playtimes()
 
     if not playtimes:
         sender.send_message(f"No player playtime data found")
@@ -51,7 +49,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sorted_playtimes = []
         for player in playtimes:
             xuid = player['xuid']
-            sessions = dbgl.get_user_sessions(xuid)
+            sessions = self.dbgl.get_user_sessions(xuid)
             if sessions:
                 # Get the most recent session (sorted by start_time)
                 recent_session = max(sessions, key=lambda s: s['start_time'])
@@ -97,8 +95,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     form.show(sender).then(
         lambda player=sender, result=ActionFormResponse: handle_activitylist_response(player, result)
     )
-
-    dbgl.close_connection()
 
     return True
 

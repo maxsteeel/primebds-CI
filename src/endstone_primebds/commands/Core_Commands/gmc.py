@@ -29,5 +29,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     for target in targets:
         target.game_mode = GameMode.CREATIVE
         target.send_message("Your game mode has been updated to Creative")
+    sender.send_message(f"§e{len(targets)} §rplayers were set to Creative")
 
     return True

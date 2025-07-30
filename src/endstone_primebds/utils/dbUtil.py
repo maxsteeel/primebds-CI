@@ -1,3 +1,5 @@
+import contextlib
+import datetime
 import os
 import sqlite3
 import threading
@@ -5,6 +7,7 @@ import time
 from dataclasses import dataclass, fields
 from typing import List, Tuple, Any, Dict, Optional
 from endstone import ColorFormat
+from endstone.util import Vector
 from endstone_primebds.utils.modUtil import format_time_remaining
 from endstone_primebds.utils.timeUtil import TimezoneUtils
 
@@ -29,6 +32,9 @@ class User:
     enabled_ms: int
     is_afk: int
     enabled_ss: int
+    is_vanish: int
+    last_logout_pos: str
+    last_logout_dim: str
 
 @dataclass
 class ModLog:
@@ -67,141 +73,117 @@ class GriefAction:
 # DB
 class DatabaseManager:
     _lock = threading.Lock()
-    _thread_local = threading.local()
 
     def __init__(self, db_name: str):
-        """Initialize the database manager (thread-safe)."""
         self.db_path = os.path.join(DB_FOLDER, db_name if db_name.endswith('.db') else db_name + '.db')
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.conn.execute("PRAGMA journal_mode=WAL;")  # Enable WAL for concurrency
+        self.cursor = self.conn.cursor()
 
-    def execute(self, query: str, params: Tuple = ()) -> sqlite3.Cursor:
-        """Execute a raw SQL query with thread safety and return the cursor."""
-        conn, cursor = self.get_conn()
-        with self._lock:
+    def execute(self, query: str, params: Tuple = (), readonly=False) -> sqlite3.Cursor:
+        if readonly:
+            read_conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            cursor = read_conn.cursor()
             cursor.execute(query, params)
-            conn.commit()
             return cursor
-
-    def get_conn(self):
-        """Get or create a SQLite connection for the current thread."""
-        if not hasattr(self._thread_local, "conn"):
-            self._thread_local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-            self._thread_local.cursor = self._thread_local.conn.cursor()
-        return self._thread_local.conn, self._thread_local.cursor
+        else:
+            with self._lock:
+                self.cursor.execute(query, params)
+                if not query.strip().upper().startswith("SELECT"):
+                    self.conn.commit()
+                return self.cursor
 
     def create_table(self, table_name: str, columns: Dict[str, str]):
-        """Create a table if it doesn't exist."""
-        conn, cursor = self.get_conn()
         column_definitions = ', '.join([f"{col} {dtype}" for col, dtype in columns.items()])
         query = f"CREATE TABLE IF NOT EXISTS {table_name} ({column_definitions})"
         with self._lock:
-            cursor.execute(query)
-            conn.commit()
+            self.cursor.execute(query)
+            self.conn.commit()
 
     def insert(self, table_name: str, data: Dict[str, Any]):
-        """Insert a row into the table, adding missing columns automatically."""
-        conn, cursor = self.get_conn()
+        if not data:
+            raise ValueError("Insert data cannot be empty")
+
         with self._lock:
-            cursor.execute(f"PRAGMA table_info({table_name})")
-            existing_columns = {row[1] for row in cursor.fetchall()}
+            self.cursor.execute(f"PRAGMA table_info({table_name})")
+            existing_columns = {row[1] for row in self.cursor.fetchall()}
 
-            for col in data.keys():
+            for col, value in data.items():
                 if col not in existing_columns:
-                    value = data[col]
-                    if isinstance(value, int):
-                        col_type = "INTEGER"
-                        default = 0
-                    elif isinstance(value, float):
-                        col_type = "REAL"
-                        default = 0.0
-                    elif isinstance(value, bool):
-                        col_type = "INTEGER"
-                        default = 0
-                    else:
-                        col_type = "TEXT"
-                        default = "''"
+                    col_type = "INTEGER" if isinstance(value, (int, bool)) else "REAL" if isinstance(value, float) else "TEXT"
+                    default = 0 if col_type == "INTEGER" else 0.0 if col_type == "REAL" else "''"
+                    self.cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {col} {col_type} DEFAULT {default}")
 
-                    alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col} {col_type} DEFAULT {default}"
-                    cursor.execute(alter_sql)
-
+            values = tuple(int(v) if isinstance(v, bool) else v for v in data.values())
             columns = ', '.join(data.keys())
-            placeholders = ', '.join(['?' for _ in data.values()])
+            placeholders = ', '.join(['?' for _ in data])
             query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-            cursor.execute(query, tuple(data.values()))
-            conn.commit()
+            self.cursor.execute(query, values)
+            self.conn.commit()
+
+    def insert_session(self, xuid: str, name: str, start_time: int):
+        with self._lock:
+            self.cursor.execute(
+                "INSERT INTO sessions_log (xuid, name, start_time, end_time) VALUES (?, ?, ?, NULL)",
+                (xuid, name, start_time)
+            )
+            self.conn.commit()
 
     def ensure_user_table_columns(self):
-        conn, cursor = self.get_conn()
         with self._lock:
-            cursor.execute("PRAGMA table_info(users)")
-            existing_columns = [col[1] for col in cursor.fetchall()]
+            self.cursor.execute("PRAGMA table_info(users)")
+            existing_columns = [col[1] for col in self.cursor.fetchall()]
 
             for f in fields(User):
                 if f.name not in existing_columns:
-                    cursor.execute(
+                    self.cursor.execute(
                         f"ALTER TABLE users ADD COLUMN {f.name} {self.get_sql_type(f.type)} DEFAULT 0"
                     )
-            conn.commit()
+            self.conn.commit()
 
     def get_sql_type(self, py_type):
         mapping = {int: "INTEGER", str: "TEXT", float: "REAL"}
         return mapping.get(py_type, "TEXT")
 
     def fetch_all(self, table_name: str) -> List[Dict[str, Any]]:
-        conn, cursor = self.get_conn()
         with self._lock:
-            cursor.execute(f"SELECT * FROM {table_name}")
-            columns = [desc[0] for desc in cursor.description]
-            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            self.cursor.execute(f"SELECT * FROM {table_name}")
+            columns = [desc[0] for desc in self.cursor.description]
+            return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
 
     def fetch_by_condition(self, table_name: str, condition: str, params: Tuple) -> List[Dict[str, Any]]:
-        conn, cursor = self.get_conn()
         with self._lock:
             query = f"SELECT * FROM {table_name} WHERE {condition}"
-            cursor.execute(query, params)
-            columns = [desc[0] for desc in cursor.description]
-            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            self.cursor.execute(query, params)
+            columns = [desc[0] for desc in self.cursor.description]
+            return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
         
     def get_column_names(self, table_name: str) -> list[str]:
-        """Return a list of column names for the given table."""
         with self._lock:
-            conn, cursor = self.get_conn()
-            cursor.execute(f"PRAGMA table_info({table_name})")
-            columns = [row[1] for row in cursor.fetchall()]
-        return columns
+            self.cursor.execute(f"PRAGMA table_info({table_name})")
+            return [row[1] for row in self.cursor.fetchall()]
 
     def update(self, table_name: str, updates: Dict[str, Any], condition: str, params: Tuple):
-        conn, cursor = self.get_conn()
         with self._lock:
             update_clause = ', '.join([f"{col} = ?" for col in updates.keys()])
             query = f"UPDATE {table_name} SET {update_clause} WHERE {condition}"
-
-            values = tuple(updates.values())
-            if not isinstance(params, tuple):
-                params = (params,)
-
-            all_params = values + params
-            cursor.execute(query, all_params)
-            conn.commit()
+            all_params = tuple(updates.values()) + (params if isinstance(params, tuple) else (params,))
+            self.cursor.execute(query, all_params)
+            self.conn.commit()
 
     def delete(self, table_name: str, condition: str, params: Tuple):
-        conn, cursor = self.get_conn()
         with self._lock:
             query = f"DELETE FROM {table_name} WHERE {condition}"
-            cursor.execute(query, params)
-            conn.commit()
+            self.cursor.execute(query, params)
+            self.conn.commit()
 
     def close_connection(self):
-        """Close the thread-local database connection."""
-        if hasattr(self._thread_local, "conn"):
-            self._thread_local.conn.close()
-            del self._thread_local.conn
-            del self._thread_local.cursor
+        self.conn.close()
 
 class UserDB(DatabaseManager):
     def __init__(self, db_name: str):
         """Initialize the database connection and create tables."""
         super().__init__(db_name)
-        self.player_data_cache = {}
         self.db_name = db_name
         self.create_tables()
 
@@ -219,7 +201,10 @@ class UserDB(DatabaseManager):
             'internal_rank': 'TEXT',
             'enabled_ms': 'INTEGER',
             'is_afk': 'INTEGER',
-            'enabled_ss': 'INTEGER'
+            'enabled_ss': 'INTEGER',
+            'is_vanish': 'INTEGER',
+            'last_logout_pos': 'TEXT',
+            'last_logout_dim': 'TEXT'
         }
         self.create_table('users', user_info_columns)
 
@@ -262,7 +247,7 @@ class UserDB(DatabaseManager):
         internal_rank = "Operator" if player.is_op else "Default"
 
         # Check cache or database
-        user = self.get_from_cache(xuid) or self.execute(
+        user = self.execute(
             "SELECT * FROM users WHERE xuid = ?", 
             (xuid,)
         ).fetchone()
@@ -272,7 +257,8 @@ class UserDB(DatabaseManager):
             data = {
                 'xuid': xuid, 'uuid': uuid, 'name': name, 'ping': ping, 'device_os': device,
                 'client_ver': client_ver, 'last_join': last_join, 'last_leave': last_leave,
-                'internal_rank': internal_rank, 'enabled_ms': 1, 'is_afk': 0, 'enabled_ss': 0
+                'internal_rank': internal_rank, 'enabled_ms': 1, 'is_afk': 0, 'enabled_ss': 0,
+                'is_vanish': 0, 'last_logout_dim': "Overworld"
             }
             mod_data = {
                 'xuid': xuid, 'name': name, 'is_muted': 0, 'mute_time': 0, 'mute_reason': "None",
@@ -280,11 +266,6 @@ class UserDB(DatabaseManager):
             }
             self.insert('users', data)
             self.insert('mod_logs', mod_data)
-
-            # Ensure all fields are present in cache
-            for f in fields(User):
-                data.setdefault(f.name, f.default if f.default is not None else 0)
-            self.player_data_cache[xuid] = data
         else:
             # Existing user: update
             updates = {
@@ -292,25 +273,7 @@ class UserDB(DatabaseManager):
                 'device_os': device, 'client_ver': client_ver, 'is_afk': 0
             }
             self.update('users', updates, 'xuid = ?', (xuid,))
-            
-            # Update cache if present
-            if xuid in self.player_data_cache:
-                self.player_data_cache[xuid].update(updates)
-                for f in fields(User):
-                    self.player_data_cache[xuid].setdefault(f.name, f.default if f.default is not None else 0)
 
-    def get_from_cache(self, xuid: str, name: str = None) -> Optional[dict]:
-        """Private method to check cache for user or mod log data."""
-        if xuid in self.player_data_cache:
-            cached_data = self.patch_user_fields(self.player_data_cache[xuid])
-            self.player_data_cache[xuid] = cached_data
-
-            if name and cached_data.get("name") == name:
-                return cached_data
-            elif not name:
-                return cached_data
-        return None
-    
     def migrate_user_table(self):
         """Add missing columns to 'users' table according to User dataclass fields."""
         existing_columns = {row[1] for row in self.execute("PRAGMA table_info(users)").fetchall()}
@@ -319,88 +282,94 @@ class UserDB(DatabaseManager):
         for f in fields(User):
             if f.name not in existing_columns:
                 col_type = type_map.get(f.type, "TEXT")
-                default_val = f.default if f.default is not None else 0
+
+                # Default based on type
+                if col_type == "TEXT":
+                    default_val = ""  # empty string for text
+                else:
+                    default_val = 0   # 0 for int, float, bool
+
+                # Convert boolean defaults to 0/1
+                if isinstance(default_val, bool):
+                    default_val = int(default_val)
+
+                # Wrap text defaults in quotes
                 default_literal = f"'{default_val}'" if col_type == "TEXT" else str(default_val)
 
                 try:
-                    self.execute(f"ALTER TABLE users ADD COLUMN {f.name} {col_type} DEFAULT {default_literal}")
+                    self.execute(
+                        f"ALTER TABLE users ADD COLUMN {f.name} {col_type} DEFAULT {default_literal}"
+                    )
                     print(f"Added missing column '{f.name}' to users table.")
                 except sqlite3.OperationalError as e:
                     print(f"Warning: Could not add column '{f.name}': {e}")
 
     def patch_user_fields(self, data: dict) -> dict:
-        """Clean data dict to only User fields and fill missing with defaults."""
-        user_field_names = {f.name for f in fields(User)}
+        """Ensure user data fields are properly typed with safe defaults, no overwriting existing non-None fields."""
+        type_defaults = {
+            int: 0,
+            float: 0.0,
+            str: "",
+            bool: 0
+        }
 
-        data = {k: v for k, v in data.items() if k in user_field_names}
+        patched_data = {}
+        for field in fields(User):
+            val = data.get(field.name, None)
 
-        for f in fields(User):
-            if f.name not in data:
-                if f.default is not None:
-                    data[f.name] = f.default
-                elif hasattr(f, "default_factory") and f.default_factory is not None:
-                    data[f.name] = f.default_factory()
-                else:
-                    data[f.name] = 0 if f.type in [int, float, bool] else ""
+            if val is None:
+                # Missing or None → use default
+                patched_data[field.name] = type_defaults.get(field.type, None)
+            else:
+                # Value exists → keep as is, no casting
+                patched_data[field.name] = val
 
-        return data
+        return patched_data
 
     def get_online_user(self, xuid: str) -> Optional[User]:
-        cached_data = self.get_from_cache(xuid)
-        if cached_data:
-            return User(**cached_data)
-
         result = self.execute(
             "SELECT * FROM users WHERE xuid = ?", 
-            (xuid,)
+            (xuid,), readonly=True
         ).fetchone()
         if result:
-            column_names = [row[1] for row in self.execute("PRAGMA table_info(users)").fetchall()]
-            result_dict = self.patch_user_fields(dict(zip(column_names, result)))
+            column_info = self.execute("PRAGMA table_info(users)").fetchall()
+            column_names = [row[1] for row in column_info]
+            raw_data = dict(zip(column_names, result))
+            result_dict = self.patch_user_fields(raw_data)
             user = User(**result_dict)
-            self.player_data_cache[xuid] = user.__dict__
+
             return user
+        else:
+            print(f"[DEBUG] No user found in DB for {xuid}")
         return None
 
     def get_offline_user(self, name: str) -> Optional[User]:
-        for xuid, data in self.player_data_cache.items():
-            patched_data = self.patch_user_fields(data)
-            self.player_data_cache[xuid] = patched_data
-            if patched_data.get("name") == name:
-                return User(**patched_data)
-
         result = self.execute(
             "SELECT * FROM users WHERE name = ?", 
-            (name,)
+            (name,), readonly=True
         ).fetchone()
         if result:
             column_names = [row[1] for row in self.execute("PRAGMA table_info(users)").fetchall()]
             result_dict = self.patch_user_fields(dict(zip(column_names, result)))
             user = User(**result_dict)
-            self.player_data_cache[result_dict['xuid']] = user.__dict__
             return user
         return None
 
     def get_mod_log(self, xuid: str) -> Optional[ModLog]:
-        cached = self.get_from_cache(xuid)
-        if cached and "mod_log" in cached:
-            return cached["mod_log"]
-
         row = self.execute(
             "SELECT * FROM mod_logs WHERE xuid = ?", 
-            (xuid,)
+            (xuid,), readonly=True
         ).fetchone()
         if row:
             mod_log = ModLog(*row)
-            self.player_data_cache.setdefault(xuid, {})["mod_log"] = mod_log
             return mod_log
         return None
 
     def get_all_users(self) -> list[dict]:
-        rows = self.execute("SELECT * FROM users").fetchall()
-        columns = [col[0] for col in self.execute("PRAGMA table_info(users)").fetchall()]
+        rows = self.execute("SELECT * FROM users", readonly=True).fetchall()
+        columns = [col[1] for col in self.execute("PRAGMA table_info(users)").fetchall()]
         return [dict(zip(columns, row)) for row in rows]
-    
+
     def add_ban(self, xuid, expiration: int, reason: str, ip_ban: bool = False):
         self.update('mod_logs', {'is_banned': 1, 'banned_time': expiration, 'ban_reason': reason, 'is_ip_banned': ip_ban}, 'xuid = ?', (xuid,))
         self.insert('punishment_logs', {
@@ -426,7 +395,7 @@ class UserDB(DatabaseManager):
         ip_base = ip.split(':')[0]
         row = self.execute(
             "SELECT 1 FROM mod_logs WHERE ip_address LIKE ? AND is_ip_banned = 1 LIMIT 1",
-            (f"{ip_base}%",)
+            (f"{ip_base}%",), readonly=True
         ).fetchone()
         return bool(row)
 
@@ -445,7 +414,7 @@ class UserDB(DatabaseManager):
             FROM mod_logs
             WHERE name = ?
         """
-        mod_log = self.execute(mod_log_query, (name,)).fetchone()
+        mod_log = self.execute(mod_log_query, (name,), readonly=True).fetchone()
         if not mod_log:
             return False
 
@@ -459,7 +428,7 @@ class UserDB(DatabaseManager):
             AND NOT (action_type = 'Unmute' AND reason = 'Mute Expired')
             ORDER BY timestamp DESC
         """
-        all_logs = self.execute(punishment_query, (name,)).fetchall()
+        all_logs = self.execute(punishment_query, (name,), readonly=True).fetchall()
         if not all_logs:
             return False
 
@@ -516,7 +485,7 @@ class UserDB(DatabaseManager):
         return "\n".join(msg)
 
     def get_punishment_logs(self, name: str) -> Optional[List[PunishmentLog]]:
-        rows = self.execute("SELECT * FROM punishment_logs WHERE name = ?", (name,)).fetchall()
+        rows = self.execute("SELECT * FROM punishment_logs WHERE name = ?", (name,), readonly=True).fetchall()
         return [PunishmentLog(*row) for row in rows] if rows else None
 
     def delete_all_punishment_logs_by_name(self, name: str) -> bool:
@@ -528,34 +497,33 @@ class UserDB(DatabaseManager):
         return cursor.rowcount > 0
 
     def get_offline_mod_log(self, name: str) -> Optional[ModLog]:
-        row = self.execute("SELECT * FROM mod_logs WHERE name = ?", (name,)).fetchone()
+        row = self.execute("SELECT * FROM mod_logs WHERE name = ?", (name,), readonly=True).fetchone()
         return ModLog(*row) if row else None
 
     def get_xuid_by_name(self, player_name: str) -> str:
-        row = self.execute("SELECT xuid FROM mod_logs WHERE name = ?", (player_name,)).fetchone()
+        row = self.execute("SELECT xuid FROM mod_logs WHERE name = ?", (player_name,), readonly=True).fetchone()
         return row[0] if row else None
 
     def get_name_by_xuid(self, xuid: str) -> str:
-        row = self.execute("SELECT name FROM mod_logs WHERE xuid = ?", (xuid,)).fetchone()
+        row = self.execute("SELECT name FROM mod_logs WHERE xuid = ?", (xuid,), readonly=True).fetchone()
         return row[0] if row else None
 
     def update_user_data(self, name: str, column: str, value):
+        if isinstance(value, Vector):
+            x, y, z = value.x, value.y, value.z
+            value = f"{x},{y},{z}"
         self.update('users', {column: value}, 'name = ?', (name,))
-        for xuid, data in self.player_data_cache.items():
-            patched = self.patch_user_fields(data)
-            self.player_data_cache[xuid] = patched
-            if patched.get("name") == name:
-                self.player_data_cache[xuid][column] = value
-                if column == "name":
-                    self.player_data_cache[value] = self.player_data_cache.pop(xuid)
-                break
 
 class grieflog(DatabaseManager):
+    """Handles actions related to grief logs and session tracking."""
+
     def __init__(self, db_name: str):
+        """Initialize the database connection and create tables."""
         super().__init__(db_name)
         self.create_tables()
 
     def create_tables(self):
+        """Create tables if they don't exist."""
         action_log_columns = {
             'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
             'xuid': 'TEXT',
@@ -586,56 +554,68 @@ class grieflog(DatabaseManager):
         self.create_table('sessions_log', session_log_columns)
         self.create_table('user_toggles', user_toggle_columns)
 
-    def get_latest_logout(self, player_name: str):
-        row = self.fetchone("""
-            SELECT * FROM actions_log
-            WHERE name = ? AND action = 'Logout'
-            ORDER BY timestamp DESC
-            LIMIT 1
-        """, (player_name,))
-        if not row:
-            return None
-        columns = self.get_column_names('actions_log')
-        return dict(zip(columns, row))
-
     def set_user_toggle(self, xuid: str, name: str):
+        """Toggles the inspect mode for a player."""
         existing_toggle = self.get_user_toggle(xuid, name)
+
         if existing_toggle:
-            new_toggle = not existing_toggle[3]  # Assuming 'inspect_mode' at index 3
-            self.update('user_toggles', {'inspect_mode': new_toggle}, 'xuid = ?', (xuid,))
+            new_toggle = not existing_toggle[3]  # 'inspect_mode' assumed at index 3
+            updates = {'inspect_mode': new_toggle}
+            condition = 'xuid = ?'
+            params = (xuid,)
+
+            try:
+                self.update('user_toggles', updates, condition, params)
+            except Exception as e:
+                print(f"Error updating data: {e}")
         else:
-            self.insert('user_toggles', {'xuid': xuid, 'name': name, 'inspect_mode': True})
+            data = {'xuid': xuid, 'name': name, 'inspect_mode': True}
+            try:
+                self.insert('user_toggles', data)
+            except Exception as e:
+                print(f"Error inserting data: {e}")
 
     def get_user_toggle(self, xuid: str, name: str):
-        row = self.execute(
-            "SELECT * FROM user_toggles WHERE xuid = ?", 
-            (xuid,)
-        ).fetchone()
+        """Gets the current inspect mode toggle for a player.
+        If no result exists, insert a new default value with name and inspect_mode.
+        """
+        query = "SELECT * FROM user_toggles WHERE xuid = ?"
+        cursor = self.execute(query, (xuid,))
+        result = cursor.fetchone()
 
-        if row is None:
-            self.execute(
-                "INSERT INTO user_toggles (xuid, name, inspect_mode) VALUES (?, ?, ?)",
-                (xuid, name, 0)
-            )
-            row = self.execute(
-                "SELECT * FROM user_toggles WHERE xuid = ?", 
-                (xuid,)
-            ).fetchone()
+        if result is None:
+            default_value = 0
+            insert_query = """
+                INSERT INTO user_toggles (xuid, name, inspect_mode) 
+                VALUES (?, ?, ?)
+            """
+            self.execute(insert_query, (xuid, name, default_value))
 
-        return row
+            cursor = self.execute(query, (xuid,))
+            result = cursor.fetchone()
 
-    def fetch_all_as_dicts(self, query: str, params: tuple = ()):
-        rows = self.execute(query, params).fetchall()
-        columns = self.get_column_names('actions_log')
-        result = []
-        for row in rows:
-            d = {columns[i]: row[i] for i in range(len(columns))}
-            if all(c in columns for c in ('x', 'y', 'z')):
-                d['location'] = f"{d['x']},{d['y']},{d['z']}"
-            result.append(d)
         return result
 
-    def get_logs_by_coordinates(self, x: float, y: float, z: float, player_name: str = None):
+    def fetch_all_as_dicts(self, query: str, params: tuple = ()) -> list[dict]:
+        """Helper to run a query and return list of dicts keyed by column name."""
+        cursor = self.execute(query, params)
+        rows = cursor.fetchall()
+
+        # Get columns from the query (better to run PRAGMA on actions_log only if query references that table)
+        # We can extract table name from query but to keep simple, run PRAGMA on actions_log anyway
+        pragma_cursor = self.execute("PRAGMA table_info(actions_log);")
+        columns = [col[1] for col in pragma_cursor.fetchall()]
+
+        result = []
+        for row in rows:
+            row_dict = {columns[i]: row[i] for i in range(len(columns))}
+            if 'x' in columns and 'y' in columns and 'z' in columns:
+                row_dict['location'] = f"{row_dict['x']},{row_dict['y']},{row_dict['z']}"
+            result.append(row_dict)
+
+        return result
+
+    def get_logs_by_coordinates(self, x: float, y: float, z: float, player_name: str = None) -> list[dict]:
         query = "SELECT * FROM actions_log WHERE x = ? AND y = ? AND z = ?"
         params = (x, y, z)
         if player_name:
@@ -643,19 +623,22 @@ class grieflog(DatabaseManager):
             params += (player_name,)
         return self.fetch_all_as_dicts(query, params)
 
-    def get_logs_by_player(self, player_name: str):
-        return self.fetch_all_as_dicts("SELECT * FROM actions_log WHERE name = ?", (player_name,))
+    def get_logs_by_player(self, player_name: str) -> list[dict]:
+        query = "SELECT * FROM actions_log WHERE name = ?"
+        return self.fetch_all_as_dicts(query, (player_name,))
 
-    def get_logs_within_radius(self, x: float, y: float, z: float, radius: float):
+    def get_logs_within_radius(self, x: float, y: float, z: float, radius: float) -> list[dict]:
         query = """
-            SELECT * FROM actions_log
-            WHERE (POWER(x - ?, 2) + POWER(y - ?, 2) + POWER(z - ?, 2)) <= POWER(?, 2)
+        SELECT * FROM actions_log
+        WHERE (POWER(x - ?, 2) + POWER(y - ?, 2) + POWER(z - ?, 2)) <= POWER(?, 2)
         """
-        return self.fetch_all_as_dicts(query, (x, y, z, radius))
+        params = (x, y, z, radius)
+        return self.fetch_all_as_dicts(query, params)
 
-    def log_action(self, xuid: str, name: str, action: str, location, timestamp: int,
-                   block_type: str = None, block_state: str = None, dim: str = None):
-        if hasattr(location, 'x') and hasattr(location, 'y') and hasattr(location, 'z'):
+    def log_action(self, xuid: str, name: str, action: str, location, timestamp: int, block_type: str = None,
+                   block_state: str = None, dim: str = None):
+        """Logs an action performed by a player, stores x, y, z as separate coordinates, and includes block data if available."""
+        if isinstance(location, Vector):
             x, y, z = location.x, location.y, location.z
         else:
             x, y, z = map(float, location.split(','))
@@ -669,85 +652,151 @@ class grieflog(DatabaseManager):
             'z': z,
             'dim': dim,
             'timestamp': timestamp,
-            'block_type': block_type,
-            'block_state': block_state,
         }
-        # Remove None values
-        data = {k: v for k, v in data.items() if v is not None}
+        if block_type:
+            data['block_type'] = block_type
+        if block_state:
+            data['block_state'] = block_state
 
         self.insert('actions_log', data)
 
     def start_session(self, xuid: str, name: str, start_time: int):
+        """Logs the start of a player session and automatically ends any previous sessions in case of a crash."""
         current_session = self.get_current_session(xuid)
         if current_session:
             self.end_session(xuid, int(time.time()))
-        self.insert('sessions_log', {'xuid': xuid, 'name': name, 'start_time': start_time, 'end_time': None})
+
+        data = {
+            'xuid': xuid,
+            'name': name,
+            'start_time': start_time,
+            'end_time': None
+        }
+        self.insert('sessions_log', data)
 
     def end_session(self, xuid: str, end_time: int):
-        self.execute(
-            "UPDATE sessions_log SET end_time = ? WHERE xuid = ? AND end_time IS NULL",
-            (end_time, xuid)
-        )
+        query = """
+            UPDATE sessions_log
+            SET end_time = ?
+            WHERE xuid = ? AND end_time IS NULL
+        """
+        self.execute(query, (end_time, xuid))
 
     def get_current_session(self, xuid: str):
-        cursor = self.execute(
-            "SELECT * FROM sessions_log WHERE xuid = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1",
-            (xuid,)
-        )
-        return cursor.fetchone()
+        query = "SELECT * FROM sessions_log WHERE xuid = ? AND end_time IS NULL ORDER BY start_time DESC LIMIT 1"
+        cursor = self.execute(query, (xuid,), readonly=True)
+        result = cursor.fetchone()
+        return result or None
 
-    def get_user_sessions(self, xuid: str):
-        rows = self.execute("SELECT start_time, end_time FROM sessions_log WHERE xuid = ?", (xuid,)).fetchall()
-        now = int(time.time())
+    def get_user_sessions(self, xuid: str) -> list[dict]:
+        query = "SELECT start_time, end_time FROM sessions_log WHERE xuid = ?"
+        cursor = self.execute(query, (xuid,), readonly=True)
+        sessions = cursor.fetchall()
+
         result = []
-        for start_time, end_time in rows:
-            duration = (now - start_time) if end_time is None else (end_time - start_time)
-            result.append({'start_time': start_time, 'end_time': end_time, 'duration': duration})
+        for start_time, end_time in sessions:
+            if end_time is None:
+                duration = int(time.time()) - start_time
+                end_time_display = None
+            else:
+                duration = end_time - start_time
+                end_time_display = end_time
+
+            result.append({
+                'start_time': start_time,
+                'end_time': end_time_display,
+                'duration': duration
+            })
         return result
 
-    def get_total_playtime(self, xuid: str):
-        rows = self.execute("SELECT start_time, end_time FROM sessions_log WHERE xuid = ?", (xuid,)).fetchall()
-        now = int(time.time())
+    def get_total_playtime(self, xuid: str) -> int:
+        query = "SELECT start_time, end_time FROM sessions_log WHERE xuid = ?"
+        cursor = self.execute(query, (xuid,), readonly=True)
+        sessions = cursor.fetchall()
+
         total_time = 0
-        for start_time, end_time in rows:
-            total_time += (end_time - start_time) if end_time else (now - start_time)
+        for start_time, end_time in sessions:
+            if end_time:
+                total_time += end_time - start_time
+            else:
+                total_time += int(time.time()) - start_time
+
         return total_time
 
-    def get_all_playtimes(self):
-        users = self.execute("SELECT xuid, name FROM sessions_log GROUP BY name").fetchall()
+    def get_all_playtimes(self) -> list[dict]:
+        query = "SELECT DISTINCT xuid, name FROM sessions_log"
+        cursor = self.execute(query, readonly=True)  # readonly for faster non-blocking SELECT
+        users = cursor.fetchall()
+
         result = []
         for xuid, name in users:
             total_playtime = self.get_total_playtime(xuid)
-            result.append({'xuid': xuid, 'name': name, 'total_playtime': total_playtime})
+            result.append({
+                'xuid': xuid,
+                'name': name,
+                'total_playtime': total_playtime
+            })
         return result
 
     def delete_logs_older_than_seconds(self, seconds: int, sendPrint=False):
-        threshold = int(time.time()) - seconds
-        
-        count = self.execute("SELECT COUNT(*) FROM actions_log").fetchone()[0]
+        current_time = datetime.utcnow()
+
+        count_query = "SELECT COUNT(*) FROM actions_log"
+        cursor = self.execute(count_query)
+        count_result = cursor.fetchone()
+        count = count_result[0] if count_result else 0
+
         if count == 0:
             if sendPrint:
                 print("[PrimeBDS] No logs to delete.")
             return 0
 
-        self.execute("DELETE FROM actions_log WHERE timestamp < ?", (threshold,))
+        select_logs_query = "SELECT id, timestamp FROM actions_log"
+        cursor = self.execute(select_logs_query)
+        logs_to_delete = cursor.fetchall()
+
+        deleted_count = 0
+        for log_id, log_timestamp in logs_to_delete:
+            log_time = datetime.utcfromtimestamp(log_timestamp)
+            time_diff = (current_time - log_time).total_seconds()
+            if time_diff > seconds:
+                delete_query = "DELETE FROM actions_log WHERE id = ?"
+                self.execute(delete_query, (log_id,))
+                deleted_count += 1
 
         if sendPrint:
-            # Format time string
-            units = [("day", 86400), ("hour", 3600), ("minute", 60), ("second", 1)]
-            for unit, val in units:
-                if seconds >= val:
-                    amount = seconds // val
+            time_units = [
+                ("day", 86400),
+                ("hour", 3600),
+                ("minute", 60),
+                ("second", 1)
+            ]
+            for unit, value in time_units:
+                if seconds >= value:
+                    amount = seconds // value
                     time_string = f"{amount} {unit}{'s' if amount > 1 else ''}"
                     break
-            print(f"[primebds - grieflog] Purged logs older than {time_string}")
-        
-        return self.execute("SELECT COUNT(*) FROM actions_log").fetchone()[0]
+            print(f"[primebds - grieflog] Purged {deleted_count} logs older than {time_string}")
+
+        return deleted_count
 
     def delete_logs_within_seconds(self, seconds: int):
-        threshold = int(time.time()) - seconds
-        self.execute("DELETE FROM actions_log WHERE timestamp >= ?", (threshold,))
+        current_time = datetime.utcnow()
+
+        select_logs_query = "SELECT id, timestamp FROM actions_log"
+        cursor = self.execute(select_logs_query)
+        logs_to_delete = cursor.fetchall()
+
+        deleted_count = 0
+        for log_id, log_timestamp in logs_to_delete:
+            log_time = datetime.utcfromtimestamp(log_timestamp)
+            time_diff = (current_time - log_time).total_seconds()
+            if time_diff <= seconds:
+                delete_query = "DELETE FROM actions_log WHERE id = ?"
+                self.execute(delete_query, (log_id,))
+                deleted_count += 1
+
+        return deleted_count
 
     def delete_all_logs(self):
-        self.execute("DELETE FROM actions_log WHERE 1")
-
+        self.delete('actions_log', '1', ())

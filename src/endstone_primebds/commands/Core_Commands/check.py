@@ -32,15 +32,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     player_name = args[0].strip('"')
     target = sender.server.get_player(player_name)
 
-    db = UserDB("users.db")
-
     if target is None:
         # Check Offline DB
-        user = db.get_offline_user(player_name)
+        user = self.db.get_offline_user(player_name)
         if user is None:
             sender.send_message(
                 f"Player §e{player_name}§c not found in database.")
-            db.close_connection()
+            
             return False
 
         xuid = user.xuid
@@ -56,7 +54,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     else:
         # Fetch Online Data
-        user = db.get_online_user(target.xuid)
+        user = self.db.get_online_user(target.xuid)
         xuid = target.xuid
         uuid = target.unique_id
         name = target.name
@@ -68,7 +66,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         last_leave = user.last_leave
         status = f"{ColorFormat.GREEN}Online"
 
-    db.close_connection()
+    
 
     join_time = TimezoneUtils.convert_to_timezone(last_join, "EST")
 

@@ -31,21 +31,24 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
 
     target_name = args[0]
-    dbgl = grieflog("grieflog.db")
-
-    logout_log = dbgl.get_latest_logout(target_name)
+    logout_log = self.db.get_offline_user(target_name).last_logout_pos
     if not logout_log:
         sender.send_message(f"§cNo logout record found for {target_name}")
         return True
 
-    dim = logout_log.get("dim")
-    x = logout_log.get("x")
-    y = logout_log.get("y")
-    z = logout_log.get("z")
-
-    if None in (x, y, z):
-        sender.send_message(f"§cLogout location data missing or incomplete for {target_name}")
+    try:
+        parts = logout_log.split(",")
+        x = float(parts[0])
+        y = float(parts[1])
+        z = float(parts[2])
+        dim = parts[3] if len(parts) > 3 else "Overworld"
+    except (ValueError, AttributeError, IndexError):
+        sender.send_message(f"§cInvalid logout record format for {target_name}")
         return True
+
+        if None in (x, y, z):
+            sender.send_message(f"§cLogout location data missing or incomplete for {target_name}")
+            return True
 
     try:
         sender.teleport(Location(self.server.level.get_dimension(dim), x, y, z))

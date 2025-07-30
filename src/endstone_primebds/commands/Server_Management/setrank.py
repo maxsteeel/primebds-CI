@@ -31,11 +31,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"Invalid rank: {new_rank}. Valid ranks are: {', '.join(RANKS)}")
         return False
 
-    db = UserDB("users.db")
+    
 
     for target in targets:
         player_name = target.name
-        user = db.get_offline_user(player_name)
+        user = self.db.get_offline_user(player_name)
 
         if not user:
             sender.send_message(f"Could not find user data for player {player_name}.")
@@ -48,7 +48,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         for rank in RANKS:
             if rank.lower() == new_rank:
-                db.update_user_data(player_name, 'internal_rank', rank)
+                self.db.update_user_data(player_name, 'internal_rank', rank)
 
                 if new_rank == "operator":
                     self.server.dispatch_command(self.server.command_sender, f"op {player_name}")
@@ -60,5 +60,5 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                     f"Player §e{player_name}'s {ColorFormat.WHITE}rank was updated to §e{rank.upper()}"
                 )
 
-    db.close_connection()
+    
     return True

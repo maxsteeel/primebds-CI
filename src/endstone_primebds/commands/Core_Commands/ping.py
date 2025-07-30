@@ -48,9 +48,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             f"§7- §r{player.name}: {get_ping_color(player.ping)}{player.ping}{ColorFormat.RESET}ms"
             for player in matched if isinstance(player, Player)
         ]
-        sender.send_message(f"Matched Players' Pings:\n" + "\n".join(ping_list))
+        sender.send_message(f"§bMatched Players' Pings:\n" + "\n".join(ping_list))
     return True
-
 
 def get_ping_color(ping: int) -> str:
     """Returns the color formatting based on ping value."""

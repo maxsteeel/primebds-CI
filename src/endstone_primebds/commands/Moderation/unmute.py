@@ -29,20 +29,20 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
 
     player_name = args[0].strip('"')
-    db = UserDB("users.db")
+    
 
     # Get the mod log to check if the player is muted
-    mod_log = db.get_offline_mod_log(player_name)
+    mod_log = self.db.get_offline_mod_log(player_name)
 
     if not mod_log or not mod_log.is_muted:
         # Player is not muted, return an error message
         sender.send_message(f"§6Player §e{player_name} §6is not muted")
-        db.close_connection()
+        
         return False
 
     # Remove the mute
-    db.remove_mute(player_name)
-    db.close_connection()
+    self.db.remove_mute(player_name)
+    
 
     # Notify the sender that the mute has been removed
     sender.send_message(f"§6Player §e{player_name} §6has been unmuted")

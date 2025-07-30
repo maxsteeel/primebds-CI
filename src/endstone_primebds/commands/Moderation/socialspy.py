@@ -22,19 +22,19 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_error_message("This command can only be executed by a player")
         return False
 
-    db = UserDB("users.db")
-    user = db.get_online_user(sender.xuid)
+    
+    user = self.db.get_online_user(sender.xuid)
 
     if not args:
         current_status = int(user.enabled_ss)
         new_status = 0 if current_status == 1 else 1
-        db.update_user_data(sender.name, "enabled_ss", new_status)
+        self.db.update_user_data(sender.name, "enabled_ss", new_status)
         sender.send_message(f"§6Social Spy has been {f'§aEnabled' if new_status == 1 else f'§cDisabled'}")
     else:
         arg = args[0].lower()
         new_status = 1 if arg in ["true", "1", "yes", "enable"] else 0
-        db.update_user_data(sender.name, "enabled_ss", new_status)
+        self.db.update_user_data(sender.name, "enabled_ss", new_status)
         sender.send_message(f"§6Social Spy has been {f'§aEnabled' if new_status == 1 else f'§cDisabled'}")
 
-    db.close_connection()
+    
     return True

@@ -2,7 +2,7 @@ import os
 import threading
 import time
 import traceback
-from endstone import ColorFormat, Player
+from endstone import ColorFormat, GameMode, Player
 from endstone.plugin import Plugin
 from endstone.command import Command, CommandSender
 
@@ -37,7 +37,7 @@ Prime BDS Loaded!
 # EVENT IMPORTS
 from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent,
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, BlockBreakEvent, BlockPlaceEvent,
-                            PlayerInteractEvent, ActorDamageEvent, ActorKnockbackEvent)
+                            PlayerInteractEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent)
 from endstone_primebds.handlers.chat import handle_chat_event
 from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
 from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event
@@ -69,7 +69,16 @@ class PrimeBDS(Plugin):
         self.entity_damage_cooldowns = {}
         self.entity_last_hit = {}
 
+        # DB
+        self.db = UserDB("users.db")
+        self.dbgl = grieflog("grieflog.db")
+
     # EVENT HANDLER
+    """@event_handler()
+    def on_packet_send(self, ev: PacketSendEvent):
+        if ev.packet_id == 12:
+            print("SERVER SENT: ", ev.payload)"""
+
     @event_handler()
     def on_entity_hurt(self, ev: ActorDamageEvent):
         handle_damage_event(self, ev)
@@ -121,9 +130,7 @@ class PrimeBDS(Plugin):
         self.register_events(self)
         load_perms(self)
 
-        db = UserDB("users.db")
-        db.migrate_user_table()
-        db.close_connection()
+        self.db.migrate_user_table()
         
         for player in self.server.online_players:
             self.reload_custom_perms(player)
@@ -133,9 +140,7 @@ class PrimeBDS(Plugin):
 
         if is_gl_enabled:
             if config["modules"]["grieflog_storage_auto_delete"]["enabled"]:
-                dbgl = grieflog("grieflog.db")
-                dbgl.delete_logs_older_than_seconds(config["modules"]["grieflog_storage_auto_delete"]["removal_time_in_seconds"], True)
-                dbgl.close_connection()
+                self.dbgl.delete_logs_older_than_seconds(config["modules"]["grieflog_storage_auto_delete"]["removal_time_in_seconds"], True)
 
         if config["modules"]["check_prolonged_death_screen"]["enabled"] or config["modules"]["check_afk"]["enabled"]:
             interval_function(self)
@@ -149,6 +154,8 @@ class PrimeBDS(Plugin):
     def on_disable(self):
         clear_all_intervals(self)
         stop_interval(self)
+        self.db.close_connection()
+        self.dbgl.close_connection()
 
         config = load_config()
         if config["modules"]["multiworld"]["enabled"] and not is_nested_multiworld_instance():
@@ -157,11 +164,10 @@ class PrimeBDS(Plugin):
 
     def check_for_inactive_sessions(self):
         """Checks for players who have active sessions (NULL end_time) and are not online. Ends their session."""
-        dbgl = grieflog("grieflog.db")
 
         # Fetch players with active sessions (where end_time is NULL)
         query = "SELECT xuid, name, start_time FROM sessions_log WHERE end_time IS NULL"
-        active_sessions = dbgl.execute(query).fetchall()
+        active_sessions = self.dbgl.execute(query).fetchall()
 
         MAX_SESSION_TIME = 10800  # 3 hours in seconds
 
@@ -176,18 +182,16 @@ class PrimeBDS(Plugin):
                 end_time = start_time + MAX_SESSION_TIME if session_duration > MAX_SESSION_TIME else current_time
 
                 # End the session with the calculated end_time
-                dbgl.end_session(xuid, end_time)
+                self.dbgl.end_session(xuid, end_time)
                 print(
                     f"[PrimeBDS] Ended session for offline player {player_name} (XUID: {xuid}) with end_time: {end_time}"
                 )
 
-        dbgl.close_connection()
-
     def reload_custom_perms(self, player: Player):
         # Update Internal DB
-        db = UserDB("users.db")
-        db.save_user(player)
-        user = db.get_online_user(player.xuid)
+        
+        self.db.save_user(player)
+        user = self.db.get_online_user(player.xuid)
 
         # Remove Overwritten Permissions
         player.add_attachment(self, "endstone.command.ban", False)
@@ -210,7 +214,7 @@ class PrimeBDS(Plugin):
         player.update_commands()
         player.recalculate_permissions()
 
-        db.close_connection()
+        
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically."""

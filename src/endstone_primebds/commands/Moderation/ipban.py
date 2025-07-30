@@ -31,26 +31,26 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     player_name = args[0].strip('"')
     target = self.server.get_player(player_name)
 
-    db = UserDB("users.db")
+    
 
     # Check if the player is already IP-banned (online or offline)
     if target:
         # If the player is online, check the ban status in the database
-        if db.get_mod_log(target.xuid).is_banned:
+        if self.db.get_mod_log(target.xuid).is_banned:
             sender.send_message(f"§6Player §e{player_name} §cis already IP-banned")
-            db.close_connection()
+            
             return False
     else:
         # If the player is offline, check their mod log for an existing IP ban
-        mod_log = db.get_offline_mod_log(player_name)
+        mod_log = self.db.get_offline_mod_log(player_name)
         if mod_log and mod_log.is_ip_banned:
             sender.send_message(f"§6Player §e{player_name} §cis already IP-banned")
-            db.close_connection()
+            
             return False
 
         if not mod_log:
             sender.send_message(f"§6Player '{player_name}' not found")
-            db.close_connection()
+            
             return False
 
     reason = "Negative Behavior"
@@ -94,14 +94,14 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     formatted_expiration = "Never - Permanent Ban" if permanent else format_time_remaining(int(ban_expiration.timestamp()))
     message = ban_message(self.server.level.name, formatted_expiration, "IP Ban - " + reason)
 
-    target_user = target if target else db.get_offline_mod_log(player_name)
+    target_user = target if target else self.db.get_offline_mod_log(player_name)
 
     if not target_user:
         sender.send_message(f"Could not retrieve IP for '{player_name}'")
-        db.close_connection()
+        
         return False
 
-    db.add_ban(target_user.xuid, int(ban_expiration.timestamp()), reason, True)
+    self.db.add_ban(target_user.xuid, int(ban_expiration.timestamp()), reason, True)
 
     if target:
         target.kick(message)
@@ -127,5 +127,5 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             f"§6Player §e{player_name} §6was IP banned by §e{sender.name} for §e\"{reason}\" until §e{formatted_expiration}",
             "mod")
 
-    db.close_connection()
+    
     return True

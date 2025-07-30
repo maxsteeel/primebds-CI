@@ -36,12 +36,16 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not is_gl_enabled:
         sender.send_message(f"Grief Logger is currently disabled by config")
         return True
+    
+    if any("@" in arg for arg in args):
+        sender.send_message(f"§cTarget selectors are invalid for this command")
+        return False
 
     if isinstance(sender, Player):
         radius = 0
         action_filter = None
         player_name = None
-        dbgl = grieflog("grieflog.db")
+        
 
         if len(args) > 0:
             try:
@@ -66,14 +70,14 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         if len(args) > 0 and args[0].lower() == "delete":
             if len(args) == 2 and args[1].lower() == "all":
                 # Clear all logs
-                dbgl.delete_all_logs()
+                self.dbgl.delete_all_logs()
                 sender.send_message(f"All grief logs have been cleared")
                 return True
 
             elif len(args) == 3 and args[1].lower() == "time" and args[2].isdigit():
                 # Clear logs from the last x minutes
                 minutes = int(args[2])
-                logs_cleared = dbgl.delete_logs_within_seconds(int(minutes * 60))
+                logs_cleared = self.dbgl.delete_logs_within_seconds(int(minutes * 60))
                 sender.send_message(f"Cleared {logs_cleared} grief logs from the last {minutes} minutes have been cleared")
                 return True
 
@@ -83,7 +87,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 return True
 
         sender = self.server.get_player(sender.name)
-        logs = dbgl.get_logs_within_radius(sender.location.x, sender.location.y, sender.location.z, radius)
+        logs = self.dbgl.get_logs_within_radius(sender.location.x, sender.location.y, sender.location.z, radius)
 
         # Filter logs by action type if action_filter is provided
         if action_filter:

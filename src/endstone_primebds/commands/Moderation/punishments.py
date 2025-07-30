@@ -32,7 +32,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"§cTarget selectors are invalid for this command")
         return False
 
-    db = UserDB("users.db")
+    
 
     target_name = args[0]
 
@@ -52,7 +52,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"Page number must be 1 or higher")
         return False
 
-    history_message = db.print_punishment_history(target_name, page)
+    history_message = self.db.print_punishment_history(target_name, page)
 
     if not history_message:
         sender.send_message(f"No punishment history found for §e{target_name}")
@@ -63,9 +63,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
 def clear_all_punishments(self: "PrimeBDS", sender: CommandSender, target_name: str) -> bool:
     """Clears all punishment logs for the selected player."""
-    db = UserDB("users.db")
+    
 
-    success = db.delete_all_punishment_logs_by_name(target_name)
+    success = self.db.delete_all_punishment_logs_by_name(target_name)
 
     if success:
         sender.send_message(f"Successfully cleared all punishments for §e{target_name}")
@@ -78,9 +78,9 @@ def remove_punishment_by_id(self: "PrimeBDS", sender: CommandSender, target_name
     """Removes a specific punishment by ID using a menu."""
 
     # Retrieve punishment history
-    db = UserDB("users.db")
-    history = db.print_punishment_history(target_name)
-    punish_log = db.get_punishment_logs(target_name)
+    
+    history = self.db.print_punishment_history(target_name)
+    punish_log = self.db.get_punishment_logs(target_name)
 
     if not history:
         sender.send_message(f"No more punishments found for §e{target_name}.")
@@ -107,7 +107,7 @@ def remove_punishment_by_id(self: "PrimeBDS", sender: CommandSender, target_name
 
         # Remove punishment by ID
         punishment_id = punish_log[int(result.selection)-1].id
-        success = db.remove_punishment_log_by_id(target_name, punishment_id)
+        success = self.db.remove_punishment_log_by_id(target_name, punishment_id)
 
         if success:
             player.send_message(

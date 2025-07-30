@@ -13,20 +13,20 @@ if TYPE_CHECKING:
 
 def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
 
-    if self.globalmute == 1 and not check_perms(ev.player, "primebds.globalmute.exempt"):
+    if self.globalmute == 1 and not check_perms(self, ev.player, "primebds.globalmute.exempt"):
         ev.player.send_message(f"§cGlobal chat is currently Disabled")
         ev.cancel() # Utilize until fix then switch to ev.is_cancelled = true
         return False
 
-    if not handle_mute_status(ev.player):
+    if not handle_mute_status(self, ev.player):
         ev.cancel() # Utilize until fix then switch to ev.is_cancelled = true
         return False
     
     discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")
     return True
 
-def handle_mute_status(player: Player) -> bool:
-    mute_data = load_mute_from_db(player.xuid)
+def handle_mute_status(self: "PrimeBDS", player: Player) -> bool:
+    mute_data = load_mute_from_db(self, player.xuid)
     if not mute_data or not mute_data["is_muted"]:
         return True  # Not muted
 
@@ -44,12 +44,11 @@ def handle_mute_status(player: Player) -> bool:
         player.send_message(f"§6You are muted for §e\"{reason}\" §6which expires in §e{remaining}")
     return False
 
-def load_mute_from_db(xuid):
+def load_mute_from_db(self: "PrimeBDS", xuid):
     """Fetch mute data directly from the database."""
-    db = UserDB("users.db")
-    mod_log = db.get_mod_log(xuid)
-    db.close_connection()
 
+    mod_log = self.db.get_mod_log(xuid)
+    
     if not mod_log or not mod_log.is_muted:
         return None
 
@@ -60,8 +59,8 @@ def load_mute_from_db(xuid):
         "is_permanent": mod_log.mute_time > (datetime.now().timestamp() + (10 * 365 * 24 * 60 * 60))  # 10 years
     }
 
-def remove_expired_mute(player_name):
+def remove_expired_mute(self: "PrimeBDS", player_name):
     """Remove expired mute from the database."""
-    db = UserDB("users.db")
-    db.remove_mute(player_name)
-    db.close_connection()
+
+    self.db.remove_mute(player_name)
+    

@@ -65,8 +65,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 modified = False
                 for entry in data:
                     if entry.get("name") == player_name:
-                        db = UserDB("users.db")
-                        user = db.get_offline_user(player_name)
+                        
+                        user = self.db.get_offline_user(player_name)
                         player = self.server.get_player(player_name)
 
                         xuid = None

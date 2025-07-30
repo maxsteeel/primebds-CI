@@ -32,16 +32,16 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     player_name = args[0].strip('"')
     target = self.server.get_player(player_name)
 
-    db = UserDB("users.db")
+    
     if not target:
-        mod_log = db.get_offline_mod_log(player_name)
+        mod_log = self.db.get_offline_mod_log(player_name)
         if not mod_log:
             sender.send_message(f"§6Player §e{player_name} not found")
-            db.close_connection()
+            
             return False
         if mod_log.is_muted:
             sender.send_message(f"§6Player §e{player_name} is already muted")
-            db.close_connection()
+            
             return False
         
     handle_mute_status(target)
@@ -75,23 +75,23 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     message = f"§6You are muted for §e\"{reason}\" §6which expires in §e{formatted_expiration}"
 
     if target:
-        if db.get_mod_log(target.xuid).is_muted:
+        if self.db.get_mod_log(target.xuid).is_muted:
             sender.send_message(f"§6Player §e{player_name} is already muted")
-            db.close_connection()
+            
             return False
         target.send_message(message)
-        db.add_mute(target.xuid, int(mute_expiration.timestamp()), reason)
+        self.db.add_mute(target.xuid, int(mute_expiration.timestamp()), reason)
         sender.send_message(f"§6Player §e{player_name} §6was muted for §e\"{reason}\" §6for §e{formatted_expiration}")
     else:
-        xuid = db.get_xuid_by_name(player_name)
-        if db.get_mod_log(xuid).is_muted:
+        xuid = self.db.get_xuid_by_name(player_name)
+        if self.db.get_mod_log(xuid).is_muted:
             sender.send_message(f"§6Player §e{player_name} is already muted.")
-            db.close_connection()
+            
             return False
-        db.add_mute(xuid, int(mute_expiration.timestamp()), reason)
+        self.db.add_mute(xuid, int(mute_expiration.timestamp()), reason)
         sender.send_message(f"§6Player §e{player_name} §6was muted for §e\"{reason}\" §6for §e{formatted_expiration} §7§o(Offline)")
 
     log(self, f"§6Player §e{player_name} §6was muted by §e{sender.name} §6for §e\"{reason}\" §6until §e{formatted_expiration}", "mod")
 
-    db.close_connection()
+    
     return True

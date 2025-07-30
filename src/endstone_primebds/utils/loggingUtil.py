@@ -19,7 +19,7 @@ import threading
 
 def log(self: "PrimeBDS", message, type):
     config = load_config()
-    db = UserDB("users.db") 
+     
 
     threading.Thread(target=discordRelay, args=(message, type)).start()
 
@@ -28,33 +28,25 @@ def log(self: "PrimeBDS", message, type):
 
     players_to_notify = []
     for player in self.server.online_players:
-        user = db.get_online_user(player.xuid)
+        user = self.db.get_online_user(player.xuid)
 
         # build a real set of tags (not a bool)
         tags = set(player.scoreboard_tags or [])
 
         # check perms, custom-tag overlap, or OP status
-        if (check_perms(player, "primebds.command.modspy")
+        if (check_perms(self, player, "primebds.command.modspy")
                 or (config_tags & tags)
                 or player.is_op
         ):
             if bool(user.enabled_ms):
                 players_to_notify.append(player)
 
-    # Send messages to players asynchronously
     if players_to_notify:
-        threading.Thread(
-            target=send_messages,
-            args=(players_to_notify, message, db)
-        ).start()
+        for player in players_to_notify:
+            player.send_message(message)
 
-    db.close_connection() 
+     
     return False
-
-def send_messages(players, message, db):
-    """Send the log message to all valid players asynchronously."""
-    for player in players:
-        player.send_message(message)
 
 def discordRelay(message, type):
     """Send message to Discord asynchronously without blocking."""
