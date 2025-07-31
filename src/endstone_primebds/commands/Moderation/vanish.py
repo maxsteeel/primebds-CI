@@ -4,6 +4,7 @@ from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.packet_util import (RemoveActorPacket, ActionType, AddPlayerEntry, 
                                                  PlayerListPacket, return_cached_add_player_packet, 
                                                  Color)
+from endstone_primebds.utils.config_util import load_config
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -62,9 +63,16 @@ def hide_player(self: "PrimeBDS", target: Player):
     packet = RemoveActorPacket(target.id)
     id = packet.get_packet_id()
     payload = packet.serialize()
+
+    config = load_config()
+    send_on_vanish = config["modules"]["join_leave_messages"]["send_on_vanish"]
+    leave_message = config["modules"]["join_leave_messages"]["leave_message"] 
+
     for player in self.server.online_players:
         if player.xuid != target.xuid:
             player.send_packet(id, payload)
+        if send_on_vanish:
+            player.send_message(f"{leave_message.replace('{player}', player.name)}")
 
 def reveal_player(self: "PrimeBDS", target: Player):
     """Reveal a player to all other online players."""
@@ -72,6 +80,13 @@ def reveal_player(self: "PrimeBDS", target: Player):
     payload = return_cached_add_player_packet(self, target)
     if payload is None:
         return
+    
+    config = load_config()
+    send_on_vanish = config["modules"]["join_leave_messages"]["send_on_vanish"]
+    join_message = config["modules"]["join_leave_messages"]["join_message"]
+
     for player in self.server.online_players:
         if player.xuid != target.xuid:
             player.send_packet(add_player_packet_id, payload)
+        if send_on_vanish:
+            player.send_message(f"{join_message.replace('{player}', player.name)}")
