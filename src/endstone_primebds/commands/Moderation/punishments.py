@@ -1,11 +1,11 @@
-from endstone_primebds.utils.timeUtil import TimezoneUtils
+from endstone_primebds.utils.time_util import TimezoneUtils
 
 from endstone import ColorFormat, Player
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.command_util import create_command
 from typing import TYPE_CHECKING
-from endstone_primebds.utils.dbUtil import UserDB
-from endstone_primebds.utils.formWrapperUtil import ActionFormResponse, ActionFormData
+
+from endstone_primebds.utils.form_wrapper_util import ActionFormResponse, ActionFormData
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -31,8 +31,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if any("@" in arg for arg in args):
         sender.send_message(f"§cTarget selectors are invalid for this command")
         return False
-
-    
 
     target_name = args[0]
 

@@ -1,5 +1,3 @@
-import contextlib
-import datetime
 import os
 import sqlite3
 import threading
@@ -8,8 +6,9 @@ from dataclasses import dataclass, fields
 from typing import List, Tuple, Any, Dict, Optional
 from endstone import ColorFormat
 from endstone.util import Vector
-from endstone_primebds.utils.modUtil import format_time_remaining
-from endstone_primebds.utils.timeUtil import TimezoneUtils
+from endstone_primebds.utils.mod_util import format_time_remaining
+from endstone_primebds.utils.time_util import TimezoneUtils
+from datetime import datetime
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 while not (os.path.exists(os.path.join(current_dir, 'plugins')) and os.path.exists(os.path.join(current_dir, 'worlds'))):
@@ -35,6 +34,7 @@ class User:
     is_vanish: int
     last_logout_pos: str
     last_logout_dim: str
+    last_vanish_blob: bytes
 
 @dataclass
 class ModLog:
@@ -204,7 +204,8 @@ class UserDB(DatabaseManager):
             'enabled_ss': 'INTEGER',
             'is_vanish': 'INTEGER',
             'last_logout_pos': 'TEXT',
-            'last_logout_dim': 'TEXT'
+            'last_logout_dim': 'TEXT',
+            'last_vanish_blob': 'BLOB'
         }
         self.create_table('users', user_info_columns)
 
@@ -258,7 +259,7 @@ class UserDB(DatabaseManager):
                 'xuid': xuid, 'uuid': uuid, 'name': name, 'ping': ping, 'device_os': device,
                 'client_ver': client_ver, 'last_join': last_join, 'last_leave': last_leave,
                 'internal_rank': internal_rank, 'enabled_ms': 1, 'is_afk': 0, 'enabled_ss': 0,
-                'is_vanish': 0, 'last_logout_dim': "Overworld"
+                'is_vanish': 0, 'last_logout_dim': "Overworld", 'last_vanish_blob': None
             }
             mod_data = {
                 'xuid': xuid, 'name': name, 'is_muted': 0, 'mute_time': 0, 'mute_reason': "None",
@@ -354,6 +355,23 @@ class UserDB(DatabaseManager):
             user = User(**result_dict)
             return user
         return None
+    
+    def check_and_update_mute(self, xuid: str, name: str) -> int:
+        """Checks if a player is muted and updates the database if the mute has expired."""
+        mute_row = self.execute(
+            "SELECT is_muted, mute_time FROM mod_logs WHERE xuid = ?", 
+            (xuid,), readonly=True
+        ).fetchone()
+
+        if mute_row:
+            is_muted, mute_time = mute_row
+            if is_muted:
+                if mute_time < datetime.now().timestamp():
+                    self.remove_mute(name)
+                    return 0 
+                return 1 
+            return 0 
+        return 0
 
     def get_mod_log(self, xuid: str) -> Optional[ModLog]:
         row = self.execute(
@@ -467,7 +485,7 @@ class UserDB(DatabaseManager):
         start, end = (page - 1) * per_page, (page - 1) * per_page + per_page
         paginated_past = past_punishments[start:end]
 
-        msg = [f"Punishment Information\n---------------"]
+        msg = [f""]
 
         if active_punishments:
             msg.append(f"{ColorFormat.GREEN}Active §6Punishments for §e{name}§6:")

@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional
 
 from endstone import ColorFormat, Player
 
-from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.loggingUtil import log
+from endstone_primebds.utils.config_util import load_config
+from endstone_primebds.utils.logging_util import log
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 

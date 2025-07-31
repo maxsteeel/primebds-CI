@@ -1,9 +1,7 @@
-from endstone import ColorFormat
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.dbUtil import UserDB
-from endstone_primebds.utils.loggingUtil import log
+from endstone_primebds.utils.command_util import create_command
+
+from endstone_primebds.utils.logging_util import log
 
 from typing import TYPE_CHECKING
 
@@ -30,7 +28,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     player_name = args[0].strip('"')
     
-
     # Get the mod log to check if the player is muted
     mod_log = self.db.get_offline_mod_log(player_name)
 
@@ -43,7 +40,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     # Remove the mute
     self.db.remove_mute(player_name)
     
-
     # Notify the sender that the mute has been removed
     sender.send_message(f"§6Player §e{player_name} §6has been unmuted")
     log(self, f"§6Player §e{player_name} §6was unmuted by §e{sender.name}", "mod")

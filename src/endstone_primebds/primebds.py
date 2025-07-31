@@ -2,7 +2,7 @@ import os
 import threading
 import time
 import traceback
-from endstone import ColorFormat, GameMode, Player
+from endstone import ColorFormat, Player
 from endstone.plugin import Plugin
 from endstone.command import Command, CommandSender
 
@@ -12,12 +12,10 @@ from endstone_primebds.commands import (
     preloaded_handlers
 )
 
-from endstone_primebds.handlers.intervals import interval_function, stop_interval
 from endstone_primebds.commands.Server_Management.monitor import clear_all_intervals
-from endstone_primebds.utils.configUtil import load_config
-
-from endstone_primebds.utils.dbUtil import UserDB, grieflog
-from endstone_primebds.utils.internalPermissionsUtil import load_perms, get_permissions, MANAGED_PERMISSIONS_LIST
+from endstone_primebds.utils.config_util import load_config
+from endstone_primebds.utils.db_util import UserDB, grieflog
+from endstone_primebds.utils.internal_permissions_util import load_perms, get_permissions, MANAGED_PERMISSIONS_LIST
 
 def plugin_text():
     print(
@@ -34,7 +32,7 @@ Prime BDS Loaded!
         """
     )
 
-# EVENT IMPORTS
+# EVENT & HANDLER IMPORTS
 from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent,
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, BlockBreakEvent, BlockPlaceEvent,
                             PlayerInteractEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent)
@@ -44,6 +42,8 @@ from endstone_primebds.handlers.connections import handle_login_event, handle_jo
 from endstone_primebds.handlers.grieflog import handle_block_break, handle_player_interact, handle_block_place
 from endstone_primebds.handlers.combat import handle_kb_event, handle_damage_event
 from endstone_primebds.handlers.multiworld import start_additional_servers, stop_additional_servers, is_nested_multiworld_instance
+from endstone_primebds.handlers.intervals import interval_function, stop_interval
+from endstone_primebds.handlers.packets import handle_packetsend_event
 
 class PrimeBDS(Plugin):
     api_version = "0.6"
@@ -74,10 +74,9 @@ class PrimeBDS(Plugin):
         self.dbgl = grieflog("grieflog.db")
 
     # EVENT HANDLER
-    """@event_handler()
+    @event_handler()
     def on_packet_send(self, ev: PacketSendEvent):
-        if ev.packet_id == 12:
-            print("SERVER SENT: ", ev.payload)"""
+        handle_packetsend_event(self, ev)
 
     @event_handler()
     def on_entity_hurt(self, ev: ActorDamageEvent):
@@ -213,8 +212,6 @@ class PrimeBDS(Plugin):
 
         player.update_commands()
         player.recalculate_permissions()
-
-        
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically."""

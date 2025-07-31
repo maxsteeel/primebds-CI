@@ -1,11 +1,7 @@
-import time
-
 from endstone import Player, ColorFormat
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.formWrapperUtil import ActionFormResponse, ActionFormData
-
-from endstone_primebds.utils.dbUtil import grieflog
+from endstone_primebds.utils.command_util import create_command
+from math import ceil
 
 from typing import TYPE_CHECKING
 
@@ -16,69 +12,67 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "activitylist",
     "Lists players by activity filter (highest, lowest, or recent)!",
-    ["/activitylist (highest|lowest|recent)[filter: activity_filter]"],
+    ["/activitylist [page: int] (highest|lowest|recent)[filter: activity_filter]"],
     ["primebds.command.activitylist"]
 )
 
 # ACTIVITY LIST COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-
     if not isinstance(sender, Player):
-        sender.send_message(f"This command can only be executed by a player")
+        sender.send_message("This command can only be executed by a player")
         return False
 
-    if len(args) < 1:
-        filter_type = "highest"  # Default to 'highest' if no filter is provided
-    else:
-        filter_type = args[0].lower()  # Filter type (highest, lowest, recent)
+    page = 1
+    filter_type = "highest"
 
-    # Fetch all users and their total playtimes
+    if len(args) >= 1:
+        if args[0].isdigit():
+            page = int(args[0])
+            if len(args) >= 2 and args[1].lower() in ["highest", "lowest", "recent"]:
+                filter_type = args[1].lower()
+        elif args[0].lower() in ["highest", "lowest", "recent"]:
+            filter_type = args[0].lower()
+            if len(args) >= 2 and args[1].isdigit():
+                page = int(args[1])
+
     playtimes = self.dbgl.get_all_playtimes()
-
     if not playtimes:
-        sender.send_message(f"No player playtime data found")
+        sender.send_message("No player playtime data found")
         return True
 
-    # Sort the playtimes based on the filter type
     if filter_type == "highest":
         sorted_playtimes = sorted(playtimes, key=lambda x: x['total_playtime'], reverse=True)
     elif filter_type == "lowest":
         sorted_playtimes = sorted(playtimes, key=lambda x: x['total_playtime'])
-    elif filter_type == "recent":
-        # For the 'recent' filter, sort by the most recent session's start_time
+    else: 
         sorted_playtimes = []
         for player in playtimes:
-            xuid = player['xuid']
-            sessions = self.dbgl.get_user_sessions(xuid)
+            sessions = self.dbgl.get_user_sessions(player['xuid'])
             if sessions:
-                # Get the most recent session (sorted by start_time)
                 recent_session = max(sessions, key=lambda s: s['start_time'])
                 sorted_playtimes.append({
                     'name': player['name'],
-                    'xuid': xuid,
+                    'xuid': player['xuid'],
                     'recent_session_start': recent_session['start_time'],
                     'total_playtime': player['total_playtime']
                 })
-        # Sort by most recent session's start_time
         sorted_playtimes = sorted(sorted_playtimes, key=lambda x: x['recent_session_start'], reverse=True)
-    else:
-        sender.send_message(f" Invalid filter type. Use 'highest', 'lowest', or 'recent'.")
-        return True
 
-    form = ActionFormData()
-    form.title("Player Activity List")
-    form.body(f"Top players sorted by {filter_type} activity:")
+    per_page = 10
+    total_pages = ceil(len(sorted_playtimes) / per_page)
+    page = max(1, min(page, total_pages))
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_entries = sorted_playtimes[start_idx:end_idx]
 
-    for entry in sorted_playtimes:
-        player_name = entry['name']
+    sender.send_message(f"§bActivity List ({filter_type.capitalize()}) - Page {page}/{total_pages}\n")
+    for i, entry in enumerate(page_entries, start=start_idx + 1):
         total_playtime_seconds = entry['total_playtime']
+        days = total_playtime_seconds // 86400
+        hours = (total_playtime_seconds % 86400) // 3600
+        minutes = (total_playtime_seconds % 3600) // 60
+        seconds = total_playtime_seconds % 60
 
-        days = total_playtime_seconds // 86400  # 1 day = 86400 seconds
-        hours = (total_playtime_seconds % 86400) // 3600  # 1 hour = 3600 seconds
-        minutes = (total_playtime_seconds % 3600) // 60  # 1 minute = 60 seconds
-        seconds = total_playtime_seconds % 60  # Remaining seconds
-
-        # Construct the playtime string
         playtime_str = ""
         if days > 0:
             playtime_str += f"{days}d "
@@ -88,16 +82,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             playtime_str += f"{minutes}m "
         playtime_str += f"{seconds}s"
 
-        form.button(f"{ColorFormat.AQUA}{player_name}\n§c{playtime_str}")
-
-    form.button("Cancel")
-
-    form.show(sender).then(
-        lambda player=sender, result=ActionFormResponse: handle_activitylist_response(player, result)
-    )
+        sender.send_message(f"§7{i}. §e{entry['name']} §7- §c{playtime_str}")
 
     return True
-
-def handle_activitylist_response(player: Player, result: ActionFormResponse):
-    if result.canceled or result.selection is None:
-        return 

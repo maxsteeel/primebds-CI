@@ -5,7 +5,7 @@ import subprocess
 import sys
 import threading
 import time
-from endstone_primebds.utils.configUtil import find_and_load_config, load_config
+from endstone_primebds.utils.config_util import find_and_load_config, load_config
 
 import psutil
 

@@ -4,10 +4,9 @@ import shutil
 
 from endstone import Player
 
-from endstone_primebds.utils.configUtil import load_config, save_config
+from endstone_primebds.utils.config_util import load_config, save_config
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.dbUtil import UserDB
+from endstone_primebds.utils.command_util import create_command
 
 from typing import TYPE_CHECKING
 

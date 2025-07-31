@@ -1,8 +1,7 @@
 from endstone import Player
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
-from endstone_primebds.utils.formWrapperUtil import ActionFormData
+from endstone_primebds.utils.command_util import create_command
+from endstone_primebds.utils.target_selector_util import get_matching_actors
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:

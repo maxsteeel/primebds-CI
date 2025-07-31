@@ -5,7 +5,7 @@ from endstone import Player
 from endstone._internal.endstone_python import Vector
 from endstone.event import ActorDamageEvent, ActorKnockbackEvent
 
-from endstone_primebds.utils.configUtil import load_config
+from endstone_primebds.utils.config_util import load_config
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS

@@ -6,11 +6,11 @@ import re
 
 from endstone import ColorFormat
 
-from endstone_primebds.utils.dbUtil import UserDB
-from endstone_primebds.utils.formWrapperUtil import ActionFormData, ActionFormResponse
-from endstone_primebds.utils.internalPermissionsUtil import check_perms
-from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.timeUtil import TimezoneUtils
+
+from endstone_primebds.utils.form_wrapper_util import ActionFormData, ActionFormResponse
+from endstone_primebds.utils.internal_permissions_util import check_perms
+from endstone_primebds.utils.config_util import load_config
+from endstone_primebds.utils.time_util import TimezoneUtils
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS

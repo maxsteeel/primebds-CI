@@ -4,12 +4,8 @@ import time
 
 from endstone.event import PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent, PlayerKickEvent
 from typing import TYPE_CHECKING
-
 from datetime import datetime
-
-from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.modUtil import format_time_remaining, ban_message
-from endstone_primebds.utils.dbUtil import UserDB, grieflog
+from endstone_primebds.utils.mod_util import format_time_remaining, ban_message
 from endstone.util import Vector
 
 if TYPE_CHECKING:
@@ -76,8 +72,6 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
             )
             self.dbgl.log_action(ev.player.xuid, ev.player.name, "Login", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
 
-    
-
     check_unset_scoreboards(self)
 
     return
@@ -85,7 +79,6 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
 def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
 
     # Update Data On Leave
-    
     self.db.update_user_data(ev.player.name, 'last_leave', int(time.time()))
 
     # Ban System: ENHANCEMENT

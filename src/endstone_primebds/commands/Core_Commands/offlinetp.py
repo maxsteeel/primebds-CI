@@ -1,7 +1,7 @@
 from endstone import Player
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.dbUtil import grieflog
+from endstone_primebds.utils.command_util import create_command
+from endstone_primebds.utils.db_util import grieflog
 from endstone._internal.endstone_python import Location
 
 from typing import TYPE_CHECKING
@@ -31,10 +31,14 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
 
     target_name = args[0]
-    logout_log = self.db.get_offline_user(target_name).last_logout_pos
-    if not logout_log:
+    user = self.db.get_offline_user(target_name)
+
+    if user is None or not user.last_logout_pos:
         sender.send_message(f"§cNo logout record found for {target_name}")
         return True
+
+    logout_log = user.last_logout_pos
+
 
     try:
         parts = logout_log.split(",")
@@ -43,12 +47,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         z = float(parts[2])
         dim = parts[3] if len(parts) > 3 else "Overworld"
     except (ValueError, AttributeError, IndexError):
-        sender.send_message(f"§cInvalid logout record format for {target_name}")
+        sender.send_message(f"§cLogout location data missing or incomplete for {target_name}")
         return True
-
-        if None in (x, y, z):
-            sender.send_message(f"§cLogout location data missing or incomplete for {target_name}")
-            return True
 
     try:
         sender.teleport(Location(self.server.level.get_dimension(dim), x, y, z))

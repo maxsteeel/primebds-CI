@@ -3,8 +3,7 @@ import json
 from math import ceil
 
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.dbUtil import UserDB
+from endstone_primebds.utils.command_util import create_command
 
 from typing import TYPE_CHECKING
 
@@ -14,7 +13,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "plist",
     "Lists all players with a filter!",
-    ["/plist (ops|default|online|offline|muted|banned|ipbanned)<plist_filter: plist_filter> [page: int]"],
+    ["/plist (ops|default|online|offline|muted|banned|ipbanned|vanished)<plist_filter: plist_filter> [page: int]"],
     ["primebds.command.plist"]
 )
 
@@ -23,8 +22,6 @@ MAX_PER_PAGE = 25
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     filter_type = args[0].lower()
     page = int(args[1]) if len(args) > 1 and args[1].isdigit() else 1
-
-    
 
     def get_ops():
         permissions_path = get_permissions_path()
@@ -50,6 +47,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             for p in self.db.get_all_users()
             if p.get('internal_rank', '').lower() == "default"
         ]
+    
+    def get_vanished():
+        return [
+            p['name']
+            for p in self.db.get_all_users()
+            if p.get('is_vanish', '') == 1
+        ]
 
     def get_online():
         return [pl.name for pl in self.server.online_players]
@@ -59,7 +63,20 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return [p['name'] for p in self.db.get_all_users() if p['name'] not in online]
 
     def get_muted():
-        return [p['name'] for p in self.db.get_all_users() if self.db.get_offline_mod_log(p['name']).is_muted]
+        """Return a list of currently muted player names (expired mutes auto-removed)."""
+        muted_players = []
+
+        for user in self.db.get_all_users():
+            name = user['name']
+            xuid = user['xuid']
+            mod_log = self.db.get_offline_mod_log(name)
+
+            if mod_log and mod_log.is_muted:
+                is_still_muted = self.db.check_and_update_mute(xuid, name)
+                if is_still_muted:
+                    muted_players.append(name)
+
+        return muted_players
 
     def get_banned():
         return [p['name'] for p in self.db.get_all_users() if self.db.get_offline_mod_log(p['name']).is_banned]
@@ -74,7 +91,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         "offline": get_offline,
         "muted": get_muted,
         "banned": get_banned,
-        "ipbanned": get_ipbanned
+        "ipbanned": get_ipbanned,
+        "vanished": get_vanished
     }
 
     if filter_type not in filters:
@@ -104,7 +122,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     body = "\n".join(f"§7- §e{name}" for name in results)
     sender.send_message(header + "\n" + body)
 
-    
     return True
 
 def get_permissions_path():

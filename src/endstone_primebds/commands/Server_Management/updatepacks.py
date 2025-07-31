@@ -5,9 +5,9 @@ from endstone import ColorFormat, Player
 from endstone.command import CommandSender
 
 import endstone_primebds
-from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.command_util import create_command
 
-from endstone_primebds.utils.formWrapperUtil import ActionFormData, ActionFormResponse
+from endstone_primebds.utils.form_wrapper_util import ActionFormData, ActionFormResponse
 
 # Register command
 command, permission = create_command(

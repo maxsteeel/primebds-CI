@@ -1,10 +1,10 @@
 import time
 from endstone import Player
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.command_util import create_command
 
-from endstone_primebds.utils.dbUtil import grieflog, UserDB
-from endstone_primebds.utils.timeUtil import TimezoneUtils
+from endstone_primebds.utils.db_util import grieflog, UserDB
+from endstone_primebds.utils.time_util import TimezoneUtils
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

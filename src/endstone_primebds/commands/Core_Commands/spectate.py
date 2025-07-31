@@ -1,14 +1,14 @@
 from endstone import Player, GameMode
-from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.command_util import create_command
 from endstone.command import CommandSender
 from typing import TYPE_CHECKING
-from endstone_primebds.utils.formWrapperUtil import (
+from endstone_primebds.utils.form_wrapper_util import (
     ActionFormData,
     ActionFormResponse,
 )
 
-from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
-from endstone_primebds.utils.configUtil import load_config
+from endstone_primebds.utils.target_selector_util import get_matching_actors
+from endstone_primebds.utils.config_util import load_config
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -98,7 +98,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
 def warp_player(sender: Player, target: Player):
     """Warp the sender to the target player."""
-    # GameMode.SPECTATOR
     sender.game_mode = GameMode.SPECTATOR
     sender.teleport(target.location)
     sender.send_message(f"Now spectating {target.name_tag}")

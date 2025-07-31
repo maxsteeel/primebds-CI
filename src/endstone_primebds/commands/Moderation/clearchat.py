@@ -8,21 +8,14 @@ if TYPE_CHECKING:
 
 # Register command
 command, permission = create_command(
-    "globalmute",
-    "Mutes the server globally!",
-    ["/globalmute"],
-    ["primebds.command.globalmute"]
+    "clearchat",
+    "Adds 100 empty lines to chat!",
+    ["/clearchat"],
+    ["primebds.command.clearchat"]
 )
 
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-
-    toggle = "unmuted"
-    if self.globalmute == 0:
-        self.globalmute = 1
-        toggle = "muted"
-    else:
-        self.globalmute = 0
-        toggle = "unmuted"
-    
+    empty_lines = 100
     for player in self.server.online_players:
-        player.send_message(f"§cServer has been globally §e{toggle}")
+        player.send_message("\n" * empty_lines)
+        player.send_message("§cGlobal chat was cleared")

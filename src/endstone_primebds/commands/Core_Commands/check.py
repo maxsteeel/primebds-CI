@@ -1,11 +1,10 @@
 from datetime import datetime
 
-from endstone_primebds.utils.timeUtil import TimezoneUtils
+from endstone_primebds.utils.time_util import TimezoneUtils
 
 from endstone import ColorFormat
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.dbUtil import UserDB
+from endstone_primebds.utils.command_util import create_command
 
 from typing import TYPE_CHECKING
 
@@ -65,8 +64,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         last_join = user.last_join
         last_leave = user.last_leave
         status = f"{ColorFormat.GREEN}Online"
-
-    
 
     join_time = TimezoneUtils.convert_to_timezone(last_join, "EST")
 

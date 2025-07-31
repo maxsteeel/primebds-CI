@@ -1,7 +1,7 @@
 import re
 from typing import TYPE_CHECKING
 from endstone import Player
-from endstone._internal.endstone_python import Vector
+from endstone.util import Vector
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -114,5 +114,13 @@ def passes_filters(actor: Player, args: dict, origin: Vector) -> bool:
     # Name match
     if "name" in args and actor.name != args["name"]:
         return False
+    
+    # Type match
+    if "type" in args:
+        actor_type = actor.type.lower().removeprefix("minecraft:")
+        arg_type = args["type"].lower().removeprefix("minecraft:")
+
+        if actor_type != arg_type:
+            return False
 
     return True

@@ -1,7 +1,7 @@
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
+from endstone_primebds.utils.command_util import create_command
 
-from endstone_primebds.utils.dbUtil import grieflog
+from endstone_primebds.utils.db_util import grieflog
 
 from typing import TYPE_CHECKING
 

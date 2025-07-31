@@ -4,7 +4,7 @@ import os
 
 import endstone_primebds
 
-from endstone_primebds.utils.configUtil import load_config, save_config
+from endstone_primebds.utils.config_util import load_config, save_config
 from collections import defaultdict, OrderedDict
 
 # Global storage for preloaded commands

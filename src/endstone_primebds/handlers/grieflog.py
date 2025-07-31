@@ -3,9 +3,9 @@ import time
 from endstone.event import BlockPlaceEvent, BlockBreakEvent, PlayerInteractEvent
 from typing import TYPE_CHECKING
 
-from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.loggingUtil import sendgrieflog
-from endstone_primebds.utils.dbUtil import grieflog
+from endstone_primebds.utils.config_util import load_config
+from endstone_primebds.utils.logging_util import sendgrieflog
+from endstone_primebds.utils.db_util import grieflog
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS

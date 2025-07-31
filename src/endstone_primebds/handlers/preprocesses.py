@@ -1,11 +1,10 @@
+import shlex
 from endstone.event import PlayerCommandEvent, ServerCommandEvent
 from typing import TYPE_CHECKING
 
-from endstone_primebds.handlers.chat import handle_mute_status
-from endstone_primebds.utils.configUtil import load_config
-from endstone_primebds.utils.dbUtil import UserDB
-from endstone_primebds.utils.internalPermissionsUtil import check_perms
-from endstone_primebds.utils.loggingUtil import log, discordRelay
+from endstone_primebds.utils.config_util import load_config
+from endstone_primebds.utils.internal_permissions_util import check_perms
+from endstone_primebds.utils.logging_util import log, discordRelay
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -13,10 +12,18 @@ if TYPE_CHECKING:
 def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
     command = event.command
     player = event.player
-    args = command.split()
+
+    try:
+        args = shlex.split(command)
+    except ValueError as e:
+        player.send_message(f"§cInvalid command syntax: {e}")
+        return True 
+    except IndexError:
+        player.send_message("§cInvalid command format")
+        return True
+        
     cmd = args[0].lstrip("/").lower() if args else ""
     config = load_config()
-    
 
     if config["modules"]["discord_logging"]["commands"]["enabled"]:
         discordRelay(f"**{player.name}** ran: {command}", "cmd")
@@ -32,7 +39,6 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         if len(args) < 2:
             event.player.send_message("§cInvalid or missing target for this command.")
             event.is_cancelled = True
-            
             return True
         
         target = self.db.get_offline_user(args[1])
@@ -40,7 +46,6 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         if any("@" in arg for arg in args) and cmd != "kick":
             event.player.send_message("§cTarget selectors are invalid for this command")
             event.is_cancelled = True
-            
             return True
 
         if target is not None:
@@ -58,7 +63,6 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
 
     if is_exempt:
         event.is_cancelled = True
-        
         return True
 
     # Overrides
@@ -66,12 +70,11 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         args[0] = "permban"
         player.perform_command(" ".join(args))
         event.is_cancelled = True
-        
         return False
     elif cmd in {"unban", "pardon"}:
+        args[0] = "removeban"
         player.perform_command(" ".join(args))
         event.is_cancelled = True
-        
         return False
         
     if args and cmd == "op": # Override
@@ -108,7 +111,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
     # Social Spy
     if cmd in msg_cmds and len(args) > 1:
         if self.db.get_mod_log(player.xuid).is_muted:
-            handle_mute_status(player)
+            self.db.check_and_update_mute(player.xuid, player.name)
             event.is_cancelled = True
             
             return True
@@ -119,8 +122,6 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         for pl in self.server.online_players:
             if self.db.get_online_user(pl.xuid).enabled_ss == 1:
                 pl.send_message(f"§8[§r{player.name} §7-> §r{target}§8] §7{message}")
-
-    
 
 def handle_server_command_preprocess(self: "PrimeBDS", event: ServerCommandEvent):
     command = event.command

@@ -1,10 +1,8 @@
-from endstone import ColorFormat
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.handlers.chat import handle_mute_status
-from endstone_primebds.utils.dbUtil import UserDB
-from endstone_primebds.utils.loggingUtil import log
-from endstone_primebds.utils.modUtil import format_time_remaining
+from endstone_primebds.utils.command_util import create_command
+
+from endstone_primebds.utils.logging_util import log
+from endstone_primebds.utils.mod_util import format_time_remaining
 from datetime import timedelta, datetime
 
 from typing import TYPE_CHECKING
@@ -33,9 +31,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     target = self.server.get_player(player_name)
 
     if target:
-        handle_mute_status(target)
-
-    
+        self.db.check_and_update_mute(target.xuid, target.name)
 
     # Check if the player is muted already
     mod_log = self.db.get_offline_mod_log(player_name)

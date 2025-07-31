@@ -1,8 +1,7 @@
 from endstone import Player
 from endstone.command import CommandSender
-from endstone_primebds.utils.commandUtil import create_command
-from endstone_primebds.utils.targetSelectorUtil import get_matching_actors
-from endstone_primebds.utils.formWrapperUtil import ActionFormData
+from endstone_primebds.utils.command_util import create_command
+from endstone_primebds.utils.target_selector_util import get_matching_actors
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -12,7 +11,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "invsee",
     "Allows you to view another player's inventory!",
-    ["/invsee <player: player> (chat)[invsee_display: invsee_display]"],
+    ["/invsee <player: player> (chest|chat)[invsee_display: invsee_display]"],
     ["primebds.command.invsee"]
 )
 
@@ -26,7 +25,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message("§cYou cannot select all players for this command")
         return False
     
-    display_type = "chat"  # Default
+    display_type = "inv"  # Default
     if len(args) > 1 and args[1]:
         display_type = args[1].lower()
 
@@ -43,7 +42,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             for item in inv if item
         )
 
-        if display_type == "chat":
+        if display_type == "chest":
+
+
+            return
+        elif display_type == "chat":
             sender.send_message(f"§6Inventory of §e{target.name}§6:\n{item_list}")
         else:
             sender.send_message("§cInvalid display type. Use chat or form.")

@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING
-from endstone_primebds.utils.dbUtil import UserDB
+
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -61,6 +61,7 @@ PERMISSIONS = {
         "primebds.command.kick",
         "primebds.command.ban",
         "primebds.command.unban",
+        "primebds.command.vanish"
     ],
     "Operator": ["*"],
 }
@@ -84,9 +85,8 @@ def get_permissions(rank: str) -> list[str]:
 
     return inherited_permissions
 
-def check_perms(self, player_or_user, perm: str) -> bool:
+def check_perms(self: "PrimeBDS", player_or_user, perm: str) -> bool:
     """Check if a player object or DB user has a given permission, including inherited perms."""
-    db = None
     rank = None
 
     if hasattr(player_or_user, "internal_rank"):
