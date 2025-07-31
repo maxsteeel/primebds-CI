@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "invsee",
     "Allows you to view another player's inventory!",
-    ["/invsee <player: player> (chest|chat)[invsee_display: invsee_display]"],
+    ["/invsee <player: player> (chat)[invsee_display: invsee_display]"],
     ["primebds.command.invsee"]
 )
 
@@ -42,11 +42,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             for item in inv if item
         )
 
-        if display_type == "chest":
-
-
-            return
-        elif display_type == "chat":
+        if display_type == "chat":
             sender.send_message(f"§6Inventory of §e{target.name}§6:\n{item_list}")
         else:
             sender.send_message("§cInvalid display type. Use chat or form.")
