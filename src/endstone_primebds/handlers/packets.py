@@ -1,5 +1,5 @@
-from endstone_primebds.utils.packets.add_player import cache_add_player_packet
-from endstone_primebds.utils.packets.packet_util import extract_player_name_from_addplayer
+from endstone_primebds.utils.packet_util import cache_add_player_packet
+from endstone_primebds.utils.packet_util import extract_player_name_from_addplayer
 from endstone.event import PacketSendEvent, PacketReceiveEvent
 
 from typing import TYPE_CHECKING
