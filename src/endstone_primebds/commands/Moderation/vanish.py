@@ -1,8 +1,9 @@
 from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.packets.remove_actor import build_remove_actor_packet
-from endstone_primebds.utils.packets.add_player import return_cached_add_player_packet
+from endstone_primebds.utils.packet_util import (RemoveActorPacket, ActionType, AddPlayerEntry, 
+                                                 PlayerListPacket, return_cached_add_player_packet, 
+                                                 Color)
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -38,11 +39,29 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     else:
         hide_player(self, sender)
 
+    # update_player_list(self) CURRENTLY BUGGED
+
     return True
+
+def update_player_list(self: "PrimeBDS"):
+    records = []
+    remove_records = []
+    for player in self.server.online_players:
+        if self.db.get_online_user(player.xuid).is_vanish:
+            remove_records.append(player.unique_id)
+        else:
+            records.append(AddPlayerEntry(player.unique_id, player.id, player.name, player.xuid, "0", -1, b"", 0, 0, 0, Color()))
+    packet = PlayerListPacket(ActionType.ADD, records, [True], remove_records)
+    id = packet.get_packet_id()
+    payload = packet.serialize()
+    for player in self.server.online_players:
+        player.send_packet(id, payload)
 
 def hide_player(self: "PrimeBDS", target: Player):
     """Hide a player from all other online players."""
-    id, payload = build_remove_actor_packet(target)
+    packet = RemoveActorPacket(target.id)
+    id = packet.get_packet_id()
+    payload = packet.serialize()
     for player in self.server.online_players:
         if player.xuid != target.xuid:
             player.send_packet(id, payload)
