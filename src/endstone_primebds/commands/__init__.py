@@ -104,6 +104,13 @@ def preload_settings():
             "kick": False,
             "time_in_seconds": 180
         }),
+        "join_leave_messages": OrderedDict({
+            "send_on_nick": False,
+            "send_on_vanish": False,
+            "send_on_connection": False,
+            "join_message": "§e{player} joined the game",
+            "leave_message": "§e{player} left the game"
+        }),
         "allowlist": OrderedDict({
             "profile": "default",
             "WARNING": "DO NOT EDIT 'profile' AS IT CAN RESULT IN UNEXPECTED BEHAVIOR"

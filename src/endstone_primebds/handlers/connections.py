@@ -2,14 +2,20 @@ import json
 import os
 import time
 
+from endstone.util import Vector
 from endstone.event import PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent, PlayerKickEvent
 from typing import TYPE_CHECKING
 from datetime import datetime
+from endstone_primebds.utils.config_util import load_config
 from endstone_primebds.utils.mod_util import format_time_remaining, ban_message
-from endstone.util import Vector
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
+
+config = load_config()
+send_on_connect = join_message = config["modules"]["join_leave_messages"]["send_on_connection"]
+join_message = join_message = config["modules"]["join_leave_messages"]["join_message"]
+leave_message = config["modules"]["join_leave_messages"]["leave_message"] 
 
 def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
 
@@ -50,8 +56,11 @@ def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
     return
 
 def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
+
+    if send_on_connect:
+        ev.join_message = f"{join_message.replace('{player}', ev.player.name)}"
+
     # Update Saved Data
-    
     self.db.save_user(ev.player)
     self.db.update_user_data(ev.player.name, 'last_join', int(time.time()))
     self.reload_custom_perms(ev.player)
@@ -72,11 +81,16 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
             )
             self.dbgl.log_action(ev.player.xuid, ev.player.name, "Login", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
 
-    check_unset_scoreboards(self)
+    if self.db.get_online_user(ev.player.xuid).is_vanish:
+        ev.join_message = ""
 
+    check_unset_scoreboards(self)
     return
 
 def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
+
+    if send_on_connect:
+        ev.quit_message = f"{leave_message.replace('{player}', ev.player.name)}"
 
     # Update Data On Leave
     self.db.update_user_data(ev.player.name, 'last_leave', int(time.time()))
@@ -97,6 +111,9 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
             self.db.update_user_data(ev.player.name, 'last_logout_pos', rounded_coords)
             self.db.update_user_data(ev.player.name, 'last_logout_dim', ev.player.dimension.name)
             self.dbgl.log_action(ev.player.xuid, ev.player.name, "Logout", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
+
+    if self.db.get_online_user(ev.player.xuid).is_vanish:
+        ev.quit_message = ""
 
     return
 
