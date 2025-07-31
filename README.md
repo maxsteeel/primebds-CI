@@ -12,5 +12,4 @@ The full documentation can be found here: TBD
 3. Drag and drop it into your plugins folder
 
  # Showcase
-![showcase2](https://github.com/user-attachments/assets/748bb717-3258-4fa1-868c-fd9662c86fce)
-![showcase1](https://github.com/user-attachments/assets/729a0f99-ecfb-4b11-b134-8993cc22817a)
+TBD
