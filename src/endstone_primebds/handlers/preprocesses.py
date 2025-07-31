@@ -89,7 +89,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         return False
 
     # /me Crasher Fix
-    abused_cmds = {"me", "tellraw", "tell", "w", "msg"}
+    abused_cmds = {"me", "tellraw", "tell", "w", "whisper", "msg"}
     if cmd in abused_cmds and command.count("@e") >= 5:
         for perm in ["minecraft.command.me", "minecraft.command.tellraw", "minecraft.command.tell", "minecraft.command.w", "minecraft.command.msg"]:
             event.player.add_attachment(self, perm, False)
