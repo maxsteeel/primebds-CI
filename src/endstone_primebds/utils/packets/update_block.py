@@ -1,4 +1,4 @@
-from endstone_primebds.utils.packets.packetUtil import encode_varint
+from endstone_primebds.utils.packets.packet_util import encode_varint
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:

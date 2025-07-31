@@ -1,4 +1,4 @@
-from endstone_primebds.utils.packets.packetUtil import encode_varint, encode_varint64, encode_string
+from endstone_primebds.utils.packets.packet_util import encode_varint, encode_varint64, encode_string
 import struct
 
 # THIS IS CURRENTLY BUGGED

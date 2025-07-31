@@ -1,5 +1,5 @@
 from endstone.actor import Actor
-from endstone_primebds.utils.packets.packetUtil import encode_varint, encode_zigzag64
+from endstone_primebds.utils.packets.packet_util import encode_varint, encode_zigzag64
 
 def build_remove_actor_packet(actor: Actor) -> tuple[int, bytes]:
     packet_id = 14

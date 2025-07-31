@@ -1,6 +1,6 @@
 import struct
 from endstone import Player
-from endstone_primebds.utils.packets.packetUtil import encode_varint, encode_varint64, encode_string, encode_uvarlong
+from endstone_primebds.utils.packets.packet_util import encode_varint, encode_varint64, encode_string, encode_uvarlong
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
