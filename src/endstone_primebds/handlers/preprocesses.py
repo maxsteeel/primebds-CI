@@ -90,7 +90,6 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
 
     # /me Crasher Fix
     abused_cmds = {"me", "tellraw", "tell", "w", "msg"}
-    msg_cmds = {"tellraw", "tell", "w", "msg"}
     if cmd in abused_cmds and command.count("@e") >= 5:
         for perm in ["minecraft.command.me", "minecraft.command.tellraw", "minecraft.command.tell", "minecraft.command.w", "minecraft.command.msg"]:
             event.player.add_attachment(self, perm, False)
@@ -109,7 +108,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                 return False
 
     # Social Spy
-    if cmd in msg_cmds and len(args) > 1:
+    if cmd in abused_cmds and len(args) > 1:
         if self.db.get_mod_log(player.xuid).is_muted:
             self.db.check_and_update_mute(player.xuid, player.name)
             event.is_cancelled = True
