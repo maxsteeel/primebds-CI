@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "popup",
     "Sends a custom popup message!",
-    ["/popup <player: player> <text: string>"],
+    ["/popup <player: player> <text: message>"],
     ["primebds.command.popup"]
 )
 

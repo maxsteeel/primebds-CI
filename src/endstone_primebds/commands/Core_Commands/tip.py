@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "tip",
     "Sends a custom tip message!",
-    ["/tip <player: player> <text: string>"],
+    ["/tip <player: player> <text: message>"],
     ["primebds.command.tip"]
 )
 

@@ -25,7 +25,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message("§cYou cannot select all players for this command")
         return False
     
-    display_type = "inv"  # Default
+    display_type = "chat"  # Default
     if len(args) > 1 and args[1]:
         display_type = args[1].lower()
 
@@ -36,15 +36,23 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     for target in targets:
         inv = target.inventory.contents
+        armor = [target.inventory.helmet, target.inventory.chestplate, target.inventory.leggings, target.inventory.boots, target.inventory.item_in_off_hand]
         
         item_list = "\n".join(
             f"§7- §e{item.type.key} §7x{item.amount}"
             for item in inv if item
         )
 
+        item_list += '\n'
+
+        item_list += "\n".join(
+             f"§7- §e{item.type.key} §7(equipped)"
+            for item in armor if item
+        )
+
         if display_type == "chat":
             sender.send_message(f"§6Inventory of §e{target.name}§6:\n{item_list}")
         else:
-            sender.send_message("§cInvalid display type. Use chat or form.")
+            sender.send_message("§cInvalid display type")
 
     return True
