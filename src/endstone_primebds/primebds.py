@@ -213,6 +213,10 @@ class PrimeBDS(Plugin):
         player.update_commands()
         player.recalculate_permissions()
 
+    def get_runtime_id(self, block_id: str) -> int:
+        block_data = self.server.create_block_data(block_id)
+        return block_data.runtime_id
+
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically."""
         try:
