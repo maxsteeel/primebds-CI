@@ -156,8 +156,7 @@ class PrimeBDS(Plugin):
         self.db.close_connection()
         self.dbgl.close_connection()
 
-        config = load_config()
-        if config["modules"]["multiworld"]["enabled"] and not is_nested_multiworld_instance():
+        if not is_nested_multiworld_instance():
             stop_additional_servers(self)
             return
 
