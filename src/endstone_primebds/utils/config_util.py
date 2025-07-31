@@ -10,18 +10,6 @@ CONFIG_PATH = os.path.join(CONFIG_FOLDER, 'config.json')
 
 os.makedirs(CONFIG_FOLDER, exist_ok=True)
 
-def load_config():
-    """Load or create a configuration file in primebds_info/config.json."""
-    if not os.path.exists(CONFIG_PATH):
-        default_config = {
-            "commands": {}
-        }
-        with open(CONFIG_PATH, "w") as config_file:
-            json.dump(default_config, config_file, indent=4)
-
-    with open(CONFIG_PATH, "r") as config_file:
-        return json.load(config_file)
-
 def save_config(config):
     """Save the current config state to disk."""
     with open(CONFIG_PATH, "w") as config_file:
@@ -39,11 +27,38 @@ def parse_properties_file(path):
                 props[key.strip()] = val.strip()
     return props
 
+cache = None 
+def load_config():
+    """Load or create a configuration file in primebds_info/config.json, cached in memory"""
+    global cache
+    if cache is not None:
+        return cache
+
+    if not os.path.exists(CONFIG_PATH):
+        default_config = {
+            "commands": {}
+        }
+        with open(CONFIG_PATH, "w", encoding="utf-8") as config_file:
+            json.dump(default_config, config_file, indent=4)
+        cache = default_config
+    else:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as config_file:
+            cache = json.load(config_file)
+
+    return cache
+
 def find_and_load_config(filename, start_path=None, forbidden_subdir="multiworld", max_depth=20):
     """
-    Searches upward for a file named `filename` not within `forbidden_subdir`.
-    If found, loads and returns it as a dict (supports .json and .properties).
+    Searches upward for a file named `filename` not within `forbidden_subdir`
+    If found, loads and returns it as a dict (supports .json and .properties)
+    Caches the loaded config per filename to avoid repeated loads
     """
+    if not hasattr(find_and_load_config, "_cache"):
+        find_and_load_config._cache = {}
+
+    if filename in find_and_load_config._cache:
+        return find_and_load_config._cache[filename]
+
     if start_path is None:
         start_path = os.getcwd()
 
@@ -52,7 +67,6 @@ def find_and_load_config(filename, start_path=None, forbidden_subdir="multiworld
 
     while depth < max_depth:
         candidate_path = os.path.join(current_path, filename)
-        #print(f"Checking: {candidate_path}")
 
         if os.path.isfile(candidate_path):
             norm_path = os.path.normpath(candidate_path)
@@ -61,11 +75,13 @@ def find_and_load_config(filename, start_path=None, forbidden_subdir="multiworld
                 try:
                     if filename.endswith(".json"):
                         with open(candidate_path, "r", encoding="utf-8") as f:
-                            #print(f"FOUND: {candidate_path}")
-                            return json.load(f)
+                            config_data = json.load(f)
+                            find_and_load_config._cache[filename] = config_data
+                            return config_data
                     elif filename.endswith(".properties"):
-                        #print(f"FOUND: {candidate_path}")
-                        return parse_properties_file(candidate_path)
+                        config_data = parse_properties_file(candidate_path)
+                        find_and_load_config._cache[filename] = config_data
+                        return config_data
                     else:
                         raise ValueError(f"Unsupported file type: {filename}")
                 except Exception as e:
@@ -78,4 +94,5 @@ def find_and_load_config(filename, start_path=None, forbidden_subdir="multiworld
         current_path = parent
         depth += 1
 
+    find_and_load_config._cache[filename] = None
     return None
