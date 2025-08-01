@@ -21,8 +21,8 @@ command, permission = create_command(
 # RELOADPACKS FUNCTIONALITY
 def handler(self, sender: CommandSender, args: list[str]) -> bool:
 
-    if not isinstance(sender, Player):
-        sender.send_message(f"This command can only be executed by a player")
+    if not isinstance(sender, Player) and "behavior" in args:
+        sender.send_message(f"You cannot update behavior packs from terminal")
         return False
 
     current_dir = os.path.dirname(endstone_primebds.__file__)
@@ -40,6 +40,8 @@ def handler(self, sender: CommandSender, args: list[str]) -> bool:
 
         updated_packs = 0
         updated_pack_names = []
+        new_world_packs_data = []
+
         for pack in os.listdir(RP_PATH):
             pack_path = os.path.join(RP_PATH, pack)
             manifest_path = os.path.join(pack_path, "manifest.json")
@@ -56,29 +58,47 @@ def handler(self, sender: CommandSender, args: list[str]) -> bool:
                     header_version[-1] += 1
                     manifest["header"]["version"] = header_version
 
-                # Update UUID
+                # Update UUID and track for world_resource_packs.json
                 if args[1] == "uuid":
                     new_uuid = fetch_uuid()
                     if new_uuid:
                         manifest["header"]["uuid"] = new_uuid
+                    else:
+                        continue
+                else:
+                    new_uuid = manifest.get("header", {}).get("uuid")
 
+                # Save updated manifest
                 with open(manifest_path, "w", encoding="utf-8") as f:
                     json.dump(manifest, f, indent=4)
 
                 updated_packs += 1
                 updated_pack_names.append(pack)
+
+                new_world_packs_data.append({
+                    "pack_id": new_uuid,
+                    "version": manifest.get("header", {}).get("version", [1, 0, 0])
+                })
+
             except Exception as e:
                 sender.send_message(f" Failed to update {pack}: {e}")
                 continue
 
+        world_packs_path = os.path.join(os.path.dirname(RP_PATH), "world_resource_packs.json")
+        try:
+            with open(world_packs_path, "w", encoding="utf-8") as f:
+                json.dump(new_world_packs_data, f, indent=4)
+        except Exception as e:
+            sender.send_message(f"Failed to update world_resource_packs.json: {e}")
+
         if updated_packs > 0:
             sender.send_message(
-                f"Updated {updated_packs} resource pack(s): {', '.join(updated_pack_names)}!\n§7§oREQUIRES SERVER RESTART TO APPLY")
+                f"Updated {updated_packs} resource pack(s): {', '.join(updated_pack_names)}!\n§7§oREQUIRES SERVER RESTART TO APPLY"
+            )
         else:
             sender.send_message(" No resource packs were updated.")
 
-    # Handle Behavior Packs
-    if "behavior" in args:
+    elif "behavior" in args:
         if not os.path.exists(BP_PATH):
             sender.send_message(f" No behavior packs found to update")
             return False
