@@ -31,7 +31,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     is_gl_enabled = config["modules"]["grieflog"]["enabled"]
 
     if not is_gl_enabled:
-        sender.send_message(f"Grief Logger is currently disabled by config")
+        sender.send_message(f"Grief Logger is currently §cDisabled")
         return True
     
     if any("@" in arg for arg in args):
