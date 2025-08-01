@@ -2,113 +2,22 @@ import struct
 
 from typing import TYPE_CHECKING, List, Optional
 import uuid
+
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
-from dataclasses import dataclass
 from enum import Enum, IntEnum
 from abc import ABC, abstractmethod
 
 from endstone import Player
 from endstone.inventory import ItemStack
 
-player_packet_cache = {}
-
-def read_varint(data, offset=0):
-    value = 0
-    shift = 0
-    pos = offset
-    while True:
-        byte = data[pos]
-        value |= (byte & 0x7F) << shift
-        pos += 1
-        if not (byte & 0x80):
-            break
-        shift += 7
-    return value, pos
-
-def read_string(data, offset):
-    length, pos = read_varint(data, offset)
-    string_bytes = data[pos:pos+length]
-    string_value = string_bytes.decode('utf-8', errors='ignore')
-    return string_value, pos + length
-
-def extract_player_name_from_addplayer(packet: bytes):
-    pos = 16  
-    player_name, _ = read_string(packet, pos)
-    return player_name
-
-def cache_add_player_packet(self: "PrimeBDS", player: Player, packet: bytes):
-    """Cache player packet in memory and update DB."""
-    player_packet_cache[player.xuid] = packet
-    self.db.update_user_data(player.name, "last_vanish_blob", packet)
-
-def return_cached_add_player_packet(self: "PrimeBDS", player: Player) -> bytes:
-    """Return packet from memory cache, fallback to DB if missing."""
-    if player.xuid in player_packet_cache:
-        return player_packet_cache[player.xuid]
-
-    user = self.db.get_online_user(player.xuid)
-    if user and user.last_vanish_blob:
-        player_packet_cache[player.xuid] = user.last_vanish_blob
-        return user.last_vanish_blob
-
-    return None
-
-def build_add_player_packet(
-    username: str,
-    player_uuid: bytes,
-    entity_runtime_id: int,
-    position: tuple[float, float, float],
-    velocity: tuple[float, float, float],
-    pitch: float,
-    yaw: float,
-    held_item: int,
-    gamemode: int,
-    metadata: int,
-    entityprops: int,
-    permlevel: int,
-    cmdpermlevel: int,
-    abilities: list,
-    links: list,
-    deviceID: str
-) -> tuple[int, bytes]:
-    
-    # UUID (16 bytes)
-    # Username (MC String)
-    # Runtime ID (unsigned varint64)
-    # Platform Chat ID (empty)
-    # Position floats (x, y, z)
-    # Velocity floats
-    # Pitch, yaw, head yaw
-    # Held item (varint ZigZag32)
-    # Gamemode (varint ZigZag32)
-    """
-    # Metadata + Entity properties (both pre-encoded varints)
-    packet.extend(encode_varint(metadata))
-    packet.extend(encode_varint(entityprops))
-
-    # li64 Runtime ID
-    packet.extend(struct.pack("<q", entity_runtime_id))
-
-    # Permission levels (2x u8)
-    packet.extend(struct.pack("BB", permlevel & 0xFF, cmdpermlevel & 0xFF))
-
-    # Abilities length, layer length, links length (3x u8)
-    packet.extend(struct.pack("BBB", len(abilities) & 0xFF, len(abilities) & 0xFF, len(links) & 0xFF))
-
-    # Device ID
-    packet.extend(encode_string(deviceID))
-
-    # Device OS (li32)
-    packet.extend(struct.pack("<i", 0))"""
-
-    return
-
 class MinecraftPacketIds(IntEnum):
     AddPlayer = 12
-    RemoveActor = 14
+    TakeItemEntity = 17
+    RemoveEntity = 14
     UpdateBlock = 21
+    BlockEvent = 26
     OpenContainer = 46
     CloseContainer = 47
     InventoryContent = 49
@@ -137,7 +46,6 @@ class ActionType(Enum):
     ADD = 0
     REMOVE = 1
 
-@dataclass
 class Color:
     r: int = 0
     g: int = 0
@@ -152,7 +60,6 @@ class Color:
         self.a = max(0, min(255, self.a))
         return self
 
-    # ---------- FColorRGB ----------
     @staticmethod
     def serialize_fcolor_rgb(color: "Color") -> bytes:
         """Serialize to 3 floats (RGB normalized to 0–1)."""
@@ -169,7 +76,6 @@ class Color:
         r, g, b = struct.unpack_from("<fff", data, offset)
         return Color(int(r * 255), int(g * 255), int(b * 255), 0)
 
-    # ---------- IColorRGBA ----------
     @staticmethod
     def serialize_icolor_rgba(color: "Color") -> bytes:
         """Serialize to 32-bit integer (little-endian)."""
@@ -191,8 +97,7 @@ class Color:
             (packed >> 16) & 0xFF,
             (packed >> 24) & 0xFF
         )
-
-    # ---------- IVarColorRGBA (VarInt-based) ----------
+    
     @staticmethod
     def serialize_ivarcolor_rgba(color: "Color", encode_varint) -> bytes:
         """Serialize to VarInt with RGBA bit packing."""
@@ -257,7 +162,7 @@ class AddPlayerEntry:
 
     @classmethod
     def deserialize(cls, data: bytes, offset: int = 0) -> tuple["AddPlayerEntry", int]:
-        uuid_ = uuid.UUID(bytes_le=data[offset:offset+16])
+        uuid_ = PacketEncoder.decode_uuid(data, offset)
         offset += 16
 
         raw_id, size_id = PacketEncoder.decode_varint(data, offset)
@@ -302,6 +207,131 @@ class Packet(ABC):
     @abstractmethod
     def deserialize(self, data: bytes) -> None:
         pass
+
+class AddPlayerPacket(Packet):
+    def __init__(self):
+        self.uuid = None
+        self.username = ""
+        self.runtime_id = None
+        self.platform_chat_id = ""
+        self.position = (0, 0, 0)
+        self.velocity = (0, 0, 0)
+        self.pitch = 0
+        self.yaw = 0
+        self.head_yaw = 0
+        self.held_item = None
+        self.gamemode = None
+        self.metadata = None
+        self.entity_properties = None
+        self.long_runtime_id = None
+        self.permission_level = None
+        self.command_permission = None
+        self.links = None
+        self.device_id = ""
+        self.device_os = None
+
+    def get_packet_id(self) -> MinecraftPacketIds:
+        return MinecraftPacketIds.AddPlayer
+
+    def serialize(self) -> bytes:
+        parts = []
+
+        parts.append(PacketEncoder.encode_uuid(self.uuid))
+        parts.append(PacketEncoder.encode_string(self.username))
+        parts.append(PacketEncoder.encode_uvarint(self.runtime_id))
+        parts.append(PacketEncoder.encode_string(self.platform_chat_id))
+        parts.append(struct.pack("<fff", *self.position))
+        parts.append(struct.pack("<fff", *self.velocity))
+        parts.append(struct.pack("<fff", self.pitch, self.yaw, self.head_yaw))
+        parts.append(PacketEncoder.encode_item(self.held_item))
+        parts.append(PacketEncoder.encode_varint(PacketEncoder.encode_zigzag32(self.gamemode)))
+        parts.append(PacketEncoder.encode_metadata_dictionary(self.metadata))
+        """parts.append(PacketEncoder.encode_entity_properties(self.entity_properties))
+        parts.append(struct.pack("<q", self.long_runtime_id))
+        parts.append(PacketEncoder.encode_permission_level(self.permission_level))
+        parts.append(PacketEncoder.encode_command_permission_level(self.command_permission))
+        parts.append(PacketEncoder.encode_links(self.links))
+        parts.append(PacketEncoder.encode_string(self.device_id))
+        parts.append(PacketEncoder.encode_device_os(self.device_os))"""
+
+        return b"".join(parts)
+
+    def deserialize(self, data: bytes):
+        offset = 0
+
+        # UUID (16 bytes)
+        self.uuid, size = PacketEncoder.decode_uuid(data, offset)
+        offset += size
+
+        # Username (string)
+        self.username, size = PacketEncoder.decode_string(data, offset)
+        offset += size
+
+        # Runtime ID (VarInt64)
+        self.runtime_id, size = PacketEncoder.decode_uvarlong(data, offset)
+        offset += size
+
+        # Platform chat ID (string)
+        self.platform_chat_id, size = PacketEncoder.decode_string(data, offset)
+        offset += size
+
+        # Position (vec3f)
+        self.position = struct.unpack_from("<fff", data, offset)
+        offset += 12
+
+        # Velocity (vec3f)
+        self.velocity = struct.unpack_from("<fff", data, offset)
+        offset += 12
+
+        # Pitch, Yaw, HeadYaw (lf32 each)
+        self.pitch, self.yaw, self.head_yaw = struct.unpack_from("<fff", data, offset)
+        offset += 12
+
+        # Held Item
+        self.held_item, size = PacketEncoder.decode_item(data, offset)
+        offset += size
+
+        # Gamemode (zigzag varint)
+        raw_gamemode, size = PacketEncoder.decode_varint(data, offset)
+        self.gamemode = PacketEncoder.decode_zigzag32(raw_gamemode)
+        offset += size
+        
+        # Metadata
+        self.metadata, size = PacketEncoder.decode_metadata_dictionary(data, offset)
+        offset += size
+
+"""
+        # Entity Properties
+        self.entity_properties, size = PacketEncoder.decode_entity_properties(data, offset)
+        offset += size
+
+        # Unique ID (li64)
+        self.long_runtime_id, size = PacketEncoder.decode_li64(data, offset)
+        offset += size
+
+        # Permission Level
+        self.permission_level, size = PacketEncoder.decode_permission_level(data, offset)
+        offset += size
+
+        # Command Permission Level
+        self.command_permission, size = PacketEncoder.decode_command_permission_level(data, offset)
+        offset += size
+
+        # Abilities Length (uint8) → we skip abilities data for now
+        abilities_len = data[offset]
+        offset += 1 + (abilities_len * PacketEncoder.ABILITY_LAYER_SIZE) 
+
+        # Entity Links
+        self.links, size = PacketEncoder.decode_links(data, offset)
+        offset += size
+
+        # Device ID (string)
+        self.device_id, size = PacketEncoder.decode_string(data, offset)
+        offset += size
+
+        # Device OS
+        self.device_os, size = PacketEncoder.decode_device_os(data, offset)
+        offset += size"""
 
 class UpdateBlockPacket(Packet):
     def __init__(self, 
@@ -460,7 +490,7 @@ class PlayerListPacket: # CURRENTLY BUGGED
                  action_type: ActionType,
                  add_player_list: Optional[List[AddPlayerEntry]] = None,
                  trusted_skin_list: Optional[List[bool]] = None,
-                 remove_player_list: Optional[List[uuid.UUID]] = None):
+                 remove_player_list = None):
         self.action_type = action_type
         self.add_player_list = add_player_list or []
         self.trusted_skin_list = trusted_skin_list or []
@@ -485,7 +515,7 @@ class PlayerListPacket: # CURRENTLY BUGGED
         else: 
             data.extend(PacketEncoder.encode_varint(len(self.remove_player_list)))
             for player_uuid in self.remove_player_list:
-                data.extend(player_uuid.bytes_le)
+                data.extend(player_uuid.bytes)
 
         return bytes(data)
 
@@ -520,18 +550,18 @@ class PlayerListPacket: # CURRENTLY BUGGED
 
             remove_list = []
             for _ in range(count):
-                player_uuid = uuid.UUID(bytes_le=data[offset:offset+16])
+                player_uuid = PacketEncoder.decode_uuid(data, offset)
                 offset += 16
                 remove_list.append(player_uuid)
 
             return cls(action_type, None, None, remove_list)
 
-class RemoveActorPacket(Packet):
+class RemoveEntityPacket(Packet):
     def __init__(self, actor_id):
         self.actor_id = actor_id
 
     def get_packet_id(self) -> MinecraftPacketIds:
-        return MinecraftPacketIds.RemoveActor
+        return MinecraftPacketIds.RemoveEntity
     
     def serialize(self) -> bytes:
         varint_bytes = PacketEncoder.encode_varint(PacketEncoder.encode_zigzag64(self.actor_id))
@@ -542,6 +572,34 @@ class RemoveActorPacket(Packet):
         self.actor_id = PacketEncoder.decode_zigzag64(raw_id)
 
 class PacketEncoder:
+    
+    @staticmethod
+    def decode_uuid(data: bytes, offset=0) -> tuple[str, int]:
+        """
+        Decode UUID represented as two 64-bit longs (most, least).
+        Returns the UUID string and number of bytes read (16).
+        """
+        if len(data) < offset + 16:
+            raise ValueError("Not enough bytes to decode UUID")
+
+        most, least = struct.unpack_from(">QQ", data, offset)  # big-endian unsigned long long
+        # Compose UUID from two 64-bit values
+        # The standard UUID bytes are big-endian, so combine accordingly
+        uuid_int = (most << 64) | least
+        u = uuid.UUID(int=uuid_int)
+        return str(u), 16
+
+    @staticmethod
+    def encode_uuid(u: uuid.UUID) -> bytes:
+        """
+        Encode UUID to two 64-bit longs (most, least).
+        """
+        # UUID int is 128-bit integer
+        uuid_int = u.int
+        most = (uuid_int >> 64) & ((1 << 64) - 1)
+        least = uuid_int & ((1 << 64) - 1)
+        return struct.pack(">QQ", most, least)
+
     @staticmethod
     def decode_block_position(data: bytes, offset: int = 0):
         start_offset = offset
@@ -661,7 +719,12 @@ class PacketEncoder:
         length, length_size = PacketEncoder.decode_varint(data, offset)
         start = offset + length_size
         end = start + length
-        return data[start:end].decode("utf-8"), length_size + length
+        raw_bytes = data[start:end]
+        try:
+            decoded = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            decoded = raw_bytes.hex()  # fallback
+        return decoded, length_size + length
 
     @staticmethod
     def encode_position(x: int, y: int, z: int) -> bytes:
@@ -705,6 +768,201 @@ class PacketEncoder:
     def decode_li32(data: bytes, offset: int = 0) -> tuple[int, int]:
         value = struct.unpack_from("<i", data, offset)[0]
         return value, 4
+    
+    @staticmethod
+    def decode_uint8(data: bytes, offset: int = 0) -> tuple[int, int]:
+        value = struct.unpack_from("<B", data, offset)[0]
+        return value, 1
+
+    @staticmethod
+    def decode_bool(data: bytes, offset: int = 0) -> tuple[bool, int]:
+        value = struct.unpack_from("<?", data, offset)[0]
+        return value, 1
+
+    @staticmethod
+    def decode_int32(data: bytes, offset: int = 0) -> tuple[int, int]:
+        value = struct.unpack_from("<i", data, offset)[0]
+        return value, 4
+
+    @staticmethod
+    def decode_float(data: bytes, offset: int = 0) -> tuple[float, int]:
+        value = struct.unpack_from("<f", data, offset)[0]
+        return value, 4
+
+    @staticmethod
+    def decode_double(data: bytes, offset=0) -> tuple[float, int]:
+        if offset + 8 > len(data):
+            raise ValueError("Not enough bytes to decode double")
+        value = struct.unpack_from("<d", data, offset)[0]
+        return value, 8
+    
+    @staticmethod
+    def decode_item(data: bytes, offset=0):
+        # Decoding 'Item' from prismarine docs
+        start_offset = offset
+
+        # item id (zigzag varint)
+        raw_id, size = PacketEncoder.decode_varint(data, offset)
+        item_id = PacketEncoder.decode_zigzag32(raw_id)
+        offset += size
+
+        # aux (zigzag varint)
+        raw_aux, size = PacketEncoder.decode_varint(data, offset)
+        aux = PacketEncoder.decode_zigzag32(raw_aux)
+        offset += size
+
+        # count (byte)
+        count = data[offset]
+        offset += 1
+        nbt_data = None
+
+        return {"item_id": item_id, "aux": aux, "count": count, "nbt": nbt_data}, offset - start_offset
+
+    @staticmethod
+    def decode_metadata_dictionary(data: bytes, offset=0):
+        start_offset = offset
+        # metadata dictionary format (varint count + entries)
+        metadata = []
+        count, size = PacketEncoder.decode_varint(data, offset)
+        offset += size
+
+        for _ in range(count):
+            if offset >= len(data):
+                break
+            # id (varint)
+            key, size = PacketEncoder.decode_varint(data, offset)
+            offset += size
+            # type (varint)
+            meta_type, size = PacketEncoder.decode_varint(data, offset)
+            offset += size
+
+            # value - parsing depends on meta_type
+            # Here, we'll do some common types, others you can expand
+            if meta_type == 0:  # Byte
+                val = data[offset]
+                offset += 1
+            elif meta_type == 1:  # Int32
+                val, s = PacketEncoder.decode_int32(data, offset)
+                offset += s
+            elif meta_type == 2:  # Float
+                val, s = PacketEncoder.decode_float(data, offset)
+                offset += s
+            elif meta_type == 3:  # String
+                val, s = PacketEncoder.decode_string(data, offset)
+                offset += s
+            else:
+                # Unknown or complex type - skip or handle accordingly
+                val = None
+            metadata.append({"key": key, "type": meta_type, "value": val})
+
+        return metadata, offset - start_offset
+
+    @staticmethod
+    def decode_entity_properties(data: bytes, offset=0):
+        start_offset = offset
+        properties = []
+
+        # Read number of properties
+        count, size = PacketEncoder.decode_varint(data, offset)
+        offset += size
+
+        for _ in range(count):
+            if offset >= len(data):
+                break  # Prevent buffer overflow if data ends unexpectedly
+
+            # Decode property name (string)
+            name, size = PacketEncoder.decode_string(data, offset)
+            offset += size
+
+            # Decode property value (double)
+            if offset + 8 > len(data):
+                raise ValueError("Not enough bytes to decode property value (double)")
+            val, size = PacketEncoder.decode_double(data, offset)
+            offset += size
+
+            # Decode modifier count (varint)
+            modifier_count, size = PacketEncoder.decode_varint(data, offset)
+            offset += size
+
+            modifiers = []
+            for __ in range(modifier_count):
+                if offset + 16 > len(data):
+                    raise ValueError("Not enough bytes to decode modifier UUID")
+                uuid_bytes = data[offset:offset + 16]
+                modifier_uuid = PacketEncoder.decode_uuid(uuid_bytes)
+                offset += 16
+
+                if offset + 8 > len(data):
+                    raise ValueError("Not enough bytes to decode modifier amount")
+                amount, size = PacketEncoder.decode_double(data, offset)
+                offset += size
+
+                if offset + 1 > len(data):
+                    raise ValueError("Not enough bytes to decode modifier operation")
+                operation = data[offset]
+                offset += 1
+
+                modifiers.append({
+                    "uuid": modifier_uuid,
+                    "amount": amount,
+                    "operation": operation,
+                })
+
+            properties.append({
+                "name": name,
+                "value": val,
+                "modifiers": modifiers
+            })
+
+        return properties, offset - start_offset
+
+    @staticmethod
+    def decode_permission_level(data: bytes, offset=0):
+        # uint8
+        return PacketEncoder.decode_uint8(data, offset)
+
+    @staticmethod
+    def decode_command_permission_level(data: bytes, offset=0):
+        # uint8
+        return PacketEncoder.decode_uint8(data, offset)
+
+    @staticmethod
+    def decode_links(data: bytes, offset=0):
+        start_offset = offset
+        links = []
+
+        count, size = PacketEncoder.decode_varint(data, offset)
+        offset += size
+
+        for _ in range(count):
+            # entityUniqueIdA (varint)
+            ent_a, size = PacketEncoder.decode_varint(data, offset)
+            offset += size
+
+            # entityUniqueIdB (varint)
+            ent_b, size = PacketEncoder.decode_varint(data, offset)
+            offset += size
+
+            # type (varint)
+            link_type, size = PacketEncoder.decode_varint(data, offset)
+            offset += size
+
+            # immediate (bool)
+            immediate, size = PacketEncoder.decode_bool(data, offset)
+            offset += size
+
+            links.append({
+                "entity_a": ent_a,
+                "entity_b": ent_b,
+                "type": link_type,
+                "immediate": immediate
+            })
+
+        return links, offset - start_offset
+
+    @staticmethod
+    def decode_device_os(data: bytes, offset=0):
+        return PacketEncoder.decode_int32(data, offset)
 
 class PacketDebugger:
     @staticmethod
@@ -733,3 +991,47 @@ class PacketDebugger:
         if length >= 3 and packet_bytes[-3:] == b'\x00\x00\x00':
             print("Packet ends with multiple null bytes")
         print("Debug complete\n")
+
+# TEMPORARY /VANISH IMPLEMENTATION
+player_packet_cache = {}
+
+def read_varint(data, offset=0):
+    value = 0
+    shift = 0
+    pos = offset
+    while True:
+        byte = data[pos]
+        value |= (byte & 0x7F) << shift
+        pos += 1
+        if not (byte & 0x80):
+            break
+        shift += 7
+    return value, pos
+
+def read_string(data, offset):
+    length, pos = read_varint(data, offset)
+    string_bytes = data[pos:pos+length]
+    string_value = string_bytes.decode('utf-8', errors='ignore')
+    return string_value, pos + length
+
+def extract_player_name_from_addplayer(packet: bytes):
+    pos = 16  
+    player_name, _ = read_string(packet, pos)
+    return player_name
+
+def cache_add_player_packet(self: "PrimeBDS", player: Player, packet: bytes):
+    """Cache player packet in memory and update DB."""
+    player_packet_cache[player.xuid] = packet
+    self.db.update_user_data(player.name, "last_vanish_blob", packet)
+
+def return_cached_add_player_packet(self: "PrimeBDS", player: Player) -> bytes:
+    """Return packet from memory cache, fallback to DB if missing."""
+    if player.xuid in player_packet_cache:
+        return player_packet_cache[player.xuid]
+
+    user = self.db.get_online_user(player.xuid)
+    if user and user.last_vanish_blob:
+        player_packet_cache[player.xuid] = user.last_vanish_blob
+        return user.last_vanish_blob
+
+    return None

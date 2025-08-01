@@ -1,7 +1,7 @@
 from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.packet_util import (RemoveActorPacket, ActionType, AddPlayerEntry, 
+from endstone_primebds.utils.packet_utils.packet_util import (RemoveEntityPacket, ActionType, AddPlayerEntry, 
                                                  PlayerListPacket, return_cached_add_player_packet, 
                                                  Color)
 from endstone_primebds.utils.config_util import load_config
@@ -60,7 +60,7 @@ def update_player_list(self: "PrimeBDS"):
 
 def hide_player(self: "PrimeBDS", target: Player):
     """Hide a player from all other online players."""
-    packet = RemoveActorPacket(target.id)
+    packet = RemoveEntityPacket(target.id)
     id = packet.get_packet_id()
     payload = packet.serialize()
 

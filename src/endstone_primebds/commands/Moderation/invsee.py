@@ -4,7 +4,7 @@ from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.target_selector_util import get_matching_actors
 from endstone._internal.endstone_python import Location
-from endstone_primebds.utils.packet_util import MinecraftPacketIds, UpdateBlockPacket, OpenContainerPacket, InventoryContentPacket
+from endstone_primebds.utils.packet_utils.packet_util import MinecraftPacketIds, UpdateBlockPacket, OpenContainerPacket, InventoryContentPacket
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
