@@ -12,12 +12,18 @@ if TYPE_CHECKING:
 
 def handle_damage_event(self: "PrimeBDS", ev: ActorDamageEvent):
 
+
     config = load_config()
 
     entity = ev.actor  # Entity taking damage
     entity_key = f"{entity.type}:{entity.id}"
     current_time = time()
     last_hit_time = self.entity_damage_cooldowns.get(entity_key, 0)
+
+    if entity.type == "minecraft:player":
+        if self.db.get_offline_user(entity.name).is_vanish:
+            ev.is_cancelled = True
+            return True
 
     tags = []
     if hasattr(ev, 'damage_source') and ev.damage_source:

@@ -19,12 +19,12 @@ command, permission = create_command(
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if not isinstance(sender, Player):
-        sender.send_error_message(f"This command can only be executed by a player.")
+        sender.send_error_message(f"This command can only be executed by a player")
         return False
 
     if len(args) == 0:
         if not isinstance(sender, Player):
-            sender.send_message("You must specify a player when running this command from console.")
+            sender.send_message("You must specify a player when running this command from console")
             return False
         player = sender
         new_fly_state = not player.allow_flight

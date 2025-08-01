@@ -14,7 +14,7 @@ terrain_cache = {}  # {(x, z): lowest_air_y}
 command, permission = create_command(
     "bottom",
     "Warps you to the nearest air pocket below you!",
-    ["/bottom [min_y_level: int]"],
+    ["/bottom"],
     ["primebds.command.bottom"]
 )
 
@@ -36,10 +36,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     else:
         world_bottom = -63  # Overworld default bottom
 
-    max_y = int(args[0]) if args else int(pos.y-2)  # Default to player's current Y level
+    max_y = int(pos.y-2)  # Default to player's current Y level
     x, z = int(pos.x), int(pos.z)  # Get player's X and Z coordinates
 
-    # Check if terrain height is cached
     if (x, z) in terrain_cache:
         lowest_air_y = terrain_cache[(x, z)]
     else:
@@ -56,11 +55,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                     terrain_cache[(x, z)] = lowest_air_y  # Cache the result
                     break
 
-    # If no valid air pocket is found, return an error
     if lowest_air_y is None:
         sender.send_message(f"No valid air pocket found at this X, Z position.")
         return False
 
-    # Teleport player to the lowest detected air pocket
     player.perform_command(f"tp {x} {lowest_air_y} {z}")
     return True

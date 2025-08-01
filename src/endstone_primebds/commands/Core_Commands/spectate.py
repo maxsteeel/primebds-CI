@@ -39,7 +39,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_error_message("This command can only be executed by a player.")
         return False
 
-    # Validate sender eligibility based on config
     if check_gamemode and sender.game_mode != GameMode.SPECTATOR:
         sender.send_message(f"You are not currently a spectator!")
         return True
@@ -59,7 +58,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     if len(args) == 0:
-        # Spectate menu logic
         players_to_spectate = [p for p in self.server.online_players if is_valid_spectate_target(p)]
         if players_to_spectate:
             form = ActionFormData()
@@ -85,7 +83,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message(f"No players available to spectate.")
         return True
     else:
-        targets = get_matching_actors(self.server, args[0], sender)
+        targets = get_matching_actors(self, args[0], sender)
         if len(targets) == 1:
             target = targets[0]
             if target is None or not is_valid_spectate_target(target):

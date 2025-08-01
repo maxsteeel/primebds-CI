@@ -1,7 +1,6 @@
 from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.db_util import grieflog
 from endstone._internal.endstone_python import Location
 
 from typing import TYPE_CHECKING

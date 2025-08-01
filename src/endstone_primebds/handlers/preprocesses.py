@@ -66,26 +66,32 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         return True
 
     # Overrides
-    if cmd == "ban":
-        args[0] = "permban"
-        player.perform_command(" ".join(args))
-        event.is_cancelled = True
-        return False
-    elif cmd in {"unban", "pardon"}:
-        args[0] = "removeban"
-        player.perform_command(" ".join(args))
-        event.is_cancelled = True
-        return False
-        
-    if args and cmd == "op": # Override
-        self.server.dispatch_command(self.server.command_sender, f"setrank \"{args[1]}\" operator")
-        event.is_cancelled = True
-        
-        return False
-    elif args and cmd == "deop": # Override
-        self.server.dispatch_command(self.server.command_sender, f"setrank \"{args[1]}\" default")
-        event.is_cancelled = True
-        
+    if len(args) > 0:
+        if cmd == "ban":
+            args[0] = "permban"
+            player.perform_command(" ".join(args))
+            event.is_cancelled = True
+            return False
+        elif cmd in {"unban", "pardon"}:
+            args[0] = "removeban"
+            player.perform_command(" ".join(args))
+            event.is_cancelled = True
+            return False
+
+        if cmd == "op" and len(args) > 1:  # Ensure there's a player argument
+            self.server.dispatch_command(
+                self.server.command_sender, 
+                f"setrank \"{args[1]}\" operator"
+            )
+            event.is_cancelled = True
+            return False
+        elif cmd == "deop" and len(args) > 1:  # Ensure there's a player argument
+            self.server.dispatch_command(
+                self.server.command_sender, 
+                f"setrank \"{args[1]}\" default"
+            )
+            event.is_cancelled = True
+
         return False
 
     # /me Crasher Fix

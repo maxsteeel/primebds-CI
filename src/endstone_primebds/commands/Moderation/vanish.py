@@ -72,7 +72,7 @@ def hide_player(self: "PrimeBDS", target: Player):
         if player.xuid != target.xuid:
             player.send_packet(id, payload)
         if send_on_vanish:
-            player.send_message(f"{leave_message.replace('{player}', player.name)}")
+            player.send_message(f"{leave_message.replace('{player}', target.name)}")
 
 def reveal_player(self: "PrimeBDS", target: Player):
     """Reveal a player to all other online players."""
@@ -89,4 +89,4 @@ def reveal_player(self: "PrimeBDS", target: Player):
         if player.xuid != target.xuid:
             player.send_packet(add_player_packet_id, payload)
         if send_on_vanish:
-            player.send_message(f"{join_message.replace('{player}', player.name)}")
+            player.send_message(f"{join_message.replace('{player}', target.name)}")

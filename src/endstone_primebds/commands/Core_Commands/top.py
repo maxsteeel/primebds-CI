@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "top",
     "Warps you to the topmost block with air!",
-    ["/top [min_y_level: int]"],
+    ["/top"],
     ["primebds.command.top"]
 )
 
@@ -28,7 +28,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     # Set world height limits based on dimension
     world_height = 120 if dimension.name == "Nether" else 255 if dimension.name == "TheEnd" else 320  # Overworld
-    min_y = int(args[0]) if args else -63  # Default min_y to -63 if not provided
+    min_y = -63  # Default min_y to -63 if not provided
     x, z = int(pos.x), int(pos.z)
 
     # Get the highest block Y level at the given X, Z position

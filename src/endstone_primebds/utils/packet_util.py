@@ -10,6 +10,7 @@ from enum import Enum, IntEnum
 from abc import ABC, abstractmethod
 
 from endstone import Player
+from endstone.inventory import ItemStack
 
 player_packet_cache = {}
 
@@ -109,7 +110,10 @@ class MinecraftPacketIds(IntEnum):
     RemoveActor = 14
     UpdateBlock = 21
     OpenContainer = 46
+    CloseContainer = 47
+    InventoryContent = 49
     PlayerList = 63
+    ItemRegistry = 162
 
 class DeviceOS(IntEnum):
     Undefined = 0
@@ -211,26 +215,6 @@ class Color:
             (packed >> 24) & 0xFF
         )
 
-class NetworkBlockPosition:
-    def __init__(self, x: int, y: int, z: int):
-        self.x = x
-        self.y = y
-        self.z = z
-
-    def serialize(self) -> bytes:
-        return (
-            PacketEncoder.encode_varint(self.x) +
-            PacketEncoder.encode_varint(self.y) +
-            PacketEncoder.encode_varint(self.z)
-        )
-
-    @classmethod
-    def deserialize(cls, data: bytes, offset: int = 0):
-        x, size_x = PacketEncoder.decode_varint(data, offset)
-        y, size_y = PacketEncoder.decode_varint(data, offset + size_x)
-        z, size_z = PacketEncoder.decode_varint(data, offset + size_x + size_y)
-        return cls(x, y, z), size_x + size_y + size_z
-
 class AddPlayerEntry:
     def __init__(self,
                  uuid,
@@ -239,7 +223,7 @@ class AddPlayerEntry:
                  xuid: str,
                  platform_chat_id: str,
                  build_platform: int,
-                 skin_data: bytes,  # Replace with your Skin class if needed
+                 skin_data: bytes,  # Need skin?
                  is_teacher: bool,
                  is_host: bool,
                  is_subclient: bool,
@@ -321,11 +305,15 @@ class Packet(ABC):
 
 class UpdateBlockPacket(Packet):
     def __init__(self, 
-                 position: NetworkBlockPosition = None, 
+                 x: int,
+                 y: int,
+                 z: int, 
                  block_runtime_id: int = 0, 
                  update_flag: int = 3, 
                  block_layer: int = 0):
-        self.block_position = position or NetworkBlockPosition(0, 0, 0)
+        self.x = x
+        self.y = y
+        self.z = z
         self.block_runtime_id = block_runtime_id
         self.update_flag = update_flag
         self.block_layer = block_layer
@@ -335,21 +323,36 @@ class UpdateBlockPacket(Packet):
 
     def serialize(self) -> bytes:
         return (
-            self.block_position.serialize() +
+            PacketEncoder.encode_varint(PacketEncoder.encode_zigzag32(self.x)) +
+            PacketEncoder.encode_varint(self.y) +
+            PacketEncoder.encode_varint(PacketEncoder.encode_zigzag32(self.z)) +
             PacketEncoder.encode_varint(self.block_runtime_id) +
             PacketEncoder.encode_varint(self.update_flag) +
             PacketEncoder.encode_varint(self.block_layer)
         )
 
     def deserialize(self, data: bytes) -> None:
-        pos, size_pos = NetworkBlockPosition.deserialize(data)
-        self.block_position = pos
-        offset = size_pos
-        self.block_runtime_id, size_runtime = PacketEncoder.decode_varint(data, offset)
+        offset = 0
+        self.x, size_x = PacketEncoder.decode_varint(data, offset)
+        offset += size_x
+
+        self.y, size_y = PacketEncoder.decode_uvarint(data, offset)
+        offset += size_y
+
+        self.z, size_z = PacketEncoder.decode_varint(data, offset)
+        offset += size_z
+
+        # Decode varint first
+        zigzag_encoded, size_runtime = PacketEncoder.decode_varint(data, offset)
         offset += size_runtime
-        self.update_flag, size_flag = PacketEncoder.decode_varint(data, offset)
+
+        # Then decode zigzag to get the signed value
+        self.block_runtime_id = PacketEncoder.decode_zigzag64(zigzag_encoded)
+
+        self.update_flag, size_flag = PacketEncoder.decode_uvarint(data, offset)
         offset += size_flag
-        self.block_layer = PacketEncoder.decode_varint(data, offset)
+
+        self.block_layer, _ = PacketEncoder.decode_uvarint(data, offset)
 
 class OpenContainerPacket(Packet):
     def __init__(self, 
@@ -361,7 +364,9 @@ class OpenContainerPacket(Packet):
                  container_unique_id: int = 1):
         self.window_id = window_id
         self.window_type = window_type
-        self.position = NetworkBlockPosition(x, y, z)
+        self.x = x
+        self.y = y
+        self.z = z
         self.container_unique_id = container_unique_id
 
     def get_packet_id(self) -> 'MinecraftPacketIds':
@@ -369,20 +374,88 @@ class OpenContainerPacket(Packet):
 
     def serialize(self) -> bytes:
         return (
-            struct.pack("<Bb", self.window_id, self.window_type) +
-            self.position.serialize() +
-            PacketEncoder.encode_uvarlong(self.container_unique_id)
+            struct.pack("<bb", self.window_id, self.window_type) +
+            PacketEncoder.encode_varint(PacketEncoder.encode_zigzag32(self.x)) +
+            PacketEncoder.encode_varint(self.y) +
+            PacketEncoder.encode_varint(PacketEncoder.encode_zigzag32(self.z)) +
+            PacketEncoder.encode_varint(self.container_unique_id)
         )
 
     def deserialize(self, data: bytes) -> None:
-        self.window_id, self.window_type = struct.unpack_from("<Bb", data, 0)
-        offset = struct.calcsize("<Bb")
-        pos, size_pos = NetworkBlockPosition.deserialize(data, offset)
-        self.position = pos
-        offset += size_pos
-        self.container_unique_id, _ = PacketEncoder.decode_uvarlong(data, offset)
+        self.window_id, self.window_type = struct.unpack_from("<bb", data, 0)
+        offset = struct.calcsize("<bb")
 
-class PlayerListPacket:
+        (self.x, self.y, self.z), size_pos = PacketEncoder.decode_block_position(data, offset)
+        offset += size_pos
+
+        zigzag_val, size_id = PacketEncoder.decode_varint(data, offset)
+        offset += size_id
+        self.container_unique_id = PacketEncoder.decode_zigzag64(zigzag_val)
+
+class CloseContainerPacket(Packet):
+    def __init__(self, 
+                 window_id: int = 2,
+                 window_type: int = 0,
+                 server: bool = False):
+        self.window_id = window_id
+        self.window_type = window_type
+        self.server = server
+
+    def get_packet_id(self) -> 'MinecraftPacketIds':
+        return MinecraftPacketIds.ContainerClose
+
+    def serialize(self) -> bytes:
+        return struct.pack("<bb?", self.window_id, self.window_type, self.server)
+
+    def deserialize(self, data: bytes) -> None:
+        self.window_id, self.window_type, self.server = struct.unpack_from("<bb?", data, 0)
+
+class InventoryContentPacket(Packet): # CURRENTLY BUGGED
+    def __init__(self,
+                 window_id: int = 0,
+                 content: list = None,
+                 container_name: str = "",
+                 storage_item=None):
+        self.window_id = window_id
+        self.content = content if content is not None else []
+        self.container_name = container_name
+        self.storage_item = storage_item
+
+    def get_packet_id(self) -> 'MinecraftPacketIds':
+        return MinecraftPacketIds.InventoryContent
+
+    def serialize(self) -> bytes:
+        payload = PacketEncoder.encode_uvarint(self.window_id)
+        payload += PacketEncoder.encode_varint(len(self.content))
+        for item in self.content:
+            payload += item.serialize()
+        payload += PacketEncoder.encode_string(self.container_name)
+        payload += self.storage_item.serialize() if self.storage_item else b"\x00"
+        return payload
+
+    def deserialize(self, data: bytes) -> None:
+        offset = 0
+
+        self.window_id, size_id = PacketEncoder.decode_uvarint(data, offset)
+        offset += size_id
+
+        length, size_len = PacketEncoder.decode_varint(data, offset)
+        offset += size_len
+
+        self.content = []
+        for _ in range(length):
+            item = ItemStack()
+            item.deserialize(data[offset:])
+            offset += item.get_size()
+            self.content.append(item)
+
+        self.container_name, size_name = PacketEncoder.decode_string(data, offset)
+        offset += size_name
+
+        self.storage_item = ItemStack()
+        self.storage_item.deserialize(data[offset:])
+
+class PlayerListPacket: # CURRENTLY BUGGED
     def __init__(self,
                  action_type: ActionType,
                  add_player_list: Optional[List[AddPlayerEntry]] = None,
@@ -469,6 +542,59 @@ class RemoveActorPacket(Packet):
         self.actor_id = PacketEncoder.decode_zigzag64(raw_id)
 
 class PacketEncoder:
+    @staticmethod
+    def decode_block_position(data: bytes, offset: int = 0):
+        start_offset = offset
+
+        # Decode signed VarInt for X
+        x, size_x = PacketEncoder.decode_varint(data, offset)
+        offset += size_x
+
+        # Decode unsigned VarInt for Y
+        y, size_y = PacketEncoder.decode_uvarint(data, offset)
+        offset += size_y
+
+        # Decode signed VarInt for Z
+        z, size_z = PacketEncoder.decode_varint(data, offset)
+        offset += size_z
+
+        total_size = offset - start_offset
+        return (x, y, z), total_size
+
+    @staticmethod
+    def encode_uvarint(value: int) -> bytes:
+        if value < 0:
+            raise ValueError("Cannot encode negative number as unsigned varint")
+
+        buffer = bytearray()
+        while True:
+            byte = value & 0x7F
+            value >>= 7
+            if value:
+                buffer.append(byte | 0x80)
+            else:
+                buffer.append(byte)
+                break
+        return bytes(buffer)
+    
+    @staticmethod
+    def decode_uvarint(data: bytes, offset: int = 0):
+        value = 0
+        shift = 0
+        size = 0
+
+        while True:
+            byte = data[offset]
+            offset += 1
+            size += 1
+
+            value |= (byte & 0x7F) << shift
+            if not (byte & 0x80):
+                break
+            shift += 7
+
+        return value, size
+
     @staticmethod
     def encode_varint(value: int) -> bytes:
         buffer = bytearray()
