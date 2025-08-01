@@ -4,7 +4,7 @@ This is PrimeBDS, an essentials plugin for diagnostics, stability, and quality o
 This plugin runs on the Endstone mod loader: https://endstone.readthedocs.io/en/latest/
 
 # Features
-The full documentation can be found here: TBD
+The full documentation can be found here: [WIKI](https://github.com/PrimeStrat/primebds/wiki)
 
 # How do I install?
 1. Create an [endstone](https://endstone.readthedocs.io/en/latest/) server
