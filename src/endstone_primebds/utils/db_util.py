@@ -18,6 +18,10 @@ DB_FOLDER = os.path.join(current_dir, 'plugins', 'primebds_data')
 os.makedirs(DB_FOLDER, exist_ok=True)
 
 @dataclass
+class ServerData:
+    last_shutdown_time: int
+
+@dataclass
 class User:
     xuid: str
     uuid: str
@@ -179,6 +183,61 @@ class DatabaseManager:
 
     def close_connection(self):
         self.conn.close()
+
+class ServerDB(DatabaseManager):
+    def __init__(self, db_name: str):
+        super().__init__(db_name)
+        self.db_name = db_name
+        self.create_tables()
+
+    def migrate_server_info_table(self):
+        """Add missing columns to 'server_info' table according to ServerData dataclass fields."""
+        existing_columns = {row[1] for row in self.execute("PRAGMA table_info(server_info)").fetchall()}
+        type_map = {int: "INTEGER", float: "REAL", str: "TEXT", bool: "INTEGER"}
+
+        for f in fields(ServerData):
+            if f.name not in existing_columns:
+                col_type = type_map.get(f.type, "TEXT")
+
+                if col_type == "TEXT":
+                    default_val = ""
+                else:
+                    default_val = 0
+
+                if isinstance(default_val, bool):
+                    default_val = int(default_val)
+
+                default_literal = f"'{default_val}'" if col_type == "TEXT" else str(default_val)
+
+                try:
+                    self.execute(
+                        f"ALTER TABLE server_info ADD COLUMN {f.name} {col_type} DEFAULT {default_literal}"
+                    )
+                    print(f"Added missing column '{f.name}' to server_info table.")
+                except sqlite3.OperationalError as e:
+                    print(f"Warning: Could not add column '{f.name}': {e}")
+
+    def create_tables(self):
+        server_info_columns = {
+            'id': 'INTEGER PRIMARY KEY CHECK (id = 1)',
+            'last_shutdown_time': 'INTEGER'
+        }
+        self.create_table('server_info', server_info_columns)
+
+        self.execute("INSERT OR IGNORE INTO server_info (id, last_shutdown_time) VALUES (1, 0)")
+        self.conn.commit()
+
+        self.migrate_server_info_table()
+
+    def set_last_shutdown_time(self, timestamp: int):
+        query = "UPDATE server_info SET last_shutdown_time = ? WHERE id = 1"
+        self.execute(query, (timestamp,))
+        self.conn.commit()
+
+    def get_last_shutdown_time(self) -> int:
+        query = "SELECT last_shutdown_time FROM server_info WHERE id = 1"
+        result = self.execute(query).fetchone()
+        return int(result[0]) if result else 0
 
 class UserDB(DatabaseManager):
     def __init__(self, db_name: str):

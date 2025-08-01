@@ -14,7 +14,7 @@ from endstone_primebds.commands import (
 
 from endstone_primebds.commands.Server_Management.monitor import clear_all_intervals
 from endstone_primebds.utils.config_util import load_config
-from endstone_primebds.utils.db_util import UserDB, grieflog
+from endstone_primebds.utils.db_util import UserDB, grieflog, ServerDB
 from endstone_primebds.utils.internal_permissions_util import load_perms, get_permissions, MANAGED_PERMISSIONS_LIST
 
 def plugin_text():
@@ -72,6 +72,7 @@ class PrimeBDS(Plugin):
         # DB
         self.db = UserDB("users.db")
         self.dbgl = grieflog("grieflog.db")
+        self.serverdata = ServerDB("server.db")
 
     # EVENT HANDLER
     @event_handler()
@@ -139,10 +140,16 @@ class PrimeBDS(Plugin):
 
         if is_gl_enabled:
             if config["modules"]["grieflog_storage_auto_delete"]["enabled"]:
-                self.dbgl.delete_logs_older_than_seconds(config["modules"]["grieflog_storage_auto_delete"]["removal_time_in_seconds"], True)
+                self.dbgl.delete_logs_older_than_seconds(
+                    config["modules"]["grieflog_storage_auto_delete"]["removal_time_in_seconds"], 
+                    True
+                )
 
         if config["modules"]["check_prolonged_death_screen"]["enabled"] or config["modules"]["check_afk"]["enabled"]:
             interval_function(self)
+
+        last_shutdown_time = self.serverdata.get_last_shutdown_time()
+        self.last_shutdown_time = last_shutdown_time 
 
         self.check_for_inactive_sessions()
 
@@ -156,6 +163,9 @@ class PrimeBDS(Plugin):
         self.db.close_connection()
         self.dbgl.close_connection()
 
+        self.serverdata.set_last_shutdown_time(int(time.time()))
+        self.serverdata.close_connection()
+
         if not is_nested_multiworld_instance():
             stop_additional_servers(self)
             return
@@ -163,31 +173,23 @@ class PrimeBDS(Plugin):
     def check_for_inactive_sessions(self):
         """Checks for players who have active sessions (NULL end_time) and are not online. Ends their session."""
 
-        # Fetch players with active sessions (where end_time is NULL)
+        current_time = int(time.time())
+        RELOAD_THRESHOLD = 60 # seconds
+        was_quick_reload = (
+            self.last_shutdown_time
+            and current_time - self.last_shutdown_time <= RELOAD_THRESHOLD
+        )
+
         query = "SELECT xuid, name, start_time FROM sessions_log WHERE end_time IS NULL"
         active_sessions = self.dbgl.execute(query).fetchall()
 
-        MAX_SESSION_TIME = 10800  # 3 hours in seconds
-
         for xuid, player_name, start_time in active_sessions:
-            # Check if the player is online
             player = self.server.get_player(player_name)
-            if not player:  # If player is not online
-                current_time = int(time.time())
-                session_duration = current_time - start_time
-
-                # If session exceeds 3 hours, cap it at 3 hours
-                end_time = start_time + MAX_SESSION_TIME if session_duration > MAX_SESSION_TIME else current_time
-
-                # End the session with the calculated end_time
+            if not player and not was_quick_reload:
+                end_time = current_time
                 self.dbgl.end_session(xuid, end_time)
-                print(
-                    f"[PrimeBDS] Ended session for offline player {player_name} (XUID: {xuid}) with end_time: {end_time}"
-                )
 
     def reload_custom_perms(self, player: Player):
-        # Update Internal DB
-        
         self.db.save_user(player)
         user = self.db.get_online_user(player.xuid)
 
@@ -200,7 +202,6 @@ class PrimeBDS(Plugin):
 
         permissions = get_permissions(user.internal_rank)
 
-        # Reset Permissions
         for p in MANAGED_PERMISSIONS_LIST:
             player.add_attachment(self, p, False)
 
@@ -211,10 +212,6 @@ class PrimeBDS(Plugin):
 
         player.update_commands()
         player.recalculate_permissions()
-
-    def get_runtime_id(self, block_id: str) -> int:
-        block_data = self.server.create_block_data(block_id)
-        return block_data.runtime_id
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically."""
