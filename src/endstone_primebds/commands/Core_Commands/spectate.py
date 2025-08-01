@@ -87,7 +87,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         if len(targets) == 1:
             target = targets[0]
             if target is None or not is_valid_spectate_target(target):
-                sender.send_message(f"Player {target} is not available to spectate.")
+                sender.send_message(f"Player {target.name} is not available to spectate.")
                 return False
             warp_player(sender, target)
         else:
