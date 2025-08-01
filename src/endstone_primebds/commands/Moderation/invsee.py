@@ -4,7 +4,8 @@ from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.target_selector_util import get_matching_actors
 from endstone._internal.endstone_python import Location
-from endstone_primebds.utils.packet_utils.packet_util import MinecraftPacketIds, UpdateBlockPacket, OpenContainerPacket, InventoryContentPacket
+from endstone_primebds.utils.lookup_util import get_runtime_id
+from endstone_primebds.utils.packet_utils.packet_util import MinecraftPacketIds, UpdateBlockPacket, OpenContainerPacket
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -58,7 +59,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             x = int(sender.location.block_x)
             y = int(sender.location.block_y + 3)
             z = int(sender.location.block_z)
-            chest = self.get_runtime_id("minecraft:chest")
+            chest = get_runtime_id(self, "minecraft:chest")
             chestView(self, sender, x, y, z, chest, combined)
 
         elif display_type == "chat":
@@ -110,7 +111,7 @@ def closeChestView(self: "PrimeBDS", sender: Player):
 
     for (cx, cy, cz) in chest_coords:
         block_id = self.server.level.get_dimension(sender.location.dimension.name).get_block_at(Location(sender.location.dimension, cx, cy, cz)).type
-        replace_id = self.get_runtime_id(block_id)
+        replace_id = get_runtime_id(self, block_id)
         pkt = UpdateBlockPacket(cx, cy, cz, replace_id, 3, 0)
         sender.send_packet(ub_id, pkt.serialize())
     
