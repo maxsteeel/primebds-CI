@@ -10,6 +10,3 @@ The full documentation can be found here: [WIKI](https://github.com/PrimeStrat/p
 1. Create an [endstone](https://endstone.readthedocs.io/en/latest/) server
 2. Download the .whl file from the latest [release](https://github.com/PrimeStrat/primebds/releases)
 3. Drag and drop it into your plugins folder
-
- # Showcase
-TBD
