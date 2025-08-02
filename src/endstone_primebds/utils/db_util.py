@@ -213,7 +213,7 @@ class ServerDB(DatabaseManager):
                     self.execute(
                         f"ALTER TABLE server_info ADD COLUMN {f.name} {col_type} DEFAULT {default_literal}"
                     )
-                    print(f"Added missing column '{f.name}' to server_info table.")
+                    # print(f"Added missing column '{f.name}' to server_info table.") DEBUG
                 except sqlite3.OperationalError as e:
                     print(f"Warning: Could not add column '{f.name}': {e}")
 
