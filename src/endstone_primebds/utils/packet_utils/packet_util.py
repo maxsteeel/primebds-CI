@@ -300,7 +300,7 @@ class AddPlayerPacket(Packet):
         self.metadata, size = PacketEncoder.decode_metadata_dictionary(data, offset)
         offset += size
 
-"""
+        """
         # Entity Properties
         self.entity_properties, size = PacketEncoder.decode_entity_properties(data, offset)
         offset += size

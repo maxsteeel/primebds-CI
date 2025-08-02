@@ -9,10 +9,11 @@ if TYPE_CHECKING:
 
 def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
     if ev.packet_id == MinecraftPacketIds.AddPlayer:
-
         target_player = self.server.get_player(extract_player_name_from_addplayer(ev.payload))
         cache_add_player_packet(self, target_player, ev.payload)
-        if self.db.get_online_user(target_player.xuid).is_vanish:
+
+        user = self.db.get_online_user(target_player.xuid) if target_player else None
+        if user is not None and getattr(user, "is_vanish", None):
             ev.is_cancelled = True
 
     elif ev.packet_id == MinecraftPacketIds.CloseContainer:

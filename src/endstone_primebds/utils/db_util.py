@@ -399,8 +399,6 @@ class UserDB(DatabaseManager):
             user = User(**result_dict)
 
             return user
-        else:
-            print(f"[DEBUG] No user found in DB for {xuid}")
         return None
 
     def get_offline_user(self, name: str) -> Optional[User]:
