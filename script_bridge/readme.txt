@@ -1,1 +1,0 @@
-These are commands used in another project and are intentionally separate from the src.
