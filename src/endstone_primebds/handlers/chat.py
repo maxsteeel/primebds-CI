@@ -1,0 +1,41 @@
+from typing import TYPE_CHECKING
+
+from endstone.event import PlayerChatEvent
+from endstone_primebds.utils.mod_util import format_time_remaining
+from endstone_primebds.utils.logging_util import discordRelay
+
+if TYPE_CHECKING:
+    from endstone_primebds.primebds import PrimeBDS
+
+def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
+    
+    user_muted = self.db.check_and_update_mute(ev.player.xuid, ev.player.name)
+    ip_muted, ip_mute_time, ip_mute_reason = self.db.check_ip_mute(str(ev.player.address))
+    if self.globalmute == 1 and not ev.player.has_permission("primebds.globalmute.exempt"):
+        ev.player.send_message(f"§cGlobal chat is currently muted by an admin")
+        ev.cancel() # Utilize until fix then switch to ev.is_cancelled = true
+        return False
+
+    if user_muted or ip_muted:
+        if user_muted:
+            user_mod = self.db.get_mod_log(ev.player.xuid)
+            ev.player.send_message(f"""§6You are currently muted.
+§6Expires: §e{format_time_remaining(user_mod.mute_time)}
+§6Reason: §e{user_mod.mute_reason}""")
+        else:
+            ev.player.send_message(f"""§6You are currently muted.
+§6Expires: §e{format_time_remaining(ip_mute_time)}
+§6Reason: §e{ip_mute_reason}""")
+        ev.cancel()
+        return False
+    
+    user = self.db.get_online_user(ev.player.xuid)
+    if user.enabled_sc:
+        message = f"§8[§bStaff Chat§8] §e{ev.player.name_tag}§7: §6{ev.message}"
+        self.server.broadcast(message, "primebds.command.staffchat")
+        ev.cancel()
+        return False
+    
+    discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")
+    return True
+

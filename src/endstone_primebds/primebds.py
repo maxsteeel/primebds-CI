@@ -1,0 +1,317 @@
+import os
+import threading
+import time
+import traceback
+from endstone import Player
+from endstone.plugin import Plugin
+from endstone.command import Command, CommandSender
+
+from endstone_primebds.commands import (
+    preloaded_commands,
+    preloaded_permissions,
+    preloaded_handlers
+)
+
+from endstone_primebds.commands.Server.monitor import clear_all_intervals
+from endstone_primebds.utils.config_util import load_config
+from endstone_primebds.utils.db_util import UserDB, grieflog, ServerDB, User, ModLog, ServerData
+from endstone_primebds.utils.internal_permissions_util import check_rank_exists, load_perms, get_rank_permissions, invalidate_perm_cache, MANAGED_PERMISSIONS_LIST
+
+def plugin_text():
+    print(
+        """
+
+██████╗░██████╗░██╗███╗░░░███╗███████╗██████╗░██████╗░░██████╗
+██╔══██╗██╔══██╗██║████╗░████║██╔════╝██╔══██╗██╔══██╗██╔════╝
+██████╔╝██████╔╝██║██╔████╔██║█████╗░░██████╦╝██║░░██║╚█████╗░
+██╔═══╝░██╔══██╗██║██║╚██╔╝██║██╔══╝░░██╔══██╗██║░░██║░╚═══██╗
+██║░░░░░██║░░██║██║██║░╚═╝░██║███████╗██████╦╝██████╔╝██████╔╝
+╚═╝░░░░░╚═╝░░╚═╝╚═╝╚═╝░░░░░╚═╝╚══════╝╚═════╝░╚═════╝░╚═════╝░                  
+
+Prime BDS Loaded!
+        """
+    )
+
+# EVENT & HANDLER IMPORTS
+from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent,
+                            ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, BlockBreakEvent, BlockPlaceEvent,
+                            PlayerInteractEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
+                            PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent, 
+                            PacketReceiveEvent)
+from endstone_primebds.handlers.chat import handle_chat_event
+from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
+from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event
+from endstone_primebds.handlers.grieflog import handle_block_break, handle_player_interact, handle_block_place
+from endstone_primebds.handlers.combat import handle_kb_event, handle_damage_event
+from endstone_primebds.handlers.multiworld import start_additional_servers, stop_additional_servers, is_nested_multiworld_instance
+from endstone_primebds.handlers.intervals import stop_intervals, init_jail_intervals
+from endstone_primebds.handlers.packets import handle_packetsend_event, handle_packetreceive_event
+from endstone_primebds.handlers.actions import handle_gamemode_event, handle_interact_event
+from endstone_primebds.handlers.items import handle_item_pickup_event, handle_item_use, handle_item_drop_event
+
+class PrimeBDS(Plugin):
+    api_version = "0.6"
+    authors = ["PrimeStrat"]
+    name = "primebds"
+    description = "An essentials plugin for diagnostics, stability, and quality of life on Minecraft Bedrock Edition."
+
+    commands = preloaded_commands
+    permissions = preloaded_permissions
+    handlers = preloaded_handlers
+
+    def __init__(self):
+        super().__init__()
+        # Command Controls
+        self.monitor_intervals = {}
+        self.globalmute = 0
+        self.crasher_patch_applied = set()
+
+        # Multiworld Handler
+        self.multiworld_processes = {}
+        self.multiworld_ports = {}
+        self.multiworld_lock = threading.Lock()
+
+        # Combat Handler
+        self.entity_damage_cooldowns = {}
+        self.entity_last_hit = {}
+
+        # DB
+        self.db = UserDB("users.db")
+        self.dbgl = grieflog("grieflog.db")
+        self.serverdata = ServerDB("server.db")
+
+    # EVENT HANDLER
+    @event_handler
+    def on_player_gamemode(self, ev: PlayerGameModeChangeEvent):
+        handle_gamemode_event(self, ev)
+
+    @event_handler
+    def on_player_interact(self, ev: PlayerInteractActorEvent):
+        handle_interact_event(self, ev)
+
+    @event_handler()
+    def on_packet_send(self, ev: PacketSendEvent):
+        handle_packetsend_event(self, ev)
+
+    @event_handler()
+    def on_packet_receive(self, ev: PacketReceiveEvent):
+        handle_packetreceive_event(self, ev)
+
+    @event_handler()
+    def on_item_use(self, ev: PlayerItemConsumeEvent):
+        handle_item_use(self, ev)
+
+    @event_handler()
+    def on_item_pickup(self, ev: PlayerPickupItemEvent):
+        handle_item_pickup_event(self, ev)
+
+    @event_handler()
+    def on_item_drop(self, ev: PlayerDropItemEvent):
+        handle_item_drop_event(self, ev)
+
+    @event_handler()
+    def on_entity_hurt(self, ev: ActorDamageEvent):
+        handle_damage_event(self, ev)
+
+    @event_handler()
+    def on_entity_kb(self, ev: ActorKnockbackEvent):
+        handle_kb_event(self, ev)
+
+    @event_handler()
+    def on_player_login(self, ev: PlayerLoginEvent):
+        handle_login_event(self, ev)
+
+    @event_handler()
+    def on_player_join(self, ev: PlayerJoinEvent):
+        handle_join_event(self, ev)
+
+    @event_handler()
+    def on_player_quit(self, ev: PlayerQuitEvent):
+        handle_leave_event(self, ev)
+
+    @event_handler()
+    def on_player_command_preprocess(self, ev: PlayerCommandEvent) -> None:
+        handle_command_preprocess(self, ev)
+
+    @event_handler()
+    def on_player_server_command_preprocess(self, ev: ServerCommandEvent) -> None:
+        handle_server_command_preprocess(self, ev)
+
+    @event_handler(priority=EventPriority.HIGHEST)
+    def on_player_chat(self, ev: PlayerChatEvent):
+        handle_chat_event(self, ev)
+
+    @event_handler()
+    def on_block_break(self, ev: BlockBreakEvent):
+        handle_block_break(self, ev)
+
+    @event_handler()
+    def on_block_place(self, ev: BlockPlaceEvent):
+        handle_block_place(self, ev)
+
+    @event_handler()
+    def on_player_int(self, ev: PlayerInteractEvent):
+        handle_player_interact(self, ev)
+
+    def on_load(self):
+        plugin_text()
+
+    def on_enable(self):
+        self.register_events(self)
+        load_perms(self)
+
+        for player in self.server.online_players:
+            self.reload_custom_perms(player)
+
+        self.db.migrate_table("users", User)
+        self.db.migrate_table("mod_logs", ModLog)
+        self.serverdata.migrate_table("server_info", ServerData)
+
+        config = load_config()
+        is_gl_enabled = config["modules"]["grieflog"]["enabled"]
+
+        if is_gl_enabled:
+            if config["modules"]["grieflog_storage_auto_delete"]["enabled"]:
+                self.dbgl.delete_logs_older_than_seconds(
+                    config["modules"]["grieflog_storage_auto_delete"]["removal_time_in_seconds"], 
+                    True
+                )
+
+        init_jail_intervals(self)
+        last_shutdown_time = self.serverdata.get_server_info().last_shutdown_time
+        self.last_shutdown_time = last_shutdown_time 
+
+        if not self.serverdata.get_server_info().allowlist_profile:
+            self.serverdata.update_server_info("allowlist_profile", "default")
+
+        self.check_for_inactive_sessions()
+        start_additional_servers(self)
+
+    def on_disable(self):
+        stop_intervals(self)
+        clear_all_intervals(self)
+        self.db.close_connection()
+        self.dbgl.close_connection()
+
+        self.serverdata.update_server_info("last_shutdown_time", int(time.time()))
+        self.serverdata.close_connection()
+
+        if not is_nested_multiworld_instance():
+            stop_additional_servers(self)
+            return
+
+    def check_for_inactive_sessions(self):
+        current_time = int(time.time())
+        RELOAD_THRESHOLD = 60  # seconds
+        MAX_SESSION_LENGTH = 4 * 3600  # 4 hours max session length
+
+        was_quick_reload = (
+            self.last_shutdown_time
+            and current_time - self.last_shutdown_time <= RELOAD_THRESHOLD
+        )
+
+        query = "SELECT xuid, name, start_time FROM sessions_log WHERE end_time IS NULL"
+        active_sessions = self.dbgl.execute(query).fetchall()
+
+        for xuid, player_name, start_time in active_sessions:
+            player = self.server.get_player(player_name)
+            if not player and not was_quick_reload:
+                candidate_end = None
+                if self.last_shutdown_time and self.last_shutdown_time > start_time:
+                    candidate_end = self.last_shutdown_time
+                else:
+                    candidate_end = current_time
+
+                max_allowed_end = start_time + MAX_SESSION_LENGTH
+                if candidate_end > max_allowed_end:
+                    candidate_end = max_allowed_end
+
+                self.dbgl.end_session(xuid, candidate_end)
+
+    def reload_custom_perms(self, player: Player):
+        user = self.db.get_online_user(player.xuid)
+        if not user:
+            return
+        
+        check_rank_exists(self, player, user.internal_rank)
+
+        permissions = set(get_rank_permissions(user.internal_rank))
+        user_permissions = set(self.db.get_permissions(player.xuid))
+        desired_perms = permissions | user_permissions
+        managed_perms = MANAGED_PERMISSIONS_LIST[:]
+
+        def apply_changes():
+            for rperm in managed_perms:
+                if player.has_permission(rperm):
+                    player.add_attachment(self, rperm, False)
+
+            for perm in desired_perms:
+                if not player.has_permission(perm):
+                    player.add_attachment(self, perm, True)
+
+            user_permissions = self.db.get_permissions(player.xuid)
+            for perm, allowed in user_permissions.items():
+                if player.has_permission(perm):
+                    player.add_attachment(self, perm, allowed)
+
+            player.add_attachment(self, "endstone.command.banip", False)
+            player.add_attachment(self, "endstone.command.unbanip", False)
+            player.add_attachment(self, "endstone.command.banlist", False)
+
+            player.update_commands()
+            player.recalculate_permissions()
+            invalidate_perm_cache(self, player.xuid)
+
+        self.server.scheduler.run_task(self, apply_changes, 5)
+
+    def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
+        """Handle incoming commands dynamically"""
+        try:
+            if command.name in self.handlers:
+                if any(arg.find("@e") != -1 or arg.find("@n") != -1 for arg in args):
+                    sender.send_message("§cSelector must be player-type")
+                    return False
+                else:
+                    handler_func = self.handlers[command.name]
+                    return handler_func(self, sender, args)
+            else:
+                sender.send_message(f"Command '{command.name}' not found")
+                return False
+
+        except Exception as e:
+            def clean_traceback(tb):
+                cleaned_lines = []
+                for line in tb.splitlines():
+                    if 'File "' in line:
+                        path_start = line.find('"') + 1
+                        path_end = line.find('"', path_start)
+                        file_path = line[path_start:path_end]
+                        hidden_path = os.path.basename(file_path)
+                        line = line.replace(file_path, f"<hidden>/{hidden_path}")
+                    cleaned_lines.append(line)
+                return "\n".join(cleaned_lines)
+
+            error_message = (
+                f"§c========\n"
+                f"§6This command generated an error -> please report this on our GitHub and provide a copy of the error below!\n"
+                f"§c========\n\n"
+                f"§e{e}\n\n"
+                f"§eCommand Usage: §b{command.name} + {args}\n\n"
+                + f"§e{clean_traceback(traceback.format_exc())}\n"
+                  f"§r"
+            )
+            error_message_console = (
+                f"========\n"
+                f"This command generated an error -> please report this on our GitHub and provide a copy of the error below!\n"
+                f"========\n\n"
+                f"{e}\n\n"
+                f"Command Usage: {command.name} + {args}\n\n"
+                + clean_traceback(traceback.format_exc())
+            )
+
+            sender.send_message(error_message)
+
+            if sender.name != "Server":
+                print(error_message_console)
+
+            return False
