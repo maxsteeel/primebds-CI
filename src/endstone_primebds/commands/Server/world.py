@@ -3,10 +3,12 @@ import shutil
 import socket
 from endstone import Player
 from endstone.command import CommandSender, BlockCommandSender
+from endstone_primebds.handlers.multiworld import start_world, stop_world
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.config_util import find_and_load_config, save_config, load_config
 from endstone_primebds.utils.target_selector_util import get_matching_actors
 from endstone_primebds.utils.address_util import is_valid_port
+from endstone_primebds.utils.form_wrapper_util import ModalFormData, ModalFormResponse
 
 from typing import TYPE_CHECKING
 
@@ -20,7 +22,7 @@ command, permission = create_command(
     [
         "/world (delete)<world_delete: world_delete> <world_name: string> [erase_files: bool]",
         "/world (create)<world_create: world_create> <world_name: string> <port: int>",
-        "/world (config)<world_config: world_config> <world_name: string>",
+        "/world (config|enable|disable)<world_config: world_config> <world_name: string>",
         "/world (cmd)<world_command: world_command> <world_name: string> <command: string>",
         "/world (send)<world_send: world_send> <world_name: string> <player: player>",
         "/world (list)<world_list: world_list>"
@@ -44,10 +46,17 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     world_name = args[1] if len(args) > 1 else None
 
     start_path = os.path.dirname(os.path.abspath(__file__))
-    config = find_and_load_config("primebds_data/config.json", start_path)
+    config = find_and_load_config("primebds_data/config.json", start_path, "multiworld", 20, True)
     server_properties = find_and_load_config("server.properties", start_path)
 
     if subaction == "cmd":
+        multiworld = config.get("modules", {}).get("multiworld", {})
+        worlds = multiworld.get("worlds", {})
+        is_enabled = worlds[world_name].get("enabled", False)
+        if not is_enabled:
+            send_feedback("[PrimeBDS] This world is currently §cDisabled")
+            return False
+
         command_to_run = " ".join(args[2:])
 
         if server_properties is None:
@@ -68,7 +77,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             if world_name.lower() == main_level.lower():
                 send_feedback(f"[PrimeBDS] Commands can only be sent from the main world")
             else:
-                send_feedback(f"[PrimeBDS] World '{world_name}' is not loaded or registered.")
+                send_feedback(f"[PrimeBDS] World '{world_name}' is not loaded or registered")
             return False
 
         process = self.multiworld_processes[world_name]
@@ -129,6 +138,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         # Config overrides
         multiworld = config.get("modules", {}).get("multiworld", {})
         worlds = multiworld.get("worlds", {})
+        is_enabled = worlds[world_name].get("enabled", False)
+        if not is_enabled:
+            send_feedback("[PrimeBDS] This world is currently §cDisabled")
+            return False
+
         hostname = socket.gethostname()
         ip = socket.gethostbyname(hostname)
 
@@ -146,7 +160,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                         break
 
             if not target_world:
-                send_feedback(f"[PrimeBDS] World '{world_name.lower()}' not found in configuration.")
+                send_feedback(f"[PrimeBDS] World '{world_name.lower()}' not found in configuration")
                 return False
             
             port = target_world.get("server-port", 19132)
@@ -182,7 +196,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         used_ports.update({main_ipv4, main_ipv6})
 
         if port in used_ports:
-            send_feedback(f"[PrimeBDS] Port {port} is already in use by another world.")
+            send_feedback(f"[PrimeBDS] Port {port} is already in use by another world")
             return False
 
         port_v6 = port + 1
@@ -191,14 +205,20 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         used_ports.add(port_v6)
 
         if world_name in worlds:
-            send_feedback(f"[PrimeBDS] World '{world_name}' already exists in configuration.")
+            send_feedback(f"[PrimeBDS] World '{world_name}' already exists in configuration")
+            return False
+
+        level_names = {w.get("level-name", name) for name, w in worlds.items()}
+        level_names.add(main_level)
+        if world_name in level_names:
+            send_feedback(f"[PrimeBDS] Level name '{world_name}' is already in use by another world")
             return False
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
         while not (os.path.exists(os.path.join(current_dir, 'plugins')) and os.path.exists(os.path.join(current_dir, 'worlds'))):
             parent_dir = os.path.dirname(current_dir)
             if parent_dir == current_dir:
-                send_feedback("[PrimeBDS] Could not locate project root containing 'plugins' and 'worlds'.")
+                send_feedback("[PrimeBDS] Could not locate project root containing 'plugins' and 'worlds'")
                 return False
             current_dir = parent_dir
 
@@ -230,8 +250,14 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         except Exception as e:
             send_feedback(f"[PrimeBDS] Failed to save configuration: {e}")
             return False
+        
+        try:
+            start_world(self, world_name, world_props)
+        except Exception as e:
+            send_feedback(f"[PrimeBDS] Failed to start newly created world: {e}")
+            return False
 
-        send_feedback(f"[PrimeBDS] World '{world_name}' registered with PORT {port} (IPv6: {port_v6}), please run §e/reload §rto restart worlds")
+        send_feedback(f"[PrimeBDS] World '{world_name}' registered with PORT {port} (IPv6: {port_v6})")
         return True
 
     elif subaction == "delete":        
@@ -250,13 +276,16 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             send_feedback(f"[PrimeBDS] World '{world_name}' not found in config")
             return False
 
+        is_enabled = worlds[world_name].get("enabled", False)
+        if is_enabled:
+            stop_world(self, world_name)
         del worlds[world_name]
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
         while not (os.path.exists(os.path.join(current_dir, 'plugins')) and os.path.exists(os.path.join(current_dir, 'worlds'))):
             parent_dir = os.path.dirname(current_dir)
             if parent_dir == current_dir:
-                send_feedback("[PrimeBDS] Could not locate project root containing 'plugins' and 'worlds'.")
+                send_feedback("[PrimeBDS] Could not locate project root containing 'plugins' and 'worlds'")
                 return False
             current_dir = parent_dir
             
@@ -267,14 +296,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             return False
 
         if erase_files:
-            main_port = int(server_properties.get("server-port", 19132))
-            main_ip = multiworld.get("ip_main", "127.0.0.1")
-            process = self.multiworld_processes[world_name]
-            if process.stdin:
-                process.stdin.write(f"send @a {main_ip} {main_port}\n")
-                process.stdin.write(f"stop\n")
-                process.stdin.flush()
-
             world_folder = os.path.join(current_dir, "plugins", "primebds_data", "multiworld", world_name)
             try:
                 if os.path.isdir(world_folder):
@@ -290,7 +311,157 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         return True
 
+    elif subaction == "enable":
+        main_level = server_properties.get("level-name", "Unknown")
+        if world_name == main_level:
+            send_feedback(f"[PrimeBDS] You cannot disable the main world")
+            return False
+
+        if self.server.level.name != main_level:
+            send_feedback(f"[PrimeBDS] Worlds can only be deleted from the main world")
+            return False
+
+        config = load_config()
+        multiworld = config.get("modules", {}).get("multiworld", {})
+        worlds = multiworld.get("worlds", {})
+
+        if world_name not in worlds:
+            send_feedback(f"[PrimeBDS] World '{world_name}' not found in config")
+            return False
+
+        is_enabled = worlds[world_name].get("enabled", False)
+        if not is_enabled:
+            start_world(self, world_name, worlds[world_name])
+            worlds[world_name]["enabled"] = True
+            save_config(config)
+
+    elif subaction == "disable":
+        main_level = server_properties.get("level-name", "Unknown")
+        if world_name == main_level:
+            send_feedback(f"[PrimeBDS] You cannot disable the main world")
+            return False
+        elif self.server.level.name != main_level:
+            send_feedback(f"[PrimeBDS] Worlds can only be disabled from the main world")
+            return False
+
+        config = load_config()
+        multiworld = config.get("modules", {}).get("multiworld", {})
+        worlds = multiworld.get("worlds", {})
+
+        if world_name not in worlds:
+            send_feedback(f"[PrimeBDS] World '{world_name}' not found in config")
+            return False
+
+        is_enabled = worlds[world_name].get("enabled", False)
+        if is_enabled:
+            stop_world(self, world_name)
+            worlds[world_name]["enabled"] = False
+            save_config(config)
+
+    elif subaction == "config":
+        config = load_config()
+        multiworld = config.get("modules", {}).get("multiworld", {})
+        worlds = multiworld.get("worlds", {})
+
+        if world_name not in worlds:
+            send_feedback(f"[PrimeBDS] World '{world_name}' not found in config")
+            return False
+
+        settings = worlds[world_name]
+        field_map = [(k, type(v)) for k, v in settings.items() if isinstance(v, (str, int, float, bool, list))]
+
+        form = ModalFormData()
+        form.title(f"World Configuration: {world_name}")
+        for key, value_type in field_map:
+            value = settings[key]
+            if value_type == bool:
+                form.toggle(key, value)
+            else:
+                form.text_field(key, str(value), str(value))
+        form.submit_button("Save Changes")
+
+        def submit_modal(player: Player, response: ModalFormResponse):
+            if response.canceled:
+                return
+
+            new_values = response.formValues
+            updated = {}
+
+            for i, (key, value_type) in enumerate(field_map):
+                old_value = settings[key]
+                new_value = new_values[i]
+
+                if isinstance(new_value, str):
+                    val = new_value.strip().lower()
+                    if val in ("true", "false"):
+                        new_value = bool(val == "true")
+
+                if value_type == bool:
+                    new_value = bool(new_value)
+                elif value_type == int:
+                    try:
+                        new_value = int(new_value)
+                    except ValueError:
+                        new_value = old_value
+                elif value_type == float:
+                    try:
+                        new_value = float(new_value)
+                    except ValueError:
+                        new_value = old_value
+                elif value_type == list:
+                    new_value = [x.strip() for x in str(new_value).split(",") if x.strip()]
+                else:
+                    new_value = str(new_value)
+
+                if new_value != old_value:
+                    updated[key] = new_value
+                    settings[key] = new_value
+
+            if not updated:
+                return 
+
+            used_ports = {str(wcfg.get("server-port")) for wname, wcfg in worlds.items() if wname != world_name and wcfg.get("server-port") is not None}
+            used_names = {wcfg.get("level-name", wname) for wname, wcfg in worlds.items() if wname != world_name}
+
+            new_port = str(settings.get("server-port", ""))
+            new_level_name = settings.get("level-name", world_name)
+
+            if new_port in used_ports:
+                player.send_message(f"§cPort {new_port} already in use by another world")
+                return
+
+            if new_level_name in used_names:
+                player.send_message(f"§cLevel name '{new_level_name}' already in use by another world")
+                return
+
+            save_config(config, True)
+            player.send_message(f"§aUpdated config for world '{world_name}'")
+
+            is_enabled = settings.get("enabled", False)
+            if is_enabled:
+                restart_form = ModalFormData()
+                restart_form.title(f"Restart World '{world_name}'?")
+                restart_form.toggle("Restart world now", True)
+                restart_form.submit_button("Confirm")
+
+                def handle_restart(player: Player, resp: ModalFormResponse):
+                    if resp.canceled:
+                        return
+                    if bool(resp.formValues[0]):
+                        stop_world(self, world_name)
+                        start_world(self, world_name, settings)
+                        player.send_message(f"World '{world_name}' restarted successfully")
+                    else:
+                        player.send_message(f"World '{world_name}' changes saved without restart")
+                
+                restart_form.show(player).then(lambda resp, pl=player: handle_restart(resp, pl))
+            else:
+                stop_world(self, world_name)
+                player.send_message(f"World '{world_name}' changes saved")
+
+        form.show(sender).then(lambda resp, pl=sender: submit_modal(resp, pl))
+
     else:
-        send_feedback(f"[PrimeBDS] Unknown subaction '{subaction}'.")
+        send_feedback(f"[PrimeBDS] Unknown subaction '{subaction}'")
         return False
 
