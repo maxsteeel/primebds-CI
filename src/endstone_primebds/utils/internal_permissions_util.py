@@ -70,6 +70,7 @@ MINECRAFT_PERMISSIONS = [
     "minecraft.command.stop",
     "minecraft.command.stopsound",
     "minecraft.command.tag",
+    "minecraft.command.teleport",
     "minecraft.command.tell",
     "minecraft.command.tellraw",
     "minecraft.command.time",
@@ -111,23 +112,31 @@ exempt_perms = [
 ]
 
 def load_perms(self: "PrimeBDS"):
-    perms = {str(perm_name).lower() for perm_name in self.permissions.keys()}
-    plugin_perms = {str(p.name).lower() for p in self.server.plugin_manager.permissions}
-    combined = perms | plugin_perms
+    plugin_perms = set()
+    
+    for plugin in self.server.plugin_manager.plugins:
+        if not hasattr(plugin, "commands"):
+            continue
+        for cmd_name, cmd_data in plugin.commands.items():
+            perms = cmd_data.get("permissions", [])
+            for perm in perms:
+                plugin_perms.add(perm.lower())
 
-    combined |= {p.lower() for p in MINECRAFT_PERMISSIONS}
+    plugin_perms |= {str(p.name).lower() for p in self.server.plugin_manager.permissions}
+    combined = plugin_perms | {p.lower() for p in MINECRAFT_PERMISSIONS}
 
     excluded_lower = {p.lower() for p in EXCLUDED_PERMISSIONS}
     filtered = [perm for perm in combined if perm not in excluded_lower]
 
     MANAGED_PERMISSIONS_LIST.clear()
     MANAGED_PERMISSIONS_LIST.extend(filtered)
+    # print(MANAGED_PERMISSIONS_LIST)
 
     for perm in exempt_perms:
         if perm not in MANAGED_PERMISSIONS_LIST:
             MANAGED_PERMISSIONS_LIST.append(perm)
 
-    print(f"[PrimeBDS] Loaded {len(MANAGED_PERMISSIONS_LIST)} permissions")
+    print(f"[PrimeBDS] Loaded {len(MANAGED_PERMISSIONS_LIST)} permissions from {len(self.server.plugin_manager.plugins)} plugins")
 
 def normalize_rank_name(rank: str) -> str:
     rank = rank.lower()
