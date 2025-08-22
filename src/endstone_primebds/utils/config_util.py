@@ -138,16 +138,17 @@ def save_properties_file(path: str, props: dict) -> bool:
         print(f"Failed to save properties file {path}: {e}")
         return False
 
-def find_and_load_config(filename, start_path=None, forbidden_subdir="multiworld", max_depth=20):
-    """
-    Searches upward for a file named `filename` not within `forbidden_subdir`
-    If found, loads and returns it as a dict (supports .json and .properties)
-    Caches the loaded config per filename to avoid repeated loads
-    """
+def find_and_load_config(
+    filename,
+    start_path=None,
+    forbidden_subdir="multiworld",
+    max_depth=20,
+    refresh=False
+):
     if not hasattr(find_and_load_config, "_cache"):
         find_and_load_config._cache = {}
 
-    if filename in find_and_load_config._cache:
+    if not refresh and filename in find_and_load_config._cache:
         return find_and_load_config._cache[filename]
 
     if start_path is None:
@@ -167,17 +168,19 @@ def find_and_load_config(filename, start_path=None, forbidden_subdir="multiworld
                     if filename.endswith(".json"):
                         content = open_text_file(candidate_path)
                         config_data = json.loads(content)
-                        find_and_load_config._cache[filename] = config_data
-                        return config_data
                     elif filename.endswith(".properties"):
                         config_data = parse_properties_file(candidate_path)
-                        find_and_load_config._cache[filename] = config_data
-                        return config_data
                     else:
                         raise ValueError(f"Unsupported file type: {filename}")
+
+                    find_and_load_config._cache[filename] = config_data
+                    return config_data
                 except Exception as e:
                     print(f"Failed to load {filename}: {e}")
-                    return None
+                    if refresh:
+                        # if forcing reload, don't return stale cache
+                        return None
+                    return find_and_load_config._cache.get(filename)
 
         parent = os.path.dirname(current_path)
         if parent == current_path:

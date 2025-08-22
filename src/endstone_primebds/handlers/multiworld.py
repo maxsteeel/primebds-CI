@@ -1,12 +1,12 @@
 import os
 import shutil
-import psutil
 import subprocess
 import sys
-import socket
 import threading
 import time
-from endstone_primebds.utils.config_util import find_and_load_config, load_config, save_properties_file, parse_properties_file
+
+import psutil
+from endstone_primebds.utils.config_util import load_config, save_properties_file, parse_properties_file
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -15,20 +15,12 @@ if TYPE_CHECKING:
 def start_additional_servers(self: "PrimeBDS"):
     config = load_config()
     multiworld = config["modules"].get("multiworld", {})
-    worlds = multiworld.get("worlds", {})
-
-    worlds = {
-        name: cfg for name, cfg in worlds.items()
-        if cfg.get("enabled", False)
-    }
-
-    if not any(world.get("enabled", False) for world in worlds.values()):
-        return
+    worlds = {name: cfg for name, cfg in multiworld.get("worlds", {}).items() if cfg.get("enabled", False)}
 
     default_path = os.path.join("endstone_primebds", "utils", "default_server.properties")
-    default_props = {}
+    self.default_props = {}
     if os.path.isfile(default_path):
-        default_props = parse_properties_file(default_path)
+        self.default_props = parse_properties_file(default_path)
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     while not (os.path.exists(os.path.join(current_dir, 'plugins')) and os.path.exists(os.path.join(current_dir, 'worlds'))):
@@ -38,66 +30,30 @@ def start_additional_servers(self: "PrimeBDS"):
             return
         current_dir = parent_dir
 
-    DB_FOLDER = os.path.join(current_dir, 'plugins', 'primebds_data')
-    multiworld_base_dir = os.path.join(DB_FOLDER, "multiworld")
+    db_folder = os.path.join(current_dir, 'plugins', 'primebds_data')
+    self.multiworld_base_dir = os.path.join(db_folder, "multiworld")
+    self.root_plugins_dir = os.path.join(current_dir, "plugins")
+    self.seen_level_names = {}
+    self.multiworld_lock = threading.Lock()
 
-    os.makedirs(DB_FOLDER, exist_ok=True)
-    os.makedirs(multiworld_base_dir, exist_ok=True)
+    os.makedirs(db_folder, exist_ok=True)
+    os.makedirs(self.multiworld_base_dir, exist_ok=True)
 
-    root_plugins_dir = os.path.join(current_dir, "plugins")
-    seen_level_names = {}
-    lock = threading.Lock()
+    if not worlds:
+        return
 
-    for idx, (world_key, settings) in enumerate(worlds.items()):
+    for world_key, settings in worlds.items():
         threading.Thread(
             target=start_world,
-            args=(self, world_key, settings, idx, default_props, root_plugins_dir, multiworld_base_dir, seen_level_names, lock),
+            args=(self, world_key, settings),
             daemon=True
         ).start()
 
 def stop_additional_servers(self: "PrimeBDS"):
-    def stop_world(level_name, process):
-        if process.poll() is None:  # still running
-            print(f"[PrimeBDS] Closing '{level_name}' (PID {process.pid})")
-
-            try:
-                if process.stdin:
-                    try:
-                        start_path = os.path.dirname(os.path.abspath(__file__))
-                        server_properties = find_and_load_config("server.properties", start_path) or {}
-                        main_port = int(server_properties.get("server-port", 19132))
-                        hostname = socket.gethostname()
-                        main_ip = socket.gethostbyname(hostname)
-                        process.stdin.write(f"send @a {main_ip} {main_port}\n") # send back to main
-                        process.stdin.write("stop\n")
-                        process.stdin.flush()
-                    except Exception as e:
-                        print(f"[PrimeBDS] Failed to send stop command to '{level_name}': {e}")
-
-                try:
-                    process.wait(timeout=3)
-                    print(f"[PrimeBDS] World '{level_name}' stopped correctly")
-                except subprocess.TimeoutExpired:
-                    try:
-                        parent = psutil.Process(process.pid)
-                        for child in parent.children(recursive=True):
-                            try:
-                                child.kill()
-                            except psutil.NoSuchProcess:
-                                pass
-                        parent.kill()
-                        print(f"[PrimeBDS] Killed process tree for world '{level_name}'.")
-                    except psutil.NoSuchProcess:
-                        print(f"[PrimeBDS] Process for world '{level_name}' already exited.")
-                    except Exception as e:
-                        print(f"[PrimeBDS] Error killing process tree for world '{level_name}': {e}")
-            except Exception as e:
-                    print(f"[PrimeBDS] Error killing process tree for world '{level_name}': {e}")
-
     threads = []
 
-    for level_name, process in list(self.multiworld_processes.items()):
-        thread = threading.Thread(target=stop_world, args=(level_name, process))
+    for level_name in list(self.multiworld_processes.items()):
+        thread = threading.Thread(target=stop_world, args=(self, level_name))
         thread.start()
         threads.append(thread)
 
@@ -106,85 +62,45 @@ def stop_additional_servers(self: "PrimeBDS"):
 
     self.multiworld_processes.clear()
     
-def start_world(
-    self: "PrimeBDS",
-    world_key: str,
-    settings: dict,
-    idx: int,
-    default_props: dict,
-    root_plugins_dir: str,
-    multiworld_base_dir: str,
-    seen_level_names: dict,
-    lock: threading.Lock
-):
-    """Start a single world with its own properties and plugins."""
-
+def start_world(self: "PrimeBDS", world_key: str, settings: dict):
+    """Start a single configured world."""
     if world_key == self.server.level.name:
-        print(f"[PrimeBDS] Skipping main world '{world_key}'")
         return
 
-    world_dir = os.path.join(multiworld_base_dir, world_key)
+    world_dir = os.path.join(self.multiworld_base_dir, world_key)
     os.makedirs(world_dir, exist_ok=True)
-
-    to_stop = []
-    with lock:
-        for level_name, proc in self.multiworld_processes.items():
-            if level_name.startswith(world_key):
-                to_stop.append(level_name)
-
-    for level_name in to_stop:
-        proc = self.multiworld_processes.get(level_name)
-        if proc is None:
-            continue
-        print(f"[PrimeBDS] Attempting to stop existing process for '{level_name}'")
-        try:
-            if proc.stdin:
-                proc.stdin.write("stop\n")
-                proc.stdin.flush()
-            try:
-                proc.wait(timeout=5)
-                print(f"[PrimeBDS] Process for '{level_name}' stopped gracefully.")
-            except subprocess.TimeoutExpired:
-                print(f"[PrimeBDS] Process for '{level_name}' did not stop in time, killing...")
-                proc.kill()
-                proc.wait()
-                print(f"[PrimeBDS] Process for '{level_name}' killed.")
-        except Exception as e:
-            print(f"[PrimeBDS] Error stopping process for '{level_name}': {e}")
-        with lock:
-            self.multiworld_processes.pop(level_name, None)
-            self.multiworld_ports.pop(level_name, None)
+    stop_world(self, world_key)
 
     world_plugins_dir = os.path.join(world_dir, "plugins")
-    if not copy_plugins_to_world(root_plugins_dir, world_plugins_dir):
+    if not copy_plugins_to_world(self.root_plugins_dir, world_plugins_dir):
         print(f"[PrimeBDS] Warning: Not all plugins copied for world '{world_key}'")
 
     server_properties_path = os.path.join(world_dir, "server.properties")
-    merged_props = {**default_props, **settings}
+    merged_props = {**self.default_props, **settings}
     save_properties_file(server_properties_path, merged_props)
 
     level_name = settings.get("level-name", world_key)
-    with lock:
-        if level_name in seen_level_names:
-            seen_level_names[level_name] += 1
-            level_name = f"{level_name}_{seen_level_names[level_name]}"
+    with self.multiworld_lock:
+        if level_name in self.seen_level_names:
+            self.seen_level_names[level_name] += 1
+            level_name = f"{level_name}_{self.seen_level_names[level_name]}"
         else:
-            seen_level_names[level_name] = 0
+            self.seen_level_names[level_name] = 0
 
-    process = launch_endstone_server(multiworld_base_dir, world_key, level_name, max_retries=3)
+    process = launch_endstone_server(self.multiworld_base_dir, world_key, level_name, max_retries=3)
     if not process:
         return
 
-    with lock:
+    with self.multiworld_lock:
         self.multiworld_processes[level_name] = process
 
     try:
         port = int(settings.get("server-port"))
     except (TypeError, ValueError):
-        port = self.base_port + idx + 1
+        port = self.base_port + len(self.multiworld_processes)
         print(f"[PrimeBDS] Invalid or missing port for '{level_name}', using fallback: {port}")
 
-    with lock:
+    with self.multiworld_lock:
         self.multiworld_ports[level_name] = port
 
     for stream, prefix in [
@@ -198,12 +114,13 @@ def start_world(
         ).start()
 
 def stop_world(self, world_key: str):
-    """Stop a single world by name."""
-    lock = threading.Lock()
+    """Stop a single world by name, including orphan processes in its folder."""
     to_stop = []
-    with lock:
+
+    with self.multiworld_lock:
         for level_name, proc in self.multiworld_processes.items():
             if level_name.startswith(world_key):
+                self.seen_level_names.pop(world_key, None)
                 to_stop.append(level_name)
 
     for level_name in to_stop:
@@ -227,9 +144,20 @@ def stop_world(self, world_key: str):
         except Exception as e:
             print(f"[PrimeBDS] Error stopping process for '{level_name}': {e}")
 
-        with lock:
+        with self.multiworld_lock:
             self.multiworld_processes.pop(level_name, None)
             self.multiworld_ports.pop(level_name, None)
+
+    # If no tracked processes were found, attempt to kill by folder
+    if not to_stop:
+        world_dir = os.path.join(self.multiworld_base_dir, world_key)
+        if os.path.exists(world_dir):
+            for proc in psutil.process_iter(['pid', 'cwd', 'name']):
+                try:
+                    if proc.info['cwd'] and os.path.normpath(proc.info['cwd']) == os.path.normpath(world_dir):
+                        proc.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
 
 def is_nested_multiworld_instance():
     return "plugins{}primebds_data{}multiworld".format(os.sep, os.sep) in os.path.abspath(__file__)

@@ -158,7 +158,8 @@ class PrimeBDS(Plugin):
 
     def on_enable(self):
         self.register_events(self)
-        load_perms(self)
+
+        self.server.scheduler.run_task(self, load_perms(self), 5)
 
         for player in self.server.online_players:
             self.reload_custom_perms(player)
@@ -185,7 +186,7 @@ class PrimeBDS(Plugin):
             self.serverdata.update_server_info("allowlist_profile", "default")
 
         self.check_for_inactive_sessions()
-        start_additional_servers(self)
+        self.server.scheduler.run_task(self, start_additional_servers(self), 1)
 
     def on_disable(self):
         stop_intervals(self)
@@ -232,37 +233,50 @@ class PrimeBDS(Plugin):
         user = self.db.get_online_user(player.xuid)
         if not user:
             return
-        
+
         check_rank_exists(self, player, user.internal_rank)
 
         permissions = set(get_rank_permissions(user.internal_rank))
-        user_permissions = set(self.db.get_permissions(player.xuid))
-        desired_perms = permissions | user_permissions
+        user_permissions = self.db.get_permissions(player.xuid)
         managed_perms = MANAGED_PERMISSIONS_LIST[:]
 
-        def apply_changes():
-            for rperm in managed_perms:
-                if player.has_permission(rperm):
-                    player.add_attachment(self, rperm, False)
+        final_permissions = {}
 
-            for perm in desired_perms:
-                if not player.has_permission(perm):
-                    player.add_attachment(self, perm, True)
+        for rperm in managed_perms:
+            final_permissions[rperm] = False
 
-            user_permissions = self.db.get_permissions(player.xuid)
-            for perm, allowed in user_permissions.items():
-                if player.has_permission(perm):
-                    player.add_attachment(self, perm, allowed)
+        for perm in permissions:
+            final_permissions[perm] = True
 
-            player.add_attachment(self, "endstone.command.banip", False)
-            player.add_attachment(self, "endstone.command.unbanip", False)
-            player.add_attachment(self, "endstone.command.banlist", False)
+        for perm, allowed in user_permissions.items():
+            final_permissions[perm] = allowed
 
-            player.update_commands()
-            player.recalculate_permissions()
-            invalidate_perm_cache(self, player.xuid)
+        attachment = player.add_attachment(self, "PrimeBDSPerms", True)
+        player.add_attachment(self, "endstone.command.banip", False)
+        player.add_attachment(self, "endstone.command.unbanip", False)
+        player.add_attachment(self, "endstone.command.banlist", False)
 
-        self.server.scheduler.run_task(self, apply_changes, 5)
+        perms_to_apply = [
+            (perm, value)
+            for perm, value in final_permissions.items()
+            if player.has_permission(perm) != value
+        ]
+
+        batch_size = 300
+
+        def apply_batch(start_index=0):
+            end_index = min(start_index + batch_size, len(perms_to_apply))
+            for perm, value in perms_to_apply[start_index:end_index]:
+                attachment.set_permission(perm, value)
+
+            if end_index < len(perms_to_apply):
+                self.server.scheduler.run_task(self, lambda: apply_batch(end_index), 1)
+            else:
+                player.update_commands()
+                player.recalculate_permissions()
+                invalidate_perm_cache(self, player.xuid)
+
+        self.server.scheduler.run_task(self, lambda: apply_batch(0), 1)
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically"""
