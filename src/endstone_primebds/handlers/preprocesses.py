@@ -13,7 +13,8 @@ if TYPE_CHECKING:
 MODERATION_COMMANDS = {
     "kick", "ban", "pardon", "unban",
     "permban", "tempban", "tempmute",
-    "mute", "ipban", "unmute", "warn"
+    "mute", "ipban", "unmute", "warn",
+    "ban-ip", "unban-ip"
 }
 MSG_CMDS = {"me", "tell", "w", "whisper", "msg"}
 PARSE_COMMANDS = (
@@ -86,7 +87,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                 (cmd == "warn" and check_perms(self, target, "primebds.exempt.warn")) or
                 (cmd == "kick" and check_perms(self, target, "primebds.exempt.kick")) or
                 (cmd in {"mute", "tempmute"} and check_perms(self, target, "primebds.exempt.mute")) or
-                (cmd in {"permban", "tempban", "ipban", "ban"} and check_perms(self, target, "primebds.exempt.ban"))
+                (cmd in {"permban", "tempban", "ipban", "ban", "ban-ip"} and check_perms(self, target, "primebds.exempt.ban"))
             ):
                 player.send_message(f"§6Player §e{target.name} §6is exempt from {cmd}")
                 is_exempt = True
@@ -94,7 +95,10 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         event.is_cancelled = True
         return True
 
-    if cmd == "ban" and len(args) > 1:
+    if cmd == "ban-ip" or cmd == "unban-ip":
+        event.is_cancelled = True
+        return False
+    elif cmd == "ban" and len(args) > 1:
         player.perform_command(f'permban \"{args[1]}\"')
         event.is_cancelled = True
         return False
