@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
-# Define ranks in order of hierarchy
 RANKS = list(load_permissions().keys())
 PERMISSIONS = load_permissions()
 
@@ -94,6 +93,8 @@ MINECRAFT_PERMISSIONS = [
 EXCLUDED_PERMISSIONS = [
     "minecraft",
     "minecraft.command",
+    "endstone",
+    "endstone.command",
     "minecraft.command.permission",
     "endstone.command.devtools",
     "endstone.command.banip",
@@ -113,30 +114,42 @@ exempt_perms = [
 
 def load_perms(self: "PrimeBDS"):
     plugin_perms = set()
-    
+
     for plugin in self.server.plugin_manager.plugins:
         if not hasattr(plugin, "commands"):
             continue
+
+        plugin_perm_set = set()
+
         for cmd_name, cmd_data in plugin.commands.items():
             perms = cmd_data.get("permissions", [])
             for perm in perms:
-                plugin_perms.add(perm.lower())
+                perm_lower = perm.lower()
+                plugin_perms.add(perm_lower)
+                plugin_perm_set.add(perm_lower)
 
-    plugin_perms |= {str(p.name).lower() for p in self.server.plugin_manager.permissions}
+        if plugin_perm_set:
+            print(f"[PrimeBDS] {getattr(plugin, 'name', 'Unnamed Plugin')}: Loaded {len(plugin_perm_set)} permissions")
+
+    server_registered = {str(p.name).lower() for p in self.server.plugin_manager.permissions}
+    plugin_perms |= server_registered
+
     combined = plugin_perms | {p.lower() for p in MINECRAFT_PERMISSIONS}
 
-    excluded_lower = {p.lower() for p in EXCLUDED_PERMISSIONS}
-    filtered = [perm for perm in combined if perm not in excluded_lower]
-
     MANAGED_PERMISSIONS_LIST.clear()
-    MANAGED_PERMISSIONS_LIST.extend(filtered)
-    # print(MANAGED_PERMISSIONS_LIST)
+    MANAGED_PERMISSIONS_LIST.extend(combined)
 
     for perm in exempt_perms:
         if perm not in MANAGED_PERMISSIONS_LIST:
             MANAGED_PERMISSIONS_LIST.append(perm)
 
-    print(f"[PrimeBDS] Loaded {len(MANAGED_PERMISSIONS_LIST)} permissions from {len(self.server.plugin_manager.plugins)} plugins")
+    endstone_filtered = [perm for perm in combined if "endstone" in perm]
+    if endstone_filtered:
+        print(f"[PrimeBDS] Endstone: Loaded {len(endstone_filtered)} permissions")
+
+    minecraft_filtered = [perm for perm in combined if perm in {p.lower() for p in MINECRAFT_PERMISSIONS}]
+    print(f"[PrimeBDS] Minecraft: Loaded {len(minecraft_filtered)} permissions")
+    print(f"[PrimeBDS] Total managed permissions: {len(MANAGED_PERMISSIONS_LIST)}")
 
 def normalize_rank_name(rank: str) -> str:
     rank = rank.lower()
@@ -168,18 +181,19 @@ def get_rank_permissions(rank: str) -> list[str]:
 
         if "*" in perms:
             for perm in MANAGED_PERMISSIONS_LIST:
-                if perm not in seen_perms:
+                if perm not in seen_perms and perm not in EXCLUDED_PERMISSIONS:
                     result.append(perm)
                     seen_perms.add(perm)
 
         for perm in perms:
             perm = perm.lower()
+            if perm in EXCLUDED_PERMISSIONS:
+                continue  # skip excluded perms
+
             if perm.startswith("primebds.rank."):
                 inherited_rank = perm[len("primebds.rank."):]
                 gather_permissions(inherited_rank)
             elif perm != "*" and perm not in seen_perms:
-                if perm not in MANAGED_PERMISSIONS_LIST:
-                    MANAGED_PERMISSIONS_LIST.append(perm)
                 result.append(perm)
                 seen_perms.add(perm)
 

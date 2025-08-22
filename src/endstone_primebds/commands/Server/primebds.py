@@ -1,4 +1,4 @@
-from endstone import Player, plugin
+from endstone import Player
 from endstone.command import CommandSender
 
 from endstone_primebds.utils.command_util import create_command
@@ -40,14 +40,15 @@ def open_config_categories(player: Player):
     form.title("PrimeBDS Config")
     form.body("Select a category to edit:")
 
-    for category in config.keys():
+    keys = config.keys()
+    for category in keys:
         form.button(f"§4{category.capitalize()}")
 
     form.button("Close")
 
     def submit(player: Player, result: ActionFormResponse):
-        if not result.canceled and 0 <= result.selection < len(config.keys()):
-            category = list(config.keys())[result.selection]
+        if not result.canceled and 0 <= result.selection < len(keys):
+            category = list(keys)[result.selection]
             open_category_editor(player, category, config)
 
     form.show(player).then(lambda player=player, result=ActionFormResponse: submit(player, result))
@@ -92,7 +93,7 @@ def open_category_editor(player: Player, category: str, config: dict):
 
         form.show(player).then(lambda player=player, response=ModalFormResponse: submit(player, response))
         return
-    
+
     else:
         if any(isinstance(v, dict) for v in settings.values()):
             open_module_editor(player, category, settings, config)
@@ -103,8 +104,6 @@ def open_module_editor(player: Player, module_name: str, settings: dict, config:
     primitive_keys = [k for k, v in settings.items() if not isinstance(v, dict)]
 
     if "combat" in module_name:
-        return
-    elif "worlds" in module_name:
         return
 
     if primitive_keys:
@@ -134,8 +133,10 @@ def open_module_editor(player: Player, module_name: str, settings: dict, config:
 
             for i, (key, value_type) in enumerate(field_map):
                 old_value = settings[key]
-                new_value = new_values[i] if not isinstance(old_value, bool) else bool(new_values[i])
+                new_value = new_values[i]
 
+                if value_type == bool:
+                    new_value = bool(new_value)
                 if value_type == int:
                     try:
                         new_value = int(new_value)
@@ -149,7 +150,8 @@ def open_module_editor(player: Player, module_name: str, settings: dict, config:
                 elif value_type == list:
                     new_value = [x.strip() for x in str(new_value).split(",") if x.strip()]
                 else:
-                    new_value = str(new_value)
+                    if not isinstance(new_value, bool):
+                        new_value = str(new_value)
 
                 settings[key] = new_value
                 updated[key] = new_value
