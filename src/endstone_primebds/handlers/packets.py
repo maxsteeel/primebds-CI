@@ -20,7 +20,7 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
         packet = LevelSoundEventPacket()
         packet.deserialize(ev.payload)
         entity_id = packet.actor_unique_id
-        print(entity_id)
+
         user = self.db.get_online_user_by_unique_id(entity_id)
         if user is not None and getattr(user, "is_vanish", None):
             ev.is_cancelled = True
