@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "monitor",
     "Monitor server performance in real time!",
-    ["/monitor [interval_in_seconds: float]"],
+    ["/monitor"],
     ["primebds.command.monitor"]
 )
 
@@ -21,11 +21,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     player_name = sender.name
     interval = 1.0
-    if len(args) > 0:
-        try:
-            interval = max(1.0, min(60.0, float(args[0])))
-        except ValueError:
-            interval = 1.0
 
     if not hasattr(self, "monitor_intervals"):
         self.monitor_intervals = {}
