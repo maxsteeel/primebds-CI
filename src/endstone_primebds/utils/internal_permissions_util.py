@@ -116,17 +116,14 @@ def load_perms(self: "PrimeBDS"):
     plugin_perms = set()
 
     for plugin in self.server.plugin_manager.plugins:
-        if not hasattr(plugin, "commands"):
-            continue
-
         plugin_perm_set = set()
+        data = plugin._get_description()
 
-        for cmd_name, cmd_data in plugin.commands.items():
-            perms = cmd_data.get("permissions", [])
-            for perm in perms:
-                perm_lower = perm.lower()
-                plugin_perms.add(perm_lower)
-                plugin_perm_set.add(perm_lower)
+        perms = data.permissions
+        for attachment in perms:
+            perm_lower = attachment.name.lower()
+            plugin_perms.add(perm_lower)
+            plugin_perm_set.add(perm_lower)
 
         if plugin_perm_set:
             print(f"[PrimeBDS] {getattr(plugin, 'name', 'Unnamed Plugin')}: Loaded {len(plugin_perm_set)} permissions")
