@@ -1,41 +1,29 @@
 import re
 import random
-import math
-from typing import TYPE_CHECKING, Optional
+import numpy as np
+from typing import TYPE_CHECKING, List, Optional
 from endstone import Player
 from endstone.actor import Actor
 from endstone.util import Vector
 from endstone.command import BlockCommandSender
-from endstone_primebds.utils.math_util import vector_dot, vector_length_squared, vector_mul_scalar, vector_sub
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
-# Global selector cache
-# Maps (selector, origin_key) -> list of Players
 selector_cache = {}
-
-# Reverse lookup: player -> set of cache keys
 player_to_cache_keys = {}
 
 def invalidate_player_cache(player: Player):
-    """Remove all cached entries that involve this player."""
-    keys = player_to_cache_keys.pop(player, set())
-    for key in keys:
+    for key in player_to_cache_keys.pop(player, ()):
         selector_cache.pop(key, None)
 
 def register_cache_for_players(result: list, cache_key):
-    """Track which players are in this cache result."""
     for p in result:
-        if p not in player_to_cache_keys:
-            player_to_cache_keys[p] = set()
-        player_to_cache_keys[p].add(cache_key)
-
+        player_to_cache_keys.setdefault(p, set()).add(cache_key)
 
 def parse_coord(value, origin_coord):
     if isinstance(value, str) and value.startswith("~"):
-        offset = value[1:]  # remove "~"
-        offset = float(offset) if offset else 0.0
+        offset = float(value[1:] or 0.0)
         return origin_coord + offset
     return float(value)
 
@@ -107,88 +95,104 @@ def get_arg_value(args, key, default):
         return val
     return default
 
-def passes_filters(actor: Player, args: dict, origin: Vector) -> bool:
-    x = parse_coord(get_arg_value(args, "x", origin.x), origin.x)
-    y = parse_coord(get_arg_value(args, "y", origin.y), origin.y)
-    z = parse_coord(get_arg_value(args, "z", origin.z), origin.z)
-    center = Vector(x, y, z)
+def passes_filters(players: List[Player], args: dict, origin: Vector) -> bool:
+    """
+    Returns a boolean mask of players passing the filters
+    """
 
-    dx, dy, dz = actor.location.x - center.x, actor.location.y - center.y, actor.location.z - center.z
-    dist_sq = dx*dx + dy*dy + dz*dz
+    n = len(players)
+    if n == 0:
+        return np.array([], dtype=bool)
 
-    r_min = get_arg_value(args, "rm", None)
-    if r_min is not None and dist_sq < float(r_min)**2:
-        return False
-    r_max = get_arg_value(args, "r", None)
-    if r_max is not None and dist_sq > float(r_max)**2:
-        return False
+    # Build arrays of positions
+    positions = np.array([[p.location.x, p.location.y, p.location.z] for p in players], dtype=np.float32)
+    origin_arr = np.array([origin.x, origin.y, origin.z], dtype=np.float32)
 
-    def check_value(key: str, actual_val: str) -> bool:
-        if key not in args:
-            return True
-        val, negate = args[key]
-        actual_val = str(actual_val)
-        val = str(val)
-        return (actual_val.lower() != val.lower()) if negate else (actual_val.lower() == val.lower())
+    # Distance squared
+    deltas = positions - origin_arr
+    dist_sq = np.sum(deltas**2, axis=1)
 
-    if not check_value("name", actor.name):
-        return False
-    if not check_value("type", actor.type.lower().removeprefix("minecraft:")):
-        return False
+    # Min/max radius
+    mask = np.ones(n, dtype=bool)
+    r_min = args.get("rm", (None, False))[0]
+    r_max = args.get("r", (None, False))[0]
 
+    if r_min is not None:
+        mask &= dist_sq >= float(r_min)**2
+    if r_max is not None:
+        mask &= dist_sq <= float(r_max)**2
+
+    # Name filter
+    if "name" in args:
+        val, negate = args["name"]
+        val = str(val).lower()
+        player_names = np.array([p.name.lower() for p in players])
+        if negate:
+            mask &= player_names != val
+        else:
+            mask &= player_names == val
+
+    # Type filter
+    if "type" in args:
+        val, negate = args["type"]
+        val = str(val).lower().removeprefix("minecraft:")
+        player_types = np.array([p.type.lower().removeprefix("minecraft:") for p in players])
+        if negate:
+            mask &= player_types != val
+        else:
+            mask &= player_types == val
+
+    # Tag filter
     if "tag" in args:
         val, negate = args["tag"]
-        val = str(val)
-        if (negate and val in actor.scoreboard_tags) or (not negate and val not in actor.scoreboard_tags):
-            return False
+        tag_check = np.array([val in p.scoreboard_tags for p in players])
+        mask &= tag_check != negate  # if negate, invert
 
-    if "scores" in args:
-        for scoreboard_name, (value_data, negate) in args["scores"].items():
-            obj = actor.scoreboard.get_objective(scoreboard_name)
-            if not obj:
-                return False
-            score = obj.get_score(actor).value
-            if score is None:
-                return False
-            if value_data[0] == "exact":
-                matches = score == value_data[1]
-            else:
-                start, end = value_data[1], value_data[2]
-                matches = True
-                if start is not None and score < start:
-                    matches = False
-                if end is not None and score > end:
-                    matches = False
-            if (negate and matches) or (not negate and not matches):
-                return False
-
-    for axis in ("x","y","z"):
-        d_key = "d"+axis
+    # dX/dY/dZ axis filters
+    for axis in ("x", "y", "z"):
+        d_key = "d" + axis
         if d_key in args and axis in args:
-            min_val = parse_coord(get_arg_value(args, axis, getattr(origin, axis)), getattr(origin, axis))
-            delta = parse_coord(get_arg_value(args, d_key, 0), getattr(origin, axis))
-            max_val = min_val + delta
+            min_val = parse_coord(args[axis][0], getattr(origin, axis))
+            delta_val = parse_coord(args[d_key][0], getattr(origin, axis))
+            max_val = min_val + delta_val
             if min_val > max_val:
                 min_val, max_val = max_val, min_val
-            if not (min_val <= getattr(actor.location, axis) <= max_val):
-                return False
+            axis_vals = np.array([getattr(p.location, axis) for p in players])
+            mask &= (axis_vals >= min_val) & (axis_vals <= max_val)
 
-    return True
+    # Scores filter (cannot fully vectorize if different objectives per player; loop per objective)
+    if "scores" in args:
+        for scoreboard_name, (value_data, negate) in args["scores"].items():
+            scores = np.array([p.scoreboard.get_objective(scoreboard_name).get_score(p).value if p.scoreboard.get_objective(scoreboard_name) else None for p in players])
+            valid = np.ones(n, dtype=bool)
+            exact_type = value_data[0] == "exact"
+            if exact_type:
+                valid &= scores == value_data[1]
+            else:
+                start, end = value_data[1], value_data[2]
+                if start is not None:
+                    valid &= scores >= start
+                if end is not None:
+                    valid &= scores <= end
+            if negate:
+                valid = ~valid
+            mask &= valid
+
+    return mask
 
 def get_matching_actors(self: "PrimeBDS", selector: str, origin: BlockCommandSender):
-    all_actors = self.server.online_players
+    all_actors = [a for a in self.server.online_players if isinstance(a, Player)]
     origin_loc = getattr(origin, "location", getattr(getattr(origin, "block", None), "location", Vector(0,0,0)))
     origin_key = (origin_loc.x, origin_loc.y, origin_loc.z)
     cache_key = (selector, origin_key)
 
-    # Return cached result if available
     if cache_key in selector_cache:
         return selector_cache[cache_key]
 
-    # Single player by name
     if not selector.startswith("@"):
+        lower_name = selector.lower()
         for actor in all_actors:
-            if isinstance(actor, Player) and actor.name.lower() == selector.lower():
+            if actor.name.lower() == lower_name:
                 selector_cache[cache_key] = [actor]
                 register_cache_for_players([actor], cache_key)
                 return [actor]
@@ -202,14 +206,18 @@ def get_matching_actors(self: "PrimeBDS", selector: str, origin: BlockCommandSen
 
     selector_type, args = parsed["type"], parsed["args"]
 
-    result = [a for a in all_actors if isinstance(a, Player) and passes_filters(a, args, origin_loc)]
+    mask = passes_filters(all_actors, args, origin_loc)
+    result = list(np.array(all_actors)[mask])
 
-    # Apply special selector types
     if selector_type == "s":
-        result = [origin] if passes_filters(origin, args, origin_loc) else []
+        result = [origin] if passes_filters([origin], args, origin_loc)[0] else []
     elif selector_type == "p":
-        result.sort(key=lambda a: (a.location - origin_loc).length_squared())
-        result = result[:1]
+        if result:
+            positions = np.array([[a.location.x, a.location.y, a.location.z] for a in result], dtype=np.float32)
+            origin_arr = np.array([origin_loc.x, origin_loc.y, origin_loc.z], dtype=np.float32)
+            dist_sq = np.sum((positions - origin_arr)**2, axis=1)
+            closest_idx = np.argmin(dist_sq)
+            result = [result[closest_idx]]
     elif selector_type == "r":
         result = [random.choice(result)] if result else []
 
@@ -218,40 +226,42 @@ def get_matching_actors(self: "PrimeBDS", selector: str, origin: BlockCommandSen
     return result
 
 def get_target_entity(player: Player, max_distance: float = 10) -> Optional[Actor]:
-    """Returns the closest actor in a 10-block range in front of the player."""
     if not player or not hasattr(player, "location"):
         return None
 
-    origin = player.location
-    yaw = player.location.yaw
-    pitch = player.location.pitch
+    origin = np.array([player.location.x, player.location.y, player.location.z], dtype=np.float32)
+    rad_yaw = np.radians(-player.location.yaw)
+    rad_pitch = np.radians(-player.location.pitch)
+    forward = np.array([
+        np.sin(rad_yaw) * np.cos(rad_pitch),
+        np.sin(rad_pitch),
+        np.cos(rad_yaw) * np.cos(rad_pitch)
+    ], dtype=np.float32)
 
-    rad_yaw = math.radians(-yaw)
-    rad_pitch = math.radians(-pitch)
+    actors = [a for a in player.level.actors if a != player]
+    if not actors:
+        return None
 
-    forward = Vector(
-        math.sin(rad_yaw) * math.cos(rad_pitch),
-        math.sin(rad_pitch),
-        math.cos(rad_yaw) * math.cos(rad_pitch)
-    )
+    positions = np.array([[a.location.x, a.location.y, a.location.z] for a in actors], dtype=np.float32)
 
-    closest_actor = None
-    closest_dist_sq = max_distance * max_distance
+    deltas = positions - origin       
+    projs = deltas @ forward   
 
-    for actor in player.level.actors:
-        if actor == player:
-            continue
+    mask = (projs >= 0) & (projs <= max_distance)
 
-        delta = vector_sub(actor.location, origin)
-        proj = vector_dot(delta, forward)
+    if not np.any(mask):
+        return None
+    
+    perps = deltas[mask] - np.outer(projs[mask], forward)
+    perp_sq = np.sum(perps**2, axis=1)
+    in_range_mask = perp_sq < 1.0
 
-        if 0 <= proj <= max_distance:
-            perp = vector_sub(delta, vector_mul_scalar(forward, proj))
-            perp_sq = vector_length_squared(perp)
-            if perp_sq < 1.0:
-                dist_sq = vector_length_squared(delta)
-                if dist_sq < closest_dist_sq:
-                    closest_dist_sq = dist_sq
-                    closest_actor = actor
+    if not np.any(in_range_mask):
+        return None
 
-    return closest_actor
+    deltas_in_range = deltas[mask][in_range_mask]
+    dist_sq = np.sum(deltas_in_range**2, axis=1)
+    closest_idx = np.argmin(dist_sq)
+
+    actors_in_range = np.array(actors)[mask][in_range_mask]
+    return actors_in_range[closest_idx]
