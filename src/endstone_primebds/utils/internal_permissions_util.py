@@ -14,6 +14,8 @@ PERMISSIONS = load_permissions()
 MANAGED_PERMISSIONS_LIST = []
 
 MINECRAFT_PERMISSIONS = [
+    "minecraft",
+    "minecraft.command",
     "minecraft.command.aimassist",
     "minecraft.command.allowlist",
     "minecraft.command.camera",
@@ -102,14 +104,17 @@ EXCLUDED_PERMISSIONS = [
     "endstone.command.banlist"
 ]
 
-exempt_perms = [
+EXTRA_PERMS = [
     "primebds.exempt.msgtoggle",
     "primebds.exempt.globalmute",
     "primebds.exempt.mute",
     "primebds.exempt.ban",
     "primebds.exempt.kick",
     "primebds.exempt.warn",
-    "primebds.exempt.jail"
+    "primebds.exempt.jail",
+    "primebds.command.heal.other",
+    "primebds.command.feed.other",
+    "primebds.command.repair.other"
 ]
 
 def load_perms(self: "PrimeBDS"):
@@ -125,6 +130,11 @@ def load_perms(self: "PrimeBDS"):
             plugin_perms.add(perm_lower)
             plugin_perm_set.add(perm_lower)
 
+        if plugin.name == "primebds":
+            for perm in EXTRA_PERMS:
+                plugin_perms.add(perm)
+                plugin_perm_set.add(perm)
+
         if plugin_perm_set:
             print(f"[PrimeBDS] {getattr(plugin, 'name', 'Unnamed Plugin')}: Loaded {len(plugin_perm_set)} permissions")
 
@@ -136,7 +146,7 @@ def load_perms(self: "PrimeBDS"):
     MANAGED_PERMISSIONS_LIST.clear()
     MANAGED_PERMISSIONS_LIST.extend(combined)
 
-    for perm in exempt_perms:
+    for perm in EXTRA_PERMS:
         if perm not in MANAGED_PERMISSIONS_LIST:
             MANAGED_PERMISSIONS_LIST.append(perm)
 

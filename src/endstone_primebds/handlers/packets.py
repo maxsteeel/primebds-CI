@@ -1,5 +1,5 @@
 from bedrock_protocol.packets import MinecraftPacketIds
-from endstone_primebds.utils.packet_utils.level_sound import LevelSoundEventPacket
+from bedrock_protocol.packets import LevelSoundEventPacket
 from endstone_primebds.utils.packet_utils.add_player import cache_add_player_packet, extract_player_name_from_addplayer
 from endstone.event import PacketSendEvent, PacketReceiveEvent
 

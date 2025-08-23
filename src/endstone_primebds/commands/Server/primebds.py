@@ -235,5 +235,6 @@ def open_module_editor(player: Player, module_name: str, settings: dict, config:
         return
 
     primitives()
+    
 def format_label(key: str) -> str:
     return " ".join(word.capitalize() for word in key.split("_"))
