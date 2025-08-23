@@ -49,7 +49,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     try:
-        sender.teleport(Location(x, y, z, sender.location.pitch, sender.location.yaw, self.server.level.get_dimension(dim)))
+        sender.teleport(Location(self.server.level.get_dimension(dim), x, y, z, sender.location.pitch, sender.location.yaw))
         sender.send_message(f"Teleported to §e{target_name}§r's last logout location at §e({x:.1f}, {y:.1f}, {z:.1f} / {dim})")
     except Exception as e:
         sender.send_message(f"§cFailed to teleport to {target_name}'s logout location")
