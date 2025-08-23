@@ -1,7 +1,6 @@
 import struct
 
 from endstone import Player
-from endstone_primebds.utils.packet_utils.packet_util import MinecraftPacketIds,  Packet
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

@@ -2,12 +2,10 @@ from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.packet_utils.add_player import return_cached_add_player_packet
-from endstone_primebds.utils.packet_utils.remove_entity import RemoveEntityPacket
-from endstone_primebds.utils.packet_utils.packet_util import MinecraftPacketIds
-from endstone_primebds.utils.packet_utils.player_list import ActionType
+from bedrock_protocol.packets import RemoveActorPacket
 from endstone_primebds.utils.config_util import load_config
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
@@ -38,16 +36,14 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if new_vanish_status == 0:
         reveal_player(self, sender)
-        # update_list(self, [])
     else:
         hide_player(self, sender)
-        # update_list(self, [sender.unique_id])
 
     return True
 
 def hide_player(self: "PrimeBDS", target: Player):
     """Hide a player from all other online players."""
-    packet = RemoveEntityPacket(target.id)
+    packet = RemoveActorPacket(target.runtime_id)
     id = packet.get_packet_id()
     payload = packet.serialize()
 
@@ -77,18 +73,3 @@ def reveal_player(self: "PrimeBDS", target: Player):
             player.send_packet(add_player_packet_id, payload)
         if send_on_vanish:
             player.send_message(f"{join_message.replace('{player}', target.name)}")
-
-def should_send_playerlist_packet(payload: bytes, blocked_names: set[str]) -> bool:
-    try:
-        # Decode the payload as UTF-8 for string search (ignore errors)
-        payload_str = payload.decode("utf-8", errors="ignore")
-    except Exception:
-        # If decoding fails, safer to send packet anyway
-        return True
-
-    # Check if any blocked player name is in the packet string
-    for name in blocked_names:
-        if name in payload_str:
-            return False  # Found a blocked player name, don't send
-
-    return True  # No blocked names found, send packet

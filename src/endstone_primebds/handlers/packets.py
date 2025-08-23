@@ -1,5 +1,5 @@
-from endstone_primebds.utils.packet_utils.packet_util import MinecraftPacketIds
-from endstone_primebds.utils.packet_utils.level_sound import LevelSoundPacket
+from bedrock_protocol.packets import MinecraftPacketIds
+from endstone_primebds.utils.packet_utils.level_sound import LevelSoundEventPacket
 from endstone_primebds.utils.packet_utils.add_player import cache_add_player_packet, extract_player_name_from_addplayer
 from endstone.event import PacketSendEvent, PacketReceiveEvent
 
@@ -16,10 +16,11 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
         if user is not None and getattr(user, "is_vanish", None):
             ev.is_cancelled = True
 
-    elif ev.packet_id == MinecraftPacketIds.LevelSound:
-        packet = LevelSoundPacket()
+    elif ev.packet_id == MinecraftPacketIds.LevelSoundEvent:
+        packet = LevelSoundEventPacket()
         packet.deserialize(ev.payload)
         entity_id = packet.actor_unique_id
+        print(entity_id)
         user = self.db.get_online_user_by_unique_id(entity_id)
         if user is not None and getattr(user, "is_vanish", None):
             ev.is_cancelled = True

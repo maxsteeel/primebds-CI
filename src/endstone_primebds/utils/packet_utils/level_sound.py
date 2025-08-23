@@ -1,6 +1,6 @@
 from endstone_primebds.utils.packet_utils.packet_util import MinecraftPacketIds, Packet, BufferWriter, BufferReader
 
-class LevelSoundPacket(Packet):
+class LevelSoundEventPacket(Packet):
     def __init__(self,
                  sound_type: int = 0,
                  x: float = 0.0,
