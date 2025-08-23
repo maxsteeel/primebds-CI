@@ -54,6 +54,7 @@ class PrimeBDS(Plugin):
     authors = ["PrimeStrat"]
     name = "primebds"
     description = "An essentials plugin for diagnostics, stability, and quality of life on Minecraft Bedrock Edition."
+    website = "https://github.com/PrimeStrat/primebds"
 
     commands = preloaded_commands
     permissions = preloaded_permissions
