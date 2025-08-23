@@ -14,7 +14,7 @@ MODERATION_COMMANDS = {
     "kick", "ban", "pardon", "unban",
     "permban", "tempban", "tempmute",
     "mute", "ipban", "unmute", "warn",
-    "ban-ip", "unban-ip"
+    "ban-ip", "unban-ip", "banlist"
 }
 MSG_CMDS = {"me", "tell", "w", "whisper", "msg"}
 PARSE_COMMANDS = (
@@ -95,7 +95,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         event.is_cancelled = True
         return True
 
-    if cmd == "ban-ip" or cmd == "unban-ip":
+    if cmd == "ban-ip" or cmd == "unban-ip" or cmd == "banlist":
         event.is_cancelled = True
         return False
     elif cmd == "ban" and len(args) > 1:

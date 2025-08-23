@@ -93,8 +93,6 @@ MINECRAFT_PERMISSIONS = [
 ]
 
 EXCLUDED_PERMISSIONS = [
-    "minecraft",
-    "minecraft.command",
     "endstone",
     "endstone.command",
     "minecraft.command.permission",

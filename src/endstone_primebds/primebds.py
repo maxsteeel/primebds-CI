@@ -255,6 +255,7 @@ class PrimeBDS(Plugin):
         player.add_attachment(self, "endstone.command.banip", False)
         player.add_attachment(self, "endstone.command.unbanip", False)
         player.add_attachment(self, "endstone.command.banlist", False)
+        player.add_attachment(self, "minecraft.command.permission", False)
 
         perms_to_apply = [
             (perm, value)
