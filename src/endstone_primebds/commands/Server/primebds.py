@@ -103,105 +103,137 @@ def open_module_editor(player: Player, module_name: str, settings: dict, config:
     subkeys = [k for k, v in settings.items() if isinstance(v, dict)]
     primitive_keys = [k for k, v in settings.items() if not isinstance(v, dict)]
 
-    if "combat" in module_name:
-        return
+    def primitives():
+        if primitive_keys:
+            form = ModalFormData()
+            form.title(f"{format_label(module_name)} Configuration")
+            field_map = []
 
-    if primitive_keys:
-        form = ModalFormData()
-        form.title(f"{format_label(module_name)} Configuration")
-        field_map = []
+            for key in primitive_keys:
+                value = settings[key]
+                value_type = type(value)
+                field_map.append((key, value_type))
 
-        for key in primitive_keys:
-            value = settings[key]
-            value_type = type(value)
-            field_map.append((key, value_type))
-
-            if isinstance(value, bool):
-                form.toggle(format_label(key), value)
-            else:
-                form.text_field(format_label(key), str(value), str(value))
-
-        form.submit_button("Save Changes")
-
-        def submit_modal(player: Player, response: ModalFormResponse):
-            if response.canceled:
-                open_config_categories(player)
-                return
-
-            new_values = response.formValues
-            updated = {}
-
-            for i, (key, value_type) in enumerate(field_map):
-                old_value = settings[key]
-                new_value = new_values[i]
-
-                if value_type == bool:
-                    new_value = bool(new_value)
-                if value_type == int:
-                    try:
-                        new_value = int(new_value)
-                    except ValueError:
-                        new_value = old_value
-                elif value_type == float:
-                    try:
-                        new_value = float(new_value)
-                    except ValueError:
-                        new_value = old_value
-                elif value_type == list:
-                    new_value = [x.strip() for x in str(new_value).split(",") if x.strip()]
+                if isinstance(value, bool):
+                    form.toggle(format_label(key), value)
                 else:
-                    if not isinstance(new_value, bool):
-                        new_value = str(new_value)
+                    form.text_field(format_label(key), str(value), str(value))
 
-                settings[key] = new_value
-                updated[key] = new_value
+            form.submit_button("Save Changes")
 
-            save_config(config, True)
+            def submit_modal(player: Player, response: ModalFormResponse):
+                if response.canceled:
+                    open_config_categories(player)
+                    return
 
-            if updated:
-                player.send_message(f"§aUpdated values for {format_label(module_name)}")
+                new_values = response.formValues
+                updated = {}
 
-            if subkeys:
-                open_module_editor(player, module_name, settings, config, parent_name)
+                for i, (key, value_type) in enumerate(field_map):
+                    old_value = settings[key]
+                    new_value = new_values[i]
 
-        form.show(player).then(lambda player=player, response=ModalFormResponse: submit_modal(player, response))
-        return
+                    if value_type == bool:
+                        new_value = bool(new_value)
+                    if value_type == int:
+                        try:
+                            new_value = int(new_value)
+                        except ValueError:
+                            new_value = old_value
+                    elif value_type == float:
+                        try:
+                            new_value = float(new_value)
+                        except ValueError:
+                            new_value = old_value
+                    elif value_type == list:
+                        new_value = [x.strip() for x in str(new_value).split(",") if x.strip()]
+                    else:
+                        if not isinstance(new_value, bool):
+                            new_value = str(new_value)
 
-    if subkeys:
+                    settings[key] = new_value
+                    updated[key] = new_value
+
+                save_config(config, True)
+
+                if updated:
+                    player.send_message(f"§aUpdated values for {format_label(module_name)}")
+
+                if subkeys:
+                    open_module_editor(player, module_name, settings, config, parent_name)
+
+            form.show(player).then(lambda player=player, response=ModalFormResponse: submit_modal(player, response))
+            return
+
+        if subkeys:
+            form = ActionFormData()
+            form.title(f"{format_label(module_name)} Subcategories")
+            form.body("Select a subcategory to edit:")
+
+            for sub in subkeys:
+                form.button(f"§4{format_label(sub)}")
+
+            form.button("Back")
+            form.button("Close")
+
+            def submit_action(player: Player, result: ActionFormResponse):
+                if result.canceled:
+                    open_config_categories(player)
+                    return
+
+                selected_index = result.selection
+                if selected_index is None:
+                    open_config_categories(player)
+                    return
+
+                if selected_index == len(subkeys):
+                    if parent_name:
+                        open_module_editor(player, parent_name, config[parent_name], config)
+                    else:
+                        open_config_categories(player)
+                    return
+
+                if selected_index == len(subkeys) + 1:
+                    return
+
+                chosen_key = subkeys[selected_index]
+                open_module_editor(player, chosen_key, settings[chosen_key], config, module_name)
+
+            form.show(player).then(lambda player=player, result=ActionFormResponse: submit_action(player, result))
+
+    if module_name.lower() == "combat":
         form = ActionFormData()
-        form.title(f"{format_label(module_name)} Subcategories")
-        form.body("Select a subcategory to edit:")
+        form.title("Combat Configuration")
+        form.body("Select what to edit:")
 
-        for sub in subkeys:
-            form.button(f"§4{format_label(sub)}")
-
+        form.button("Normal Settings")
+        form.button("Projectiles")
+        form.button("Tag Overrides")
         form.button("Back")
-        form.button("Close")
 
-        def submit_action(player: Player, result: ActionFormResponse):
-            if result.canceled:
+        def submit_combat(player: Player, result: ActionFormResponse):
+            if result.canceled or result.selection is None:
                 open_config_categories(player)
                 return
 
-            selected_index = result.selection
-            if selected_index is None:
-                open_config_categories(player)
+            if result.selection == 0:
+                primitives()
                 return
-
-            if selected_index == len(subkeys):
+            elif result.selection == 1:
+                #open_projectiles_modal(player, settings["projectiles"], config)
+                return
+            elif result.selection == 2:
+                #open_tag_override_list(player, settings, config)
+                return
+            elif result.selection == 3:
                 if parent_name:
                     open_module_editor(player, parent_name, config[parent_name], config)
                 else:
                     open_config_categories(player)
-                return
 
-            if selected_index == len(subkeys) + 1:
-                return
+        form.show(player).then(lambda player=player, result=ActionFormResponse: submit_combat(player, result))
+        return
 
-            chosen_key = subkeys[selected_index]
-            open_module_editor(player, chosen_key, settings[chosen_key], config, module_name)
-
-        form.show(player).then(lambda player=player, result=ActionFormResponse: submit_action(player, result))
-
+    primitives()
 def format_label(key: str) -> str:
     return " ".join(word.capitalize() for word in key.split("_"))
