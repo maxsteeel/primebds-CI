@@ -13,8 +13,7 @@ command, permission = create_command(
     "ping",
     "Checks the server ping!",
     ["/ping [player: player]"],
-    ["primebds.command.ping"],
-    "true"
+    ["primebds.command.ping"]
 )
 
 # PING COMMAND FUNCTIONALITY

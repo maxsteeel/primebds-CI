@@ -13,8 +13,7 @@ command, permission = create_command(
     "playtime",
     "Displays your total playtime or the server leaderboard.",
     ["/playtime [leaderboard: bool]"],
-    ["primebds.command.playtime"],
-    "true"
+    ["primebds.command.playtime"]
 )
 
 # PLAYTIME COMMAND FUNCTIONALITY
