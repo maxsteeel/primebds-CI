@@ -39,39 +39,26 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if subaction in "settrue":
         permission = args[2]
         player = self.server.get_player(target)
-        if player:
-            player.add_attachment(self, permission, True)
-            player.update_commands()
-            player.recalculate_permissions()
-
         self.db.set_permission(user.xuid, permission, True)
+        if player:
+            self.reload_custom_perms(player)
         sender.send_message(f"§e{permission} §fpermission for §e{target} §fwas set to §atrue")
 
     elif subaction == "setfalse":
         permission = args[2]
         player = self.server.get_player(target)
-        if player:
-            player.add_attachment(self, permission, False)
-            player.update_commands()
-            player.recalculate_permissions()
-
         self.db.set_permission(user.xuid, permission, False)
+        if player:
+            self.reload_custom_perms(player)
         sender.send_message(f"§e{permission} §fpermission for §e{target} §fwas set to §cfalse")
 
     elif subaction == "setneutral":
         permission = args[2]
         player = self.server.get_player(target)
         self.db.delete_permission(user.xuid, permission)
-
         if player:
-            if player.permission_level.name == "DEFAULT":
-                player.add_attachment(self, permission, check_perms(self, player, permission, True))
-            else:
-                player.add_attachment(self, permission, True)
+            self.reload_custom_perms(player)
 
         sender.send_message(f"§e{permission} §fpermission for §e{target} §fwas set to §7neutral")
-    
-    player.recalculate_permissions()
-    player.update_commands()
 
     return True
