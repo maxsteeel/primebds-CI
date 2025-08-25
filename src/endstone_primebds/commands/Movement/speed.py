@@ -14,24 +14,42 @@ command, permission = create_command(
     [
         "/speed <value: float>",
         "/speed (flyspeed|walkspeed)<attribute: attribute> <value: float> [player: player]",
-        "/speed (reset)<reset_attribute: reset_attribute> (flyspeed|walkspeed)<attribute_target: attribute_target> [player: player]"
+        "/speed (reset)<reset_attribute: reset_attribute> (flyspeed|walkspeed)[attribute_target: attribute_target] [player: player]"
     ],
     ["primebds.command.speed"]
 )
-
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not isinstance(sender, Player) and len(args) < 3:
         sender.send_error_message("This command can only be executed by a player if no player is specified.")
         return False
 
     if len(args) == 1:
-        if sender.is_flying:
-            sender.send_message(f"§e{sender.name}'s §bflyspeed §rchanged from §e{round(sender.fly_speed, 1)} §rto §e{float(args[0])}")
-            sender.fly_speed = float(args[0])
-        elif sender.is_on_ground:
-            sender.send_message(f"§e{sender.name}'s §bwalkspeed §rchanged from §e{round(sender.walk_speed, 1)} §rto §e{float(args[0])}")
-            sender.walk_speed = float(args[0])
-        return True
+        arg = args[0].lower()
+
+        try:
+            value = float(arg)
+            if sender.is_flying:
+                sender.send_message(
+                    f"§e{sender.name}'s §bflyspeed §rchanged from §e{round(sender.fly_speed, 2)} §rto §e{value}"
+                )
+                sender.fly_speed = value
+            else:
+                sender.send_message(
+                    f"§e{sender.name}'s §bwalkspeed §rchanged from §e{round(sender.walk_speed, 2)} §rto §e{value}"
+                )
+                sender.walk_speed = value
+            return True
+        except ValueError:
+            pass 
+
+        if arg == "reset":
+            if sender.is_flying:
+                sender.fly_speed = 0.05
+                sender.send_message(f"§e{sender.name}'s §bflyspeed §rwas reset to default")
+            else:
+                sender.walk_speed = 0.1
+                sender.send_message(f"§e{sender.name}'s §bwalkspeed §rwas reset to default")
+            return True
 
     is_reset = args[0].lower() == "reset"
 

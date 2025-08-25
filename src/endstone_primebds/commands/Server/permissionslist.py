@@ -2,7 +2,7 @@ from collections import defaultdict
 from endstone import Player
 from endstone.command import CommandSender, BlockCommandSender
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.internal_permissions_util import EXCLUDED_PERMISSIONS, MANAGED_PERMISSIONS_LIST
+from endstone_primebds.utils.internal_permissions_util import MANAGED_PERMISSIONS_LIST
 
 from endstone_primebds.utils.form_wrapper_util import (
     ActionFormData,
@@ -42,8 +42,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if len(args) == 0:
         grouped_perms = defaultdict(list)
         for perm in MANAGED_PERMISSIONS_LIST:
-            if perm in EXCLUDED_PERMISSIONS:
-                continue
             prefix = perm.split(".", 1)[0].lower()
             grouped_perms[prefix].append(perm)
 
@@ -78,8 +76,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     grouped_perms = defaultdict(list)
 
     for perm in MANAGED_PERMISSIONS_LIST:
-        if perm in EXCLUDED_PERMISSIONS:
-                continue
         if player.has_permission(perm):
             prefix = perm.split(".", 1)[0].lower()
             grouped_perms[prefix].append(perm)

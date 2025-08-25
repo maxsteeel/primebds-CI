@@ -65,7 +65,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         if player:
             if player.permission_level.name == "DEFAULT":
-                player.add_attachment(self, permission, check_perms(self, player, permission))
+                player.add_attachment(self, permission, check_perms(self, player, permission, True))
             else:
                 player.add_attachment(self, permission, True)
 

@@ -3,6 +3,7 @@ import threading
 import time
 import traceback
 from endstone import Player
+from endstone.permissions import PermissionAttachment, PermissionLevel
 from endstone.plugin import Plugin
 from endstone.command import Command, CommandSender
 
@@ -37,7 +38,7 @@ from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, Play
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, BlockBreakEvent, BlockPlaceEvent,
                             PlayerInteractEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
                             PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent, 
-                            PacketReceiveEvent)
+                            PacketReceiveEvent, ServerLoadEvent)
 from endstone_primebds.handlers.chat import handle_chat_event
 from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
 from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event
@@ -154,17 +155,17 @@ class PrimeBDS(Plugin):
     def on_player_int(self, ev: PlayerInteractEvent):
         handle_player_interact(self, ev)
 
+    @event_handler()
+    def on_server_load(self, ev: ServerLoadEvent):
+        load_perms(self)
+        for player in self.server.online_players:
+            self.reload_custom_perms(player)
+
     def on_load(self):
         plugin_text()
 
     def on_enable(self):
         self.register_events(self)
-
-        self.server.scheduler.run_task(self, load_perms(self), 5)
-
-        for player in self.server.online_players:
-            self.reload_custom_perms(player)
-
         self.db.migrate_table("users", User)
         self.db.migrate_table("mod_logs", ModLog)
         self.serverdata.migrate_table("server_info", ServerData)
@@ -241,44 +242,29 @@ class PrimeBDS(Plugin):
         user_permissions = self.db.get_permissions(player.xuid)
         managed_perms = MANAGED_PERMISSIONS_LIST[:]
 
-        final_permissions = {}
-
-        for rperm in managed_perms:
-            final_permissions[rperm] = False
-
+        final_permissions = {rperm: False for rperm in managed_perms}
         for perm in permissions:
             final_permissions[perm] = True
-
         for perm, allowed in user_permissions.items():
             final_permissions[perm] = allowed
 
-        attachment = player.add_attachment(self, "PrimeBDSPerms", True)
+        perms_to_apply = list(final_permissions.items())
+        attachment = player.add_attachment(self, "PrimeBDSOverride", True)
+
+        for perm, value in perms_to_apply:
+            if perm == "minecraft" or perm == "minecraft.command":
+                continue
+            elif perm == "endstone" or perm == "endstone.command":
+                continue
+            else:
+                attachment.set_permission(perm, value)
+
         player.add_attachment(self, "endstone.command.banip", False)
         player.add_attachment(self, "endstone.command.unbanip", False)
         player.add_attachment(self, "endstone.command.banlist", False)
-        player.add_attachment(self, "minecraft.command.permission", False)
-
-        perms_to_apply = [
-            (perm, value)
-            for perm, value in final_permissions.items()
-            if player.has_permission(perm) != value
-        ]
-
-        batch_size = 300
-
-        def apply_batch(start_index=0):
-            end_index = min(start_index + batch_size, len(perms_to_apply))
-            for perm, value in perms_to_apply[start_index:end_index]:
-                attachment.set_permission(perm, value)
-
-            if end_index < len(perms_to_apply):
-                self.server.scheduler.run_task(self, lambda: apply_batch(end_index), 1)
-            else:
-                player.update_commands()
-                player.recalculate_permissions()
-                invalidate_perm_cache(self, player.xuid)
-
-        self.server.scheduler.run_task(self, lambda: apply_batch(0), 1)
+        player.update_commands()
+        player.recalculate_permissions()
+        invalidate_perm_cache(self, player.xuid)
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically"""

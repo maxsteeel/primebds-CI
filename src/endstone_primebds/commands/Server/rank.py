@@ -68,19 +68,24 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             return False
 
         proper_rank = ranks_map[new_rank_lower]
-        self.db.update_user_data(target, 'internal_rank', proper_rank)
 
-        player = self.server.get_player(target)
-        if player:
-            if proper_rank.lower() == "operator":
-                self.server.dispatch_command(self.server.command_sender, f"op \"{target}\"")
-            else:
-                self.server.dispatch_command(self.server.command_sender, f"deop \"{target}\"")
+        if proper_rank == user.internal_rank:
+            sender.send_message(f"Player §e{target} §falready is set to this rank")
+            return False
+        else:
+            self.db.update_user_data(target, 'internal_rank', proper_rank)
 
-            self.reload_custom_perms(player)
+            player = self.server.get_player(target)
+            if player:
+                if proper_rank.lower() == "operator":
+                    self.server.dispatch_command(self.server.command_sender, f"op \"{target}\"")
+                else:
+                    self.server.dispatch_command(self.server.command_sender, f"deop \"{target}\"")
+                    
+                self.reload_custom_perms(player)
 
-        sender.send_message(f"Player §e{target}'s §frank was updated to §e{proper_rank}")
-        return True
+            sender.send_message(f"Player §e{target}'s §frank was updated to §e{proper_rank}")
+            return True
 
     elif subaction == "create":
         rank_name = args[1]

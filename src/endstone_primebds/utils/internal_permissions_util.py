@@ -57,6 +57,7 @@ MINECRAFT_PERMISSIONS = [
     "minecraft.command.recipe",
     "minecraft.command.replaceitem",
     "minecraft.command.ride",
+    "minecraft.command.reload",
     "minecraft.command.save",
     "minecraft.command.say",
     "minecraft.command.schedule",
@@ -92,16 +93,6 @@ MINECRAFT_PERMISSIONS = [
     "minecraft.command.ride",
 ]
 
-EXCLUDED_PERMISSIONS = [
-    "endstone",
-    "endstone.command",
-    "minecraft.command.permission",
-    "endstone.command.devtools",
-    "endstone.command.banip",
-    "endstone.command.unbanip",
-    "endstone.command.banlist"
-]
-
 EXTRA_PERMS = [
     "primebds.exempt.msgtoggle",
     "primebds.exempt.globalmute",
@@ -125,8 +116,9 @@ def load_perms(self: "PrimeBDS"):
         perms = data.permissions
         for attachment in perms:
             perm_lower = attachment.name.lower()
-            plugin_perms.add(perm_lower)
-            plugin_perm_set.add(perm_lower)
+            if perm_lower not in {"endstone.command.banip", "endstone.command.unbanip", "endstone.command.banlist"}:
+                plugin_perms.add(perm_lower)
+                plugin_perm_set.add(perm_lower)
 
         if plugin.name == "primebds":
             for perm in EXTRA_PERMS:
@@ -186,14 +178,12 @@ def get_rank_permissions(rank: str) -> list[str]:
 
         if "*" in perms:
             for perm in MANAGED_PERMISSIONS_LIST:
-                if perm not in seen_perms and perm not in EXCLUDED_PERMISSIONS:
+                if perm not in seen_perms:
                     result.append(perm)
                     seen_perms.add(perm)
 
         for perm in perms:
             perm = perm.lower()
-            if perm in EXCLUDED_PERMISSIONS:
-                continue  # skip excluded perms
 
             if perm.startswith("primebds.rank."):
                 inherited_rank = perm[len("primebds.rank."):]
@@ -207,11 +197,11 @@ def get_rank_permissions(rank: str) -> list[str]:
 
 perm_cache = {}
 
-def check_perms(self: "PrimeBDS", player_or_user, perm: str) -> bool:
+def check_perms(self: "PrimeBDS", player_or_user, perm: str, check_rank = False) -> bool:
     now = time.time()
     xuid = getattr(player_or_user, "xuid", None)
 
-    if hasattr(player_or_user, "has_permission"):
+    if hasattr(player_or_user, "has_permission") and check_rank == False:
         return player_or_user.has_permission(perm)
 
     if xuid is None:

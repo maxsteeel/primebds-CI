@@ -14,6 +14,8 @@ os.makedirs(CONFIG_FOLDER, exist_ok=True)
 
 PERMISSIONS_DEFAULT = {
         "Default": [
+            "endstone.broadcast",
+            "endstone.broadcast.user",
             "endstone.command.version",
             "endstone.command.plugins",
             "primebds.command.ping",
@@ -21,7 +23,7 @@ PERMISSIONS_DEFAULT = {
             "minecraft.command.list",
             "minecraft.command.help",
             "minecraft.command.tell",
-            "minecraft.command.me"
+            "minecraft.command.me",
         ],
         "Operator": [
             "*"

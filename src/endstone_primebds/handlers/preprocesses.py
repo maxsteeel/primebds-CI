@@ -21,6 +21,7 @@ PARSE_COMMANDS = (
     MODERATION_COMMANDS
     | MSG_CMDS
     | {"ban", "unban", "pardon", "op", "deop", "allowlist", "whitelist", "transfer"}
+    | {"teleport", "tp"}
 )
 
 def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
@@ -68,16 +69,6 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
     if config["modules"]["discord_logging"]["commands"]["enabled"]:
         discordRelay(f"**{player.name}** ran: {command}", "cmd")
 
-    player_db = self.db.get_online_user(player.xuid)
-    player_perm = player.permission_level.name.lower()
-    if player_perm == "default" and player_db.internal_rank.lower() == "operator":
-        self.server.dispatch_command(self.server.command_sender, f"rank set \"{player.name}\" default")
-        player.send_message("Permissions were manually changed and have been updated! Try again!")
-        event.is_cancelled = True
-        return True
-    elif player_perm == "op" and player_db.internal_rank.lower() == "default":
-        self.server.dispatch_command(self.server.command_sender, f"rank set \"{player.name}\" op")
-
     is_exempt = False
     if cmd in MODERATION_COMMANDS and len(args) >= 2 and "@" not in args[1]:
         target = self.db.get_offline_user(args[1])
@@ -95,6 +86,10 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         event.is_cancelled = True
         return True
 
+    if (cmd == "teleport" or cmd == "tp") and player.has_permission("minecraft.command.teleport") and not player.is_op: # Bypass TP exception
+        self.server.dispatch_command(self.server.command_sender, f"execute as \"{player.name}\" at \"{player.name}\" run {command}")
+        event.is_cancelled = True
+        return False
     if cmd == "ban-ip" or cmd == "unban-ip" or cmd == "banlist":
         event.is_cancelled = True
         return False
@@ -135,20 +130,21 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
             self.db.check_and_update_mute(player.xuid, player.name)
             event.is_cancelled = True
             return True
-        
         target = args[1]
         if "@" in target:
             player.send_message("§cTarget selectors are invalid for this command")
             event.is_cancelled = True
             return True
         
-        if self.db.get_offline_user(target).enabled_mt == 0 and not player.has_permission("primebds.exempt.msgtoggle"):
-            player.send_message("§cThis player has private messages disabled")
-            event.is_cancelled = True
-            return True
+        self.db.update_user_data(player.name, 'last_messaged', target)
+        target_user = self.db.get_offline_user(target)
+        if target_user is not None:
+            if target_user.enabled_mt == 0 and not player.has_permission("primebds.exempt.msgtoggle"):
+                player.send_message("§cThis player has private messages disabled")
+                event.is_cancelled = True
+                return True
 
         message = " ".join(args[2:]) if len(args) > 2 else ""
-        self.db.update_user_data(player.name, 'last_messaged', target)
         discordRelay(f"**{player.name} -> {target}**: {message}", "chat")
 
         for pl in self.server.online_players:

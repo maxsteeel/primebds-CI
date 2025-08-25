@@ -43,7 +43,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
 def hide_player(self: "PrimeBDS", target: Player):
     """Hide a player from all other online players."""
-    packet = RemoveActorPacket(target.runtime_id)
+    packet = RemoveActorPacket(target.id)
     id = packet.get_packet_id()
     payload = packet.serialize()
 
