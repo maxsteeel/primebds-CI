@@ -16,7 +16,6 @@ def handle_block_break(self: "PrimeBDS", ev: BlockBreakEvent):
 
     if is_gl_enabled:
         
-
         if self.dbgl.get_user_toggle(ev.player.xuid, ev.player.name)[3]:
             logs = self.dbgl.get_logs_by_coordinates(ev.block.x, ev.block.y, ev.block.z)
             sendgrieflog(logs, ev.player)
@@ -44,7 +43,6 @@ def handle_block_place(self: "PrimeBDS", ev: BlockPlaceEvent):
     is_gl_enabled = config["modules"]["grieflog"]["enabled"]
 
     if is_gl_enabled:
-        
 
         if self.dbgl.get_user_toggle(ev.player.xuid, ev.player.name)[3]:
             logs = self.dbgl.get_logs_by_coordinates(ev.block.x, ev.block.y, ev.block.z)
