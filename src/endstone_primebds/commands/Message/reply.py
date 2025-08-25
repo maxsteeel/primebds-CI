@@ -1,6 +1,6 @@
+from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.config_util import load_config
 
 from typing import TYPE_CHECKING
 
@@ -18,6 +18,11 @@ command, permission = create_command(
 )
 
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
+
+    if not isinstance(sender, Player):
+        sender.send_message("This command can only be executed by a player")
+        return False
+
     player = self.server.get_player(sender.name)
     user = self.db.get_online_user(player.xuid)
     last_messaged = user.last_messaged
