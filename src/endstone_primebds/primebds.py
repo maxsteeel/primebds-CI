@@ -251,11 +251,25 @@ class PrimeBDS(Plugin):
         perms_to_apply = list(final_permissions.items())
         attachment = player.add_attachment(self, "PrimeBDSOverride", True)
 
+        plugin_stars = {}
+        internal = {"minecraft", "minecraft.command", "endstone", "endstone.command"}
+        for plugin in self.server.plugin_manager.plugins:
+            if plugin.is_enabled:
+                for perm, value in perms_to_apply:
+                    if perm in internal:
+                        continue
+                    prefix = perm.split(".")[0]
+                    cmd = f"{prefix}.command"
+                    if prefix == perm or cmd == perm:
+                        plugin_stars[prefix] = value
+                        
         for perm, value in perms_to_apply:
-            if perm == "minecraft" or perm == "minecraft.command":
+            if perm in internal:
                 continue
-            elif perm == "endstone" or perm == "endstone.command":
-                continue
+
+            prefix = perm.split(".")[0]
+            if prefix in plugin_stars:
+                attachment.set_permission(perm, plugin_stars[prefix])
             else:
                 attachment.set_permission(perm, value)
 
