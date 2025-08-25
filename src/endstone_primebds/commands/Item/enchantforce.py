@@ -23,7 +23,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
 
     target_selector = args[0]
-    enchant_name = args[1]
+    enchant_name = args[1].lower()
 
     level = 1
     if len(args) >= 3:

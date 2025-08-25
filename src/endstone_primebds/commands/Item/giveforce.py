@@ -27,7 +27,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
 
     target_selector = args[0]
-    block_id = args[1]
+    block_id = args[1].lower()
     amount = 1
     
     if len(args) >= 3:
@@ -50,6 +50,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
     
     try:
+        if "invisiblebedrock" in block_id:
+            block_id = "invisible_bedrock"
         block = ItemStack(block_id, amount)
     except Exception:
         sender.send_message("§cInvalid block ID")
