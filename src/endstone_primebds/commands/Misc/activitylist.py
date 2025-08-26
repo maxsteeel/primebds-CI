@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "activitylist",
     "Lists players by activity filter (highest, lowest, or recent)!",
-    ["/activitylist [page: int] (highest|lowest|recent)[filter: activity_filter]"],
+    ["/activitylist [page: int] (highest|lowest|recent)[filter: filter]"],
     ["primebds.command.activitylist"]
 )
 

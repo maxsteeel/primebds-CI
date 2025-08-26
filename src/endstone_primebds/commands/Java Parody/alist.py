@@ -16,9 +16,11 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "alist",
     "Manages server allowlist profiles and server allowlist!",
-    ["/alist", "/alist (list|check|profiles)<allowlist_sub: allowlist_list>",
-     "/alist (add|remove)<allowlist_sub: allowlist_sub_action> <player: string> [ignore_max_player_limit: bool]",
-     "/alist (create|use|delete)<allowlist: allowlist_action> <name: string>"],
+    [
+        "/alist (list|check|profiles)<allowlist_sub: allowlist_list>",
+        "/alist (add|remove)<allowlist_sub: allowlist_sub_action> <player: string> [ignore_max_player_limit: bool]",
+        "/alist (create|use|delete)<allowlist: allowlist_action> <name: string>"
+    ],
     ["primebds.command.alist"],
     "op",
     ["wlist"]

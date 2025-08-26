@@ -1,3 +1,4 @@
+import re
 from endstone import Player
 from endstone.command import CommandSender
 
@@ -19,24 +20,165 @@ command, permission = create_command(
 # PRIMEBDS FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not isinstance(sender, Player):
-        sender.send_error_message("This command can only be executed by a player")
+        sender.send_error_message("§cThis command can only be executed by a player")
         return True
     
     if len(args) == 0:
         sender.send_message(f"§dPrimeBDS\n§d{self.description}\n\n§dIf this plugin has helped you at all, consider leaving a star:\n§e@ https://github.com/PrimeStrat/primebds\n\n§dConfused on how something works?\nVisit the wiki:\n§e@ https://github.com/PrimeStrat/primebds/wiki")
         return True
 
-    if args[0].lower() == "config":
+    if args[0].lower() == "config" and sender.is_op:
         open_config_categories(sender)
+    elif args[0].lower() == "config" and not sender.is_op:
+        sender.send_error_message("§cOnly operators can modify the server config")
     elif args[0].lower() == "command":
-        command_form(sender)
+        command_form(self, sender)
     elif args[0].lower() == "info":
         sender.send_message(f"§dPrimeBDS\n§d{self.description}\n\n§dIf this plugin has helped you at all, consider leaving a star:\n§e@ https://github.com/PrimeStrat/primebds\n\n§dConfused on how something works?\nVisit the wiki:\n§e@ https://github.com/PrimeStrat/primebds/wiki")
 
     return True
 
-def command_form(sender):
-    return
+def command_form(self: "PrimeBDS", sender: Player):
+    form = ActionFormData()
+    form.title("Command GUI")
+    form.body("Choose a command to run:")
+
+    cmds = [self.get_command(c) for c in self.commands if self.get_command(c)]
+    filtered_cmds = [c for c in cmds if not c.permissions or sender.has_permission(c.permissions[0])]
+    filtered_cmds.sort(key=lambda c: c.name.lower())
+
+    for cmd in filtered_cmds:
+        form.button(f"§4/{cmd.name}")
+
+    def submit(player: Player, result: ActionFormResponse):
+        if result.canceled or result.selection >= len(filtered_cmds):
+            return
+        cmd = filtered_cmds[result.selection]
+        open_usage_selector(self, player, cmd)
+
+    form.show(sender).then(lambda player=sender, result=None: submit(player, result))
+
+def open_usage_selector(self: "PrimeBDS", player: Player, cmd):
+    usages = cmd.usages
+
+    enum_map = {}
+    non_enum_usages = []
+
+    for usage in usages:
+        parsed_args = parse_usage(usage)
+        if not parsed_args:
+            continue
+        first_arg = parsed_args[0]
+        name, arg_type, required, enum_values = first_arg
+
+        if enum_values:
+            for ev in enum_values:
+                enum_map.setdefault(ev, []).append(usage)
+        else:
+            non_enum_usages.append(usage)
+
+    if enum_map:
+        form = ActionFormData()
+        form.title(f"/{cmd.name} Subcommand")
+        form.body("Choose an option:")
+
+        enum_keys = list(enum_map.keys())
+        for ev in enum_keys:
+            form.button(ev)
+
+        def submit_enum(player: Player, result: ActionFormResponse):
+            if result.canceled:
+                return
+            choice = enum_keys[result.selection]
+            selected_usage = enum_map[choice][0]
+            parsed_args = parse_usage(selected_usage)
+            remaining_args = parsed_args[1:]
+            open_argument_form(self, player, cmd, remaining_args, prefilled=[choice])
+
+        form.show(player).then(lambda player=player, result=None: submit_enum(player, result))
+    else:
+        open_argument_form(self, player, cmd, parse_usage(non_enum_usages[0]) if non_enum_usages else [])
+
+def open_argument_form(self: "PrimeBDS", player: Player, cmd, all_args, prefilled=None):
+    if prefilled is None:
+        prefilled = []
+
+    form = ModalFormData()
+    form.title(f"/{cmd.name}")
+
+    for (name, arg_type, required, enum_values) in all_args:
+        add_argument_field(form, name, arg_type, enum_values)
+
+    def submit_args(p: Player, result: ModalFormResponse):
+        if result.canceled:
+            return
+
+        args = prefilled.copy()
+        for i, (name, arg_type, required, enum_values) in enumerate(all_args):
+            value = result.formValues[i]
+
+            if enum_values:
+                args.append(enum_values[value])
+            elif arg_type == "bool":
+                args.append("true" if value else "false")
+            else:
+                args.append(str(value).strip())
+
+        arg_string = " ".join(args)
+        p.perform_command(f"{cmd.name} {arg_string}")
+
+    form.show(player).then(lambda p=player, result=None: submit_args(p, result))
+
+def add_argument_field(form, name: str, arg_type: str, enum_values: list[str] = None):
+    if enum_values:
+        form.dropdown(f"{name} (enum)", enum_values, 0)
+    elif arg_type == "int":
+        form.text_field(f"{name} (integer)", "10")
+    elif arg_type == "float":
+        form.text_field(f"{name} (float)", "3.14")
+    elif arg_type == "bool":
+        form.toggle(f"{name} (true/false)", False)
+    elif arg_type in ("target", "actor", "entity", "player"):
+        form.text_field(f"{name} (target selector)", "@a, @p, PlayerName")
+    elif arg_type == "str":
+        form.text_field(f"{name} (string)", "Hello")
+    elif arg_type == "block_pos":
+        form.text_field(f"{name} (x y z)", "1 2 3")
+    elif arg_type == "pos":
+        form.text_field(f"{name} (x y z float)", "1.0 2.0 3.0")
+    elif arg_type == "message":
+        form.text_field(f"{name} (message)", "Hello World!")
+    elif arg_type == "json":
+        form.text_field(f"{name} (json)", '{"key":"value"}')
+    elif arg_type == "block":
+        form.text_field(f"{name} (block id)", "stone")
+    elif arg_type == "block_states":
+        form.text_field(f"{name} (block states)", '["wood_type"="birch","stripped_bit"=true]')
+    else:
+        form.text_field(f"{name} (string)", name)
+
+    return form
+
+def parse_usage(usage: str):
+    args = []
+    token_pattern = r"(\([^)]+\))?\s*(<([^>]+)>|\[([^\]]+)\])"
+    for enum_part, _, required_part, optional_part in re.findall(token_pattern, usage):
+        token = required_part or optional_part
+        is_required = bool(required_part)
+
+        parts = token.split(":")
+        if len(parts) == 2:
+            name, arg_type = parts[0].strip(), parts[1].strip()
+        else:
+            name, arg_type = token.strip(), "str"
+
+        enum_values = None
+        if enum_part:
+            enum_values = enum_part.strip("()").split("|")  
+
+        args.append((name, arg_type, is_required, enum_values))
+
+    return args
 
 def open_config_categories(player: Player):
     config = load_config()
