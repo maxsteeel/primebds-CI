@@ -78,10 +78,6 @@ def preload_settings():
             "chat": OrderedDict({
                 "enabled": False,
                 "webhook": ""
-            }),
-            "griefing": OrderedDict({
-                "enabled": False,
-                "webhook": ""
             })
         }),
         "spectator_check": OrderedDict({
@@ -93,13 +89,6 @@ def preload_settings():
         "me_crasher_patch": OrderedDict({
             "enabled": True,
             "ban": False
-        }),
-        "grieflog": OrderedDict({
-            "enabled": False
-        }),
-        "grieflog_storage_auto_delete": OrderedDict({
-            "enabled": False,
-            "removal_time_in_seconds": 1209600
         }),
         "join_leave_messages": OrderedDict({
             "send_on_nick": False,

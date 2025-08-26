@@ -3,7 +3,6 @@ from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
 
-from endstone_primebds.utils.db_util import grieflog, UserDB
 from endstone_primebds.utils.time_util import TimezoneUtils
 from typing import TYPE_CHECKING
 
@@ -45,12 +44,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     # Fetch all user sessions
-    sessions = self.dbgl.get_user_sessions(xuid)
+    sessions = self.slog.get_user_sessions(xuid)
     if not sessions:
         sender.send_message(f"No session history found for {player_name}")
         return True
 
-    total_playtime_seconds = self.dbgl.get_total_playtime(xuid)
+    total_playtime_seconds = self.slog.get_total_playtime(xuid)
     playtime_str = format_time(total_playtime_seconds)
 
     sessions.sort(key=lambda s: s['start_time'], reverse=True)

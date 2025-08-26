@@ -15,7 +15,7 @@ from endstone_primebds.commands import (
 
 from endstone_primebds.commands.Server.monitor import clear_all_intervals
 from endstone_primebds.utils.config_util import load_config
-from endstone_primebds.utils.db_util import UserDB, grieflog, ServerDB, User, ModLog, ServerData
+from endstone_primebds.utils.db_util import UserDB, sessionlog, ServerDB, User, ModLog, ServerData
 from endstone_primebds.utils.internal_permissions_util import check_rank_exists, load_perms, get_rank_permissions, invalidate_perm_cache, MANAGED_PERMISSIONS_LIST
 
 def plugin_text():
@@ -42,7 +42,6 @@ from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, Play
 from endstone_primebds.handlers.chat import handle_chat_event
 from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
 from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event
-from endstone_primebds.handlers.grieflog import handle_block_break, handle_player_interact, handle_block_place
 from endstone_primebds.handlers.combat import handle_kb_event, handle_damage_event
 from endstone_primebds.handlers.multiworld import start_additional_servers, stop_additional_servers, is_nested_multiworld_instance
 from endstone_primebds.handlers.intervals import stop_intervals, init_jail_intervals
@@ -79,7 +78,7 @@ class PrimeBDS(Plugin):
 
         # DB
         self.db = UserDB("users.db")
-        self.dbgl = grieflog("grieflog.db")
+        self.slog = sessionlog("sessionlog.db")
         self.serverdata = ServerDB("server.db")
 
     # EVENT HANDLER
@@ -144,18 +143,6 @@ class PrimeBDS(Plugin):
         handle_chat_event(self, ev)
 
     @event_handler()
-    def on_block_break(self, ev: BlockBreakEvent):
-        handle_block_break(self, ev)
-
-    @event_handler()
-    def on_block_place(self, ev: BlockPlaceEvent):
-        handle_block_place(self, ev)
-
-    @event_handler()
-    def on_player_int(self, ev: PlayerInteractEvent):
-        handle_player_interact(self, ev)
-
-    @event_handler()
     def on_server_load(self, ev: ServerLoadEvent):
         load_perms(self)
         for player in self.server.online_players:
@@ -170,15 +157,7 @@ class PrimeBDS(Plugin):
         self.db.migrate_table("mod_logs", ModLog)
         self.serverdata.migrate_table("server_info", ServerData)
 
-        config = load_config()
-        is_gl_enabled = config["modules"]["grieflog"]["enabled"]
-
-        if is_gl_enabled:
-            if config["modules"]["grieflog_storage_auto_delete"]["enabled"]:
-                self.dbgl.delete_logs_older_than_seconds(
-                    config["modules"]["grieflog_storage_auto_delete"]["removal_time_in_seconds"], 
-                    True
-                )
+        load_config()
 
         init_jail_intervals(self)
         last_shutdown_time = self.serverdata.get_server_info().last_shutdown_time
@@ -194,7 +173,7 @@ class PrimeBDS(Plugin):
         stop_intervals(self)
         clear_all_intervals(self)
         self.db.close_connection()
-        self.dbgl.close_connection()
+        self.slog.close_connection()
 
         self.serverdata.update_server_info("last_shutdown_time", int(time.time()))
         self.serverdata.close_connection()
@@ -214,7 +193,7 @@ class PrimeBDS(Plugin):
         )
 
         query = "SELECT xuid, name, start_time FROM sessions_log WHERE end_time IS NULL"
-        active_sessions = self.dbgl.execute(query).fetchall()
+        active_sessions = self.slog.execute(query).fetchall()
 
         for xuid, player_name, start_time in active_sessions:
             player = self.server.get_player(player_name)
@@ -229,7 +208,7 @@ class PrimeBDS(Plugin):
                 if candidate_end > max_allowed_end:
                     candidate_end = max_allowed_end
 
-                self.dbgl.end_session(xuid, candidate_end)
+                self.slog.end_session(xuid, candidate_end)
 
     def reload_custom_perms(self, player: Player):
         user = self.db.get_online_user(player.xuid)

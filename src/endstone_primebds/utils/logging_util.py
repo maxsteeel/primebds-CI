@@ -82,8 +82,6 @@ def get_webhook_url(type, discord_logging):
         return discord_logging["moderation"]["webhook"]
     elif type == "chat" and discord_logging["chat"]["enabled"]:
         return discord_logging["chat"]["webhook"]
-    elif type == "grief" and discord_logging["griefing"]["enabled"]:
-        return discord_logging["griefing"]["webhook"]
     return None
 
 MAX_RETRIES = 15  # Max retries in case of rate limits
@@ -111,88 +109,3 @@ def send_discord_message(webhook_url, payload):
 
     print("Max retries reached. Failed to send message.")
     return False
-
-def sendgrieflog(logs: list[dict], sender):
-    if not logs: 
-        sender.send_message(f"No grief logs found.")
-        return True
-
-    logs.sort(key=lambda x: x['timestamp'], reverse=True)
-
-    # Split logs into pages of 15 entries each
-    logs_per_page = 15
-    total_pages = (len(logs) + logs_per_page - 1) // logs_per_page  # Calculate total number of pages, fixed calculation
-    current_page = 1
-    show_page(current_page, logs, total_pages, sender, logs_per_page)
-
-    return True
-
-def show_page(current_page, logs, total_pages, sender, logs_per_page):
-    form = ActionFormData()
-    form.title(f"Grief Log Activity ({current_page}/{total_pages})")  
-    start_idx = (current_page - 1) * logs_per_page 
-    end_idx = min(start_idx + logs_per_page, len(logs)) 
-
-    log_text = f"§eFound logs:\n\n"
-
-    for log in logs[start_idx:end_idx]:
-        player_name = log['name']
-        action = log['action']
-        timestamp = log['timestamp']
-        location = log['location']
-        dim = log['dim']
-
-        formatted_time = TimezoneUtils.convert_to_timezone(timestamp, 'EST')
-
-        if dim != None:
-            dim = f'/ §e{dim}§r'
-        else:
-            dim = ''
-
-        # Start building the log text
-        log_text += f"§rUser: §b{player_name}\n§rAction: §a{action}\n§rLocation: §e{location} §r{dim}\n§rTime: §c{formatted_time}\n"
-
-        if 'block_type' in log:
-            block_type = log['block_type']
-            log_text += f"§rBlock Type: {ColorFormat.BLUE}{block_type}\n"
-
-        if 'block_state' in log:
-            block_state = log['block_state']
-            log_text += f"§rBlock State: §d{block_state}\n"
-
-        log_text += "\n"
-
-    form.body(log_text)
-    discordRelay(log_text, "grief")
-
-    # Add navigation buttons
-    form.button("Next Page")
-    form.button("Previous Page")
-
-    # Show the form to the sender
-    form.show(sender).then(
-        lambda player=sender, result=ActionFormResponse: handle_grieflog_response(player, result, current_page, logs, total_pages, sender, logs_per_page)
-    )
-
-def handle_grieflog_response(player, result, current_page, logs, total_pages, sender, logs_per_page):
-    if result.canceled or result.selection is None:
-        return  
-    
-    # Next Page
-    if result.selection == 0:  # Next button
-        if current_page < total_pages:
-            current_page += 1
-        else:
-            current_page = 1  # Loop back to the first page if at the end
-
-    # Previous Page
-    elif result.selection == 1:  # Previous button
-        if current_page > 1:
-            current_page -= 1
-        else:
-            current_page = total_pages  # Loop back to the last page if at the beginning
-
-    # Show the updated page
-    show_page(current_page, logs, total_pages, sender, logs_per_page)
-
-

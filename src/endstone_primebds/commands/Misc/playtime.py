@@ -1,8 +1,6 @@
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
 
-from endstone_primebds.utils.db_util import grieflog
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -24,7 +22,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if len(args) == 0 or args[0].lower() == 'false':
 
         # Fetch total playtime for the player
-        total_playtime_seconds = self.dbgl.get_total_playtime(player.xuid)
+        total_playtime_seconds = self.slog.get_total_playtime(player.xuid)
         total_playtime_minutes = total_playtime_seconds // 60
         total_playtime_hours = total_playtime_minutes // 60
         total_playtime_days = total_playtime_hours // 24
@@ -32,7 +30,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         total_playtime_minutes %= 60
         total_playtime_seconds %= 60
 
-        leaderboard = self.dbgl.get_all_playtimes()
+        leaderboard = self.slog.get_all_playtimes()
         #print(leaderboard)
         leaderboard = sorted(leaderboard, key=lambda x: x['total_playtime'], reverse=True)
 
@@ -53,7 +51,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         
     elif len(args) == 1 and args[0].lower() == 'true':
         
-        leaderboard = self.dbgl.get_all_playtimes()
+        leaderboard = self.slog.get_all_playtimes()
         leaderboard = sorted(leaderboard, key=lambda x: x['total_playtime'], reverse=True)
 
         sender.send_message(f"§rTop 10 Playtimes on the Server:")

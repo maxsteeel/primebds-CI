@@ -1579,8 +1579,8 @@ class UserDB(DatabaseManager):
             value = f"{x},{y},{z}"
         self.update('mod_logs', {column: value}, 'name = ?', (name,))
 
-class grieflog(DatabaseManager):
-    """Handles actions related to grief logs and session tracking."""
+class sessionlog(DatabaseManager):
+    """Session tracking."""
 
     def __init__(self, db_name: str):
         """Initialize the database connection and create tables."""
@@ -1589,19 +1589,6 @@ class grieflog(DatabaseManager):
 
     def create_tables(self):
         """Create tables if they don't exist."""
-        action_log_columns = {
-            'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
-            'xuid': 'TEXT',
-            'name': 'TEXT',
-            'action': 'TEXT',
-            'x': 'REAL',
-            'y': 'REAL',
-            'z': 'REAL',
-            'dim': 'TEXT',
-            'timestamp': 'INTEGER',
-            'block_type': 'TEXT',
-            'block_state': 'TEXT'
-        }
         session_log_columns = {
             'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
             'xuid': 'TEXT',
@@ -1615,59 +1602,14 @@ class grieflog(DatabaseManager):
             'name': 'TEXT',
             'inspect_mode': 'BOOLEAN'
         }
-        self.create_table('actions_log', action_log_columns)
         self.create_table('sessions_log', session_log_columns)
         self.create_table('user_toggles', user_toggle_columns)
-
-    def set_user_toggle(self, xuid: str, name: str):
-        """Toggles the inspect mode for a player."""
-        existing_toggle = self.get_user_toggle(xuid, name)
-
-        if existing_toggle:
-            new_toggle = not existing_toggle[3]  # 'inspect_mode' assumed at index 3
-            updates = {'inspect_mode': new_toggle}
-            condition = 'xuid = ?'
-            params = (xuid,)
-
-            try:
-                self.update('user_toggles', updates, condition, params)
-            except Exception as e:
-                print(f"Error updating data: {e}")
-        else:
-            data = {'xuid': xuid, 'name': name, 'inspect_mode': True}
-            try:
-                self.insert('user_toggles', data)
-            except Exception as e:
-                print(f"Error inserting data: {e}")
-
-    def get_user_toggle(self, xuid: str, name: str):
-        """Gets the current inspect mode toggle for a player.
-        If no result exists, insert a new default value with name and inspect_mode.
-        """
-        query = "SELECT * FROM user_toggles WHERE xuid = ?"
-        cursor = self.execute(query, (xuid,))
-        result = cursor.fetchone()
-
-        if result is None:
-            default_value = 0
-            insert_query = """
-                INSERT INTO user_toggles (xuid, name, inspect_mode) 
-                VALUES (?, ?, ?)
-            """
-            self.execute(insert_query, (xuid, name, default_value))
-
-            cursor = self.execute(query, (xuid,))
-            result = cursor.fetchone()
-
-        return result
 
     def fetch_all_as_dicts(self, query: str, params: tuple = ()) -> list[dict]:
         """Helper to run a query and return list of dicts keyed by column name."""
         cursor = self.execute(query, params)
         rows = cursor.fetchall()
 
-        # Get columns from the query (better to run PRAGMA on actions_log only if query references that table)
-        # We can extract table name from query but to keep simple, run PRAGMA on actions_log anyway
         pragma_cursor = self.execute("PRAGMA table_info(actions_log);")
         columns = [col[1] for col in pragma_cursor.fetchall()]
 
@@ -1679,51 +1621,6 @@ class grieflog(DatabaseManager):
             result.append(row_dict)
 
         return result
-
-    def get_logs_by_coordinates(self, x: float, y: float, z: float, player_name: str = None) -> list[dict]:
-        query = "SELECT * FROM actions_log WHERE x = ? AND y = ? AND z = ?"
-        params = (x, y, z)
-        if player_name:
-            query += " AND name = ?"
-            params += (player_name,)
-        return self.fetch_all_as_dicts(query, params)
-
-    def get_logs_by_player(self, player_name: str) -> list[dict]:
-        query = "SELECT * FROM actions_log WHERE name = ?"
-        return self.fetch_all_as_dicts(query, (player_name,))
-
-    def get_logs_within_radius(self, x: float, y: float, z: float, radius: float) -> list[dict]:
-        query = """
-        SELECT * FROM actions_log
-        WHERE (POWER(x - ?, 2) + POWER(y - ?, 2) + POWER(z - ?, 2)) <= POWER(?, 2)
-        """
-        params = (x, y, z, radius)
-        return self.fetch_all_as_dicts(query, params)
-
-    def log_action(self, xuid: str, name: str, action: str, location, timestamp: int, block_type: str = None,
-                   block_state: str = None, dim: str = None):
-        """Logs an action performed by a player, stores x, y, z as separate coordinates, and includes block data if available."""
-        if isinstance(location, Vector):
-            x, y, z = location.x, location.y, location.z
-        else:
-            x, y, z = map(float, location.split(','))
-
-        data = {
-            'xuid': xuid,
-            'name': name,
-            'action': action,
-            'x': x,
-            'y': y,
-            'z': z,
-            'dim': dim,
-            'timestamp': timestamp,
-        }
-        if block_type:
-            data['block_type'] = block_type
-        if block_state:
-            data['block_state'] = block_state
-
-        self.insert('actions_log', data)
 
     def start_session(self, xuid: str, name: str, start_time: int):
         """Logs the start of a player session and automatically ends any previous sessions in case of a crash."""
@@ -1809,66 +1706,3 @@ class grieflog(DatabaseManager):
                 'total_playtime': total_playtime
             })
         return result
-
-    def delete_logs_older_than_seconds(self, seconds: int, sendPrint=False):
-        current_time = datetime.utcnow()
-
-        count_query = "SELECT COUNT(*) FROM actions_log"
-        cursor = self.execute(count_query)
-        count_result = cursor.fetchone()
-        count = count_result[0] if count_result else 0
-
-        if count == 0:
-            if sendPrint:
-                print("[PrimeBDS] No logs to delete.")
-            return 0
-
-        select_logs_query = "SELECT id, timestamp FROM actions_log"
-        cursor = self.execute(select_logs_query)
-        logs_to_delete = cursor.fetchall()
-
-        deleted_count = 0
-        for log_id, log_timestamp in logs_to_delete:
-            log_time = datetime.utcfromtimestamp(log_timestamp)
-            time_diff = (current_time - log_time).total_seconds()
-            if time_diff > seconds:
-                delete_query = "DELETE FROM actions_log WHERE id = ?"
-                self.execute(delete_query, (log_id,))
-                deleted_count += 1
-
-        if sendPrint:
-            time_units = [
-                ("day", 86400),
-                ("hour", 3600),
-                ("minute", 60),
-                ("second", 1)
-            ]
-            for unit, value in time_units:
-                if seconds >= value:
-                    amount = seconds // value
-                    time_string = f"{amount} {unit}{'s' if amount > 1 else ''}"
-                    break
-            print(f"[primebds - grieflog] Purged {deleted_count} logs older than {time_string}")
-
-        return deleted_count
-
-    def delete_logs_within_seconds(self, seconds: int):
-        current_time = datetime.utcnow()
-
-        select_logs_query = "SELECT id, timestamp FROM actions_log"
-        cursor = self.execute(select_logs_query)
-        logs_to_delete = cursor.fetchall()
-
-        deleted_count = 0
-        for log_id, log_timestamp in logs_to_delete:
-            log_time = datetime.utcfromtimestamp(log_timestamp)
-            time_diff = (current_time - log_time).total_seconds()
-            if time_diff <= seconds:
-                delete_query = "DELETE FROM actions_log WHERE id = ?"
-                self.execute(delete_query, (log_id,))
-                deleted_count += 1
-
-        return deleted_count
-
-    def delete_all_logs(self):
-        self.delete('actions_log', '1', ())
