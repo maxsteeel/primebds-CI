@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "primebds",
     "An all-in-one primebds manager!",
-    ["/primebds (config|info)[primebds_subaction: primebds_subaction]"],
+    ["/primebds (config|command|info)[primebds_subaction: primebds_subaction]"],
     ["primebds.command.primebds"]
 )
 
@@ -28,10 +28,15 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if args[0].lower() == "config":
         open_config_categories(sender)
+    elif args[0].lower() == "command":
+        command_form(sender)
     elif args[0].lower() == "info":
         sender.send_message(f"§dPrimeBDS\n§d{self.description}\n\n§dIf this plugin has helped you at all, consider leaving a star:\n§e@ https://github.com/PrimeStrat/primebds\n\n§dConfused on how something works?\nVisit the wiki:\n§e@ https://github.com/PrimeStrat/primebds/wiki")
 
     return True
+
+def command_form(sender):
+    return
 
 def open_config_categories(player: Player):
     config = load_config()
