@@ -23,7 +23,6 @@ PERMISSIONS_DEFAULT = {
             "primebds.command.ping": True,
             "primebds.command.reply": True,
             "minecraft.command.list": True,
-            "minecraft.command.help": True,
             "minecraft.command.tell": True,
             "minecraft.command.me": True,
         },
