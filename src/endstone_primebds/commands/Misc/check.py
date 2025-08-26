@@ -133,6 +133,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         warning = self.db.get_latest_active_warning(None, player_name)
 
         ban_info = ""
+        name_ban_info = ""
         mute_info = ""
         warn_info = ""
 
@@ -140,6 +141,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             ban_info = f"""
 §7  - §eBan Reason: §f{ban_reason}
 §7  - §eBan Expires: §f{format_time_remaining(ban_time)}
+"""
+        
+        if self.serverdb.check_nameban(player_name):
+            name_ban = self.serverdb.get_ban_info(player_name)
+            name_ban_info = f"""
+§7  - §eBan Reason: §f{name_ban.ban_reason}
+§7  - §eBan Expires: §f{format_time_remaining(name_ban.banned_time)}
 """
 
         if is_muted:
@@ -157,9 +165,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"""§6Player Mod Information:
 §7- §eName: §f{name} §8[{status}§8]
 §7- §eRank: §f{rank}
-§7- §eBan Status: §f{is_banned} §8[§7IP: {is_ip_banned}§8]{ban_info}
-§7- §eMute Status: §f{is_muted} §8[§7IP: {is_ip_muted}§8]{mute_info}
-§7- §eWarn Status: §f{bool(warning)}{warn_info}
+§7- §eBanned: §f{is_banned} §8[§7IP: {is_ip_banned}§8]{ban_info}
+§7- §eName Banned: §f{self.serverdb.check_nameban(player_name)}{name_ban_info}
+§7- §eMuted: §f{is_muted} §8[§7IP: {is_ip_muted}§8]{mute_info}
+§7- §eWarned: §f{bool(warning)}{warn_info}
 """)
 
     elif filter_type == "jail":

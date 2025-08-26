@@ -23,10 +23,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if isinstance(sender, BlockCommandSender):
         sender.send_message(f"§cThis command cannot be automated")
         return False
-
-    if len(args) < 1:
-        sender.send_message(f"Usage: /permban <player> [reason]")
-        return False
     
     if any("@" in arg for arg in args):
         sender.send_message(f"§cTarget selectors are invalid for this command")

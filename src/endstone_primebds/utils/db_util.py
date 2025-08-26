@@ -27,6 +27,12 @@ class ServerData:
     allowlist_profile: str
 
 @dataclass
+class NameBans:
+    name: str
+    banned_time: int
+    ban_reason: str
+
+@dataclass
 class User:
     xuid: str
     uuid: str
@@ -117,17 +123,6 @@ class Warps:
     category: str
     description: str
     cost: int
-
-@dataclass
-class GriefAction:
-    id: int
-    xuid: str
-    action: str
-    location: str
-    dim: str
-    timestamp: int
-    block_type: str
-    block_state: str
 
 @dataclass
 class Inventory:
@@ -298,6 +293,14 @@ class ServerDB(DatabaseManager):
         }
         self.create_table('server_info', server_info_columns)
 
+        name_ban_columns = {
+            'id': 'INTEGER PRIMARY KEY CHECK (id = 1)',
+            'name': 'TEXT',
+            'banned_time': 'INTEGER',
+            'ban_reason': 'TEXT'
+        }
+        self.create_table('name_bans', name_ban_columns)
+
         jails_columns = {
             'name': 'TEXT UNIQUE NOT NULL',
             'pos': 'TEXT'
@@ -370,6 +373,81 @@ class ServerDB(DatabaseManager):
             pitch=data['pitch'],
             yaw=data['yaw']
         )
+
+    def add_name(self, name: str, ban_reason: str = "Negative Behavior", ban_duration: int = 100 * 31536000):
+        """
+        Add a name to the bans list.
+        - ban_duration: seconds from now (0 = permanent)
+        - ban_reason: reason string
+        """
+        banned_until = int(time.time()) + ban_duration if ban_duration > 0 else 0
+        try:
+            self.execute(
+                "INSERT OR REPLACE INTO name_bans (name, banned_time, ban_reason) VALUES (?, ?, ?)",
+                (name, banned_until, ban_reason),
+            )
+            self.conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error adding name: {e}")
+
+    def remove_name(self, name: str):
+        """Remove a name from the bans list"""
+        self.execute("DELETE FROM name_bans WHERE name = ?", (name,))
+        self.conn.commit()
+
+    def check_nameban(self, name: str) -> bool:
+        """
+        Check if a name is currently banned
+        Respects ban duration
+        """
+        self.execute("SELECT banned_time FROM name_bans WHERE name = ? LIMIT 1", (name,))
+        row = self.cursor.fetchone()
+        if row is None:
+            return False
+
+        banned_time = row[0]
+        return time.time() < banned_time
+
+    def clear_names(self):
+        """Clear all bans"""
+        self.execute("DELETE FROM name_bans")
+        self.conn.commit()
+
+    def get_ban_info(self, name: str) -> Optional[NameBans]:
+        result = self.execute("SELECT * FROM name_bans WHERE name = ? LIMIT 1", (name,)).fetchone()
+        if result:
+            column_info = self.execute("PRAGMA table_info(name_bans)").fetchall()
+            column_names = [row[1] for row in column_info]
+
+            raw_data = dict(zip(column_names, result))
+
+            ban_fields = {f.name for f in fields(NameBans)}
+            filtered_data = {k: v for k, v in raw_data.items() if k in ban_fields}
+
+            return NameBans(**filtered_data)
+
+        return None
+    
+    def get_all_bans(self) -> List[NameBans]:
+        """
+        Fetch all rows from name_bans and return as list of NameBans objects.
+        Automatically filters only dataclass fields.
+        """
+        results = self.execute("SELECT * FROM name_bans").fetchall()
+        if not results:
+            return []
+
+        column_info = self.execute("PRAGMA table_info(name_bans)").fetchall()
+        column_names = [row[1] for row in column_info]
+
+        ban_fields = {f.name for f in fields(NameBans)}
+        all_bans = []
+        for row in results:
+            raw_data = dict(zip(column_names, row))
+            filtered_data = {k: v for k, v in raw_data.items() if k in ban_fields}
+            all_bans.append(NameBans(**filtered_data))
+
+        return all_bans
 
     def create_jail(self, name: str, location: Location) -> bool:
         # Check if jail name exists

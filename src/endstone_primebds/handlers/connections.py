@@ -32,6 +32,18 @@ def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
 
     mod_log = self.db.get_mod_log(player_xuid)
     is_ip_banned = self.db.check_ip_ban(player_ip)
+
+    # Handle Name Ban
+    if self.serverdb.check_nameban(ev.player.name):
+        name_ban_log = self.serverdb.get_ban_info(ev.player.name)
+        banned_time = datetime.fromtimestamp(name_ban_log.banned_time)
+        if now >= banned_time:
+            self.serverdb.remove_name(player_ip)
+        else:  
+            formatted_expiration = format_time_remaining(name_ban_log.banned_time)
+            message = ban_message(self.server.level.name, formatted_expiration, name_ban_log.ban_reason)
+            ev.kick_message = message
+            ev.is_cancelled = True 
     
     # Handle IP Ban
     if is_ip_banned:
@@ -42,7 +54,7 @@ def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
             formatted_expiration = format_time_remaining(mod_log.banned_time)
             message = ban_message(self.server.level.name, formatted_expiration, "IP Ban - " + mod_log.ban_reason)
             ev.kick_message = message
-            ev.is_cancelled = True  # Prevent login
+            ev.is_cancelled = True 
 
     # Handle XUID Ban
     elif mod_log:
@@ -54,7 +66,7 @@ def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
                 formatted_expiration = format_time_remaining(mod_log.banned_time)
                 message = ban_message(self.server.level.name, formatted_expiration, mod_log.ban_reason)
                 ev.kick_message = message
-                ev.is_cancelled = True  # Prevent login
+                ev.is_cancelled = True 
 
     return
 

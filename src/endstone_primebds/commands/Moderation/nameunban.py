@@ -10,10 +10,10 @@ if TYPE_CHECKING:
 
 # Register command
 command, permission = create_command(
-    "removeban",
-    "Removes an active ban from a player!",
-    ["/removeban <player: player>"],
-    ["primebds.command.pardon"]
+    "unnameban",
+    "Removes an active name ban from a player!",
+    ["/unnameban <player: player>"],
+    ["primebds.command.unnameban"]
 )
 
 # REMOVEBAN COMMAND FUNCTIONALITY
@@ -30,25 +30,16 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"§cTarget selectors are invalid for this command")
         return False
 
-    player_name = args[0].strip('"')
-    
+    player_name = args[0]
 
-    # Get the mod log to check if the player is banned
-    mod_log = self.db.get_offline_mod_log(player_name)
-
-    if not mod_log or not mod_log.is_banned:
-        sender.send_message(f"§6Player §e{player_name} §6is not banned")
-        
+    if not self.serverdb.check_nameban(player_name):
+        sender.send_message(f"§6Player §e{player_name} §6is not name banned")
         return False
 
-    # Remove the ban
-    self.db.remove_ban(player_name)
-    #self.server.ban_list.remove_ban(player_name)
+    self.serverdb.remove_name(player_name)
+    sender.send_message(f"§6Player §e{player_name}'s §6name is no longer banned")
 
-    # Notify the sender that the ban has been removed
-    sender.send_message(f"§6Player §e{player_name} §6has been unbanned")
-
-    log(self, f"§6Player §e{player_name} §6was unbanned by §e{sender.name}", "mod")
+    log(self, f"§6Player §e{player_name} §6is no longer name banned by §e{sender.name}", "mod")
 
     return True
 

@@ -95,7 +95,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         return False
     elif cmd == "stop":
         for player in self.server.online_players:
-            player.kick("Server was shutdown!")
+            player.kick(config["modules"]["join_leave_messages"]["shutdown"])
         return False
     elif cmd == "ban-ip" or cmd == "unban-ip" or cmd == "banlist" and endstone_enabled:
         event.is_cancelled = True
@@ -156,7 +156,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
 
         for pl in self.server.online_players:
             if self.db.get_online_user(pl.xuid).enabled_ss == 1:
-                pl.send_message(f"§8[§bSocial Spy§8] §8[§r{player.name} §7-> §r{target}§8] §7{message}")
+                pl.send_message(f"{config["modules"]["server_messages"]["social_spy_prefix"]}§8[§r{player.name} §7-> §r{target}§8] §7{message}")
 
 def handle_server_command_preprocess(self: "PrimeBDS", event: ServerCommandEvent):
     args = event.command.split()
