@@ -17,7 +17,7 @@ command, permission = create_command(
         "/rank (perm)<rank_perm: rank_perm> (add|remove)<perm_action: perm_action> <rank: string> <perm: string> [state: bool]",
         "/rank (weight)<rank_weight: rank_weight> <rank: string> <weight: int>",
         "/rank (inherit)<rank_inherit: rank_inherit> <rank_child: string> <rank_parent: string>",
-        "/rank (create|delete|list)<rank_action: rank_action> [rank: message]"
+        "/rank (create|delete|list|info)<rank_action: rank_action> [rank: message]"
     ],
     ["primebds.command.rank"]
 )
@@ -52,7 +52,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if subaction == "set":
         user = self.db.get_offline_user(target)
         if not user:
-            sender.send_message(f"Player \"{target}\" not found")
+            sender.send_message(f"§cPlayer \"{target}\" not found")
             return False
         
         new_rank_lower = args[2].lower()
@@ -62,13 +62,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             new_rank_lower = "operator"
 
         if new_rank_lower not in ranks_map:
-            sender.send_message(f"Invalid rank: {args[2]}. Valid ranks are: {', '.join(RANKS)}")
+            sender.send_message(f"§cInvalid rank: {args[2]}. Valid ranks are: {', '.join(RANKS)}")
             return False
 
         proper_rank = ranks_map[new_rank_lower]
 
         if proper_rank == user.internal_rank:
-            sender.send_message(f"Player §e{target} §falready is set to this rank")
+            sender.send_message(f"§bPlayer §e{target} §balready is set to this rank")
             return False
         else:
             self.db.update_user_data(target, 'internal_rank', proper_rank)
@@ -82,7 +82,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                     
                 self.reload_custom_perms(player)
 
-            sender.send_message(f"Player §e{target}'s §frank was updated to §e{proper_rank}")
+            sender.send_message(f"§bPlayer §e{target}'s §brank was updated to §e{proper_rank}")
             return True
 
     elif subaction == "create":
@@ -99,7 +99,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         }
         save_permissions(perms, True)
         reload_ranks()
-        sender.send_message(f"Created rank §e\"{rank_name}\" §rsuccessfully")
+        sender.send_message(f"§bCreated rank §e\"{rank_name}\" §bsuccessfully")
         return True
     
     elif subaction == "delete":
@@ -118,7 +118,35 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         save_permissions(perms, True)
         reload_ranks()
         updatePermissionsFiltered(self, {actual_rank})
-        sender.send_message(f"Deleted rank §e\"{actual_rank}\" §rsuccessfully")
+        sender.send_message(f"§bDeleted rank §e\"{actual_rank}\" §bsuccessfully")
+        return True
+
+    elif subaction == "info":
+        if len(args) < 2:
+            sender.send_message(f"§cYou must specify a rank")
+            return False
+        rank_name = args[1].lower()
+
+        ranks_map = {r.lower(): r for r in RANKS}
+
+        if rank_name == "op":
+            rank_name = "operator"
+
+        if rank_name not in ranks_map:
+            sender.send_message(f"Invalid rank: {args[2]}. Valid ranks are: {', '.join(RANKS)}")
+            return False
+
+        proper_rank = ranks_map[rank_name]
+
+        rank = perms[proper_rank]
+        sender.send_message(f"§bRank: §r{proper_rank}")
+        sender.send_message(f"§bWeight: §r{rank.get('weight', 0)}")
+        sender.send_message(f"§bInherits: §r{rank.get('inherits', [])}")
+        sender.send_message("§bPermissions:")
+        for perm, value in rank.get("permissions", {}).items():
+            color = "§a" if value else "§c"
+            sender.send_message(f"  §7- §e{perm}: {color}{value}")
+        
         return True
 
     elif subaction == "perm":
@@ -140,7 +168,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             perms[actual_rank]["permissions"][permission] = state
             save_permissions(perms, True)
             updatePermissionsFiltered(self, {actual_rank})
-            sender.send_message(f"Set permission §e\"{permission}\" = {state} §rfor rank §e\"{actual_rank}\"")
+            sender.send_message(f"§bSet permission §e\"{permission}\" = {state} §bfor rank §e\"{actual_rank}\"")
             return True
 
         elif args[1] == "remove":
@@ -170,7 +198,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message("§eNo ranks available.")
             return True
 
-        sender.send_message("§eAvailable ranks:")
+        sender.send_message("§bAvailable ranks:")
         for rank in perms:
             sender.send_message(f" §7- §e{rank}")
         return True
@@ -195,13 +223,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             return False
 
         if parent in perms[child]["inherits"]:
-            sender.send_message(f"Rank §e\"{child}\" §ralready inherits from §e\"{parent}\"")
+            sender.send_message(f"§bRank §e\"{child}\" §balready inherits from §e\"{parent}\"")
             return False
 
         perms[child]["inherits"].append(parent)
         save_permissions(perms, True)
         updatePermissionsFiltered(self, {child})
-        sender.send_message(f"Rank §e\"{child}\" §rnow inherits from §e\"{parent}\"")
+        sender.send_message(f"§bRank §e\"{child}\" §bnow inherits from §e\"{parent}\"")
         return True
 
     elif subaction == "weight":
@@ -214,16 +242,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         try:
             new_weight = int(args[2])
         except ValueError:
-            sender.send_message("Weight must be an integer.")
+            sender.send_message("§cWeight must be an integer")
             return
 
         perms[actual_rank]["weight"] = new_weight
         save_permissions(perms, True)
         updatePermissionsFiltered(self, {actual_rank})
-        sender.send_message(f"Updated weight for rank {rank_name} to {new_weight}.")
-
-    else:
-        sender.send_message("Invalid subaction. Available: weight")
+        sender.send_message(f"§bUpdated weight for rank §e{rank_name} §bto §b{new_weight}")
 
     return True
 
