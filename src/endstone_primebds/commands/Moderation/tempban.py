@@ -104,5 +104,4 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     log(self, f"§6Player §e{player_name} §6was banned by §e{sender.name} §6for §e\"{reason}\" §6until §e{formatted_expiration}", "mod")
 
-    
     return True

@@ -85,12 +85,6 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
 
             # Handle Activity
             self.sldb.start_session(ev.player.xuid, ev.player.name, int(time.time()))
-            rounded_coords = Vector(
-                round(ev.player.location.x),
-                round(ev.player.location.y),
-                round(ev.player.location.z)
-            )
-            self.sldb.log_action(ev.player.xuid, ev.player.name, "Login", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
 
     # Hide Vanish
     if self.db.get_online_user(ev.player.xuid).is_vanish:
@@ -140,7 +134,6 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
             rounded_coords = Vector(rounded_x, rounded_y, rounded_z)
             self.db.update_user_data(ev.player.name, 'last_logout_pos', rounded_coords)
             self.db.update_user_data(ev.player.name, 'last_logout_dim', ev.player.dimension.name)
-            self.sldb.log_action(ev.player.xuid, ev.player.name, "Logout", rounded_coords, int(time.time()), None, None, ev.player.dimension.name)
 
     if self.db.get_online_user(ev.player.xuid).is_vanish:
         ev.quit_message = ""
@@ -148,8 +141,8 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
     return
 
 def handle_kick_event(self: "PrimeBDS", ev: PlayerKickEvent):
-    print(ev.player.name, ev.reason)
     self.sldb.end_session(ev.player.xuid, int(time.time()))
+    log(self, f"§6Player §e{ev.player.name} §6was kicked §6for §e\"{ev.reason}\"", "mod")
 
 def check_unset_scoreboards(self):
     current_dir = os.path.dirname(os.path.abspath(__file__))

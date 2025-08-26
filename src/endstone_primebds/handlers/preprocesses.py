@@ -20,7 +20,7 @@ PARSE_COMMANDS = (
     MODERATION_COMMANDS
     | MSG_CMDS
     | {"ban", "unban", "pardon", "op", "deop", "allowlist", "whitelist", "transfer"}
-    | {"teleport", "tp"}
+    | {"teleport", "tp", "stop"}
 )
 
 def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
@@ -93,7 +93,11 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         self.server.dispatch_command(self.server.command_sender, f"execute as \"{player.name}\" at \"{player.name}\" run {command}")
         event.is_cancelled = True
         return False
-    if cmd == "ban-ip" or cmd == "unban-ip" or cmd == "banlist" and endstone_enabled:
+    elif cmd == "stop":
+        for player in self.server.online_players:
+            player.kick("Server was shutdown!")
+        return False
+    elif cmd == "ban-ip" or cmd == "unban-ip" or cmd == "banlist" and endstone_enabled:
         event.is_cancelled = True
         return False
     elif cmd == "ban" and len(args) > 1 and endstone_enabled:
@@ -174,6 +178,11 @@ def handle_server_command_preprocess(self: "PrimeBDS", event: ServerCommandEvent
 
     # Allowlist/Whitelist handling
     allowlist_aliases = {"allowlist", "whitelist"}
+
+    if cmd == "stop":
+        for player in self.server.online_players:
+            player.kick("Server was shutdown!")
+        return False
 
     if cmd in remap_commands:
         new_args = remap_commands[cmd]()

@@ -158,6 +158,8 @@ def open_module_editor(player: Player, module_name: str, settings: dict, config:
 
                 if updated:
                     player.send_message(f"§aUpdated values for {format_label(module_name)}")
+                    if module_name == "permissions_manager":
+                        player.send_message(f"§cThis module requires a §e/reload §cto apply changes")
 
                 if subkeys:
                     open_module_editor(player, module_name, settings, config, parent_name)

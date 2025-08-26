@@ -36,10 +36,10 @@ Prime BDS Loaded!
 from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent,
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
                             PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent, 
-                            PacketReceiveEvent, ServerLoadEvent)
+                            PacketReceiveEvent, ServerLoadEvent, PlayerKickEvent)
 from endstone_primebds.handlers.chat import handle_chat_event
 from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
-from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event
+from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event, handle_kick_event
 from endstone_primebds.handlers.combat import handle_kb_event, handle_damage_event
 from endstone_primebds.handlers.multiworld import start_additional_servers, stop_additional_servers, is_nested_multiworld_instance
 from endstone_primebds.handlers.intervals import stop_intervals, init_jail_intervals
@@ -129,6 +129,10 @@ class PrimeBDS(Plugin):
         handle_leave_event(self, ev)
 
     @event_handler()
+    def on_player_kick(self, ev: PlayerKickEvent):
+        handle_kick_event(self, ev)
+
+    @event_handler()
     def on_player_command_preprocess(self, ev: PlayerCommandEvent) -> None:
         handle_command_preprocess(self, ev)
 
@@ -164,8 +168,8 @@ class PrimeBDS(Plugin):
         if not self.serverdb.get_server_info().allowlist_profile:
             self.serverdb.update_server_info("allowlist_profile", "default")
 
-        self.check_for_inactive_sessions()
         self.server.scheduler.run_task(self, start_additional_servers(self), 1)
+        self.check_for_inactive_sessions()
 
     def on_disable(self):
         stop_intervals(self)
@@ -183,7 +187,7 @@ class PrimeBDS(Plugin):
     def check_for_inactive_sessions(self):
         current_time = int(time.time())
         RELOAD_THRESHOLD = 60  # seconds
-        MAX_SESSION_LENGTH = 4 * 3600  # 4 hours max session length
+        MAX_SESSION_LENGTH = 3600  # 1 hour max session length
 
         was_quick_reload = (
             self.last_shutdown_time
