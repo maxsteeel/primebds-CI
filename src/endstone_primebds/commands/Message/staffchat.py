@@ -1,5 +1,6 @@
 from endstone import Player
 from endstone.command import CommandSender
+from endstone_primebds.utils.config_util import load_config
 from endstone_primebds.utils.command_util import create_command
 
 from typing import TYPE_CHECKING
@@ -39,7 +40,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             self.db.update_user_data(sender.name, "enabled_sc", new_status)
             sender.send_message(f"§6Staff Chat has been {f'§aEnabled' if new_status == 1 else f'§cDisabled'}")
         else:
-            message = f"§8[§bStaff Chat§8] §e{sender.name_tag}§7: §6{args[0]}"
+            config = load_config()
+            message = f"{config["modules"]["server_messages"]["staff_chat_prefix"]}§e{sender.name}§7: §6{args[0]}"
             self.server.broadcast(message, "primebds.command.staffchat")
 
     return True

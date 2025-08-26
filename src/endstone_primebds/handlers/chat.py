@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from endstone.event import PlayerChatEvent
+from endstone_primebds.utils.config_util import load_config
 from endstone_primebds.utils.mod_util import format_time_remaining
 from endstone_primebds.utils.logging_util import discordRelay
 
@@ -29,13 +30,19 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
         ev.cancel()
         return False
     
+    config = load_config()
     user = self.db.get_online_user(ev.player.xuid)
     if user.enabled_sc:
-        message = f"§8[§bStaff Chat§8] §e{ev.player.name_tag}§7: §6{ev.message}"
+        message = f"{config["modules"]["server_messages"]["staff_chat_prefix"]}§e{ev.player.name}§7: §6{ev.message}"
         self.server.broadcast(message, "primebds.command.staffchat")
         ev.cancel()
         return False
     
+    # Prep chat overhaul
+    #message = f"{ev.player.name_tag}{config["modules"]["server_messages"]["chat_prefix"]}§r{ev.message}"
+    #ev.format = message
+
     discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")
+
     return True
 

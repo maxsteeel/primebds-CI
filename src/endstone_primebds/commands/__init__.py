@@ -95,7 +95,17 @@ def preload_settings():
             "send_on_vanish": False,
             "send_on_connection": False,
             "join_message": "§e{player} joined the game",
-            "leave_message": "§e{player} left the game"
+            "leave_message": "§e{player} left the game",
+            "shutdown": "Server has shutdown!"
+        }),
+        "server_messages": OrderedDict({
+            "rank_meta": True,
+            "cleaned_whispers": True,
+            "cleaned_chat": True,
+            "chat_prefix": " §r» ",
+            "whisper_prefix": "§8[§bWhisper§8]§r ",
+            "social_spy_prefix": "§8[§bSocial Spy§8]§r ",
+            "staff_chat_prefix": "§8[§bStaff Chat§8]§r ",
         }),
         "combat": OrderedDict({
             "hit_cooldown_in_seconds": 0.0,
