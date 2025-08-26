@@ -236,20 +236,26 @@ class PrimeBDS(Plugin):
         if not user:
             return
 
-        check_rank_exists(self, player, user.internal_rank)
+        internal_rank = check_rank_exists(self, player, user.internal_rank)
 
-        permissions = set(get_rank_permissions(user.internal_rank))
+        permissions = get_rank_permissions(internal_rank)
         user_permissions = self.db.get_permissions(player.xuid)
         managed_perms = MANAGED_PERMISSIONS_LIST[:]
 
         final_permissions = {rperm: False for rperm in managed_perms}
-        for perm in permissions:
-            final_permissions[perm] = True
+        for perm, allowed in permissions.items():
+            final_permissions[perm] = allowed
         for perm, allowed in user_permissions.items():
             final_permissions[perm] = allowed
 
+        to_remove = [attinfo.attachment for attinfo in player.effective_permissions
+             if attinfo.permission == "primebdsoverride"]
+        
+        for attachment in to_remove:
+            attachment.remove()
+
         perms_to_apply = list(final_permissions.items())
-        attachment = player.add_attachment(self, "PrimeBDSOverride", True)
+        attachment = player.add_attachment(self, "primebdsoverride", True)
 
         plugin_stars = {}
         internal = {"minecraft", "minecraft.command", "endstone", "endstone.command"}
@@ -273,9 +279,14 @@ class PrimeBDS(Plugin):
             else:
                 attachment.set_permission(perm, value)
 
-        player.add_attachment(self, "endstone.command.banip", False)
-        player.add_attachment(self, "endstone.command.unbanip", False)
-        player.add_attachment(self, "endstone.command.banlist", False)
+        config = load_config()
+        modules = config.get("modules", {})
+        perms_manager = modules.get("permissions_manager", {})
+        endstone_enabled = perms_manager.get("endstone", True)
+        if endstone_enabled:
+            player.add_attachment(self, "endstone.command.banip", False)
+            player.add_attachment(self, "endstone.command.unbanip", False)
+            player.add_attachment(self, "endstone.command.banlist", False)
         player.update_commands()
         player.recalculate_permissions()
         invalidate_perm_cache(self, player.xuid)

@@ -1,8 +1,7 @@
 import time
 
 from endstone import Player
-
-from endstone_primebds.utils.config_util import load_permissions
+from endstone_primebds.utils.config_util import load_permissions, load_config
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -107,44 +106,77 @@ EXTRA_PERMS = [
 ]
 
 def load_perms(self: "PrimeBDS"):
+    config = load_config()
+    modules = config.get("modules", {})
+    perms_manager = modules.get("permissions_manager", {})
+    minecraft_enabled = perms_manager.get("minecraft", True)
+    primebds_enabled = perms_manager.get("primebds", True)
+    endstone_enabled = perms_manager.get("endstone", True)
+    wildcard_enabled = perms_manager.get("*", True)
+
     plugin_perms = set()
 
     for plugin in self.server.plugin_manager.plugins:
         plugin_perm_set = set()
-        data = plugin._get_description()
+        data = getattr(plugin, "_get_description", lambda: None)()
+        if not data:
+            continue
 
-        perms = data.permissions
+        perms = getattr(data, "permissions", [])
         for attachment in perms:
             perm_lower = attachment.name.lower()
-            if perm_lower not in {"endstone.command.banip", "endstone.command.unbanip", "endstone.command.banlist"}:
+            if perm_lower in {"endstone.command.banip", "endstone.command.unbanip", "endstone.command.banlist"}:
+                continue
+
+            prefix = perm_lower.split(".")[0]
+            if (prefix == "minecraft" and minecraft_enabled) or \
+               (prefix == "primebds" and primebds_enabled) or \
+               (prefix == "endstone" and endstone_enabled) or \
+               (prefix not in {"minecraft", "primebds", "endstone"} and wildcard_enabled):
                 plugin_perms.add(perm_lower)
                 plugin_perm_set.add(perm_lower)
 
-        if plugin.name == "primebds":
+        if getattr(plugin, "name", "") == "primebds":
             for perm in EXTRA_PERMS:
                 plugin_perms.add(perm)
                 plugin_perm_set.add(perm)
 
+        plugin_name = getattr(plugin, "name", None)
+        if not plugin_name:
+            if plugin_perm_set:
+                first_perm = next(iter(plugin_perm_set))
+                plugin_name = first_perm.split(".")[0]
+            else:
+                plugin_name = "Unnamed Plugin"
+
         if plugin_perm_set:
-            print(f"[PrimeBDS] {getattr(plugin, 'name', 'Unnamed Plugin')}: Loaded {len(plugin_perm_set)} permissions")
+            print(f"[PrimeBDS] {plugin_name}: Loaded {len(plugin_perm_set)} permissions")
 
     server_registered = {str(p.name).lower() for p in self.server.plugin_manager.permissions}
-    plugin_perms |= server_registered
 
-    combined = plugin_perms | {p.lower() for p in MINECRAFT_PERMISSIONS}
+    for perm in server_registered:
+        prefix = perm.split(".")[0]
+        if (prefix == "minecraft" and minecraft_enabled) or \
+           (prefix == "primebds" and primebds_enabled) or \
+           (prefix == "endstone" and endstone_enabled) or \
+           (prefix not in {"minecraft", "primebds", "endstone"} and wildcard_enabled):
+            plugin_perms.add(perm)
+
+    if minecraft_enabled:
+        plugin_perms |= {p.lower() for p in MINECRAFT_PERMISSIONS}
 
     MANAGED_PERMISSIONS_LIST.clear()
-    MANAGED_PERMISSIONS_LIST.extend(combined)
+    MANAGED_PERMISSIONS_LIST.extend(plugin_perms)
 
     for perm in EXTRA_PERMS:
-        if perm not in MANAGED_PERMISSIONS_LIST:
+        if perm not in MANAGED_PERMISSIONS_LIST and primebds_enabled:
             MANAGED_PERMISSIONS_LIST.append(perm)
 
-    endstone_filtered = [perm for perm in combined if "endstone" in perm]
+    endstone_filtered = [perm for perm in plugin_perms if "endstone" in perm]
     if endstone_filtered:
         print(f"[PrimeBDS] Endstone: Loaded {len(endstone_filtered)} permissions")
 
-    minecraft_filtered = [perm for perm in combined if perm in {p.lower() for p in MINECRAFT_PERMISSIONS}]
+    minecraft_filtered = [perm for perm in plugin_perms if perm in {p.lower() for p in MINECRAFT_PERMISSIONS}]
     print(f"[PrimeBDS] Minecraft: Loaded {len(minecraft_filtered)} permissions")
     print(f"[PrimeBDS] Total managed permissions: {len(MANAGED_PERMISSIONS_LIST)}")
 
@@ -161,12 +193,13 @@ def normalize_rank_name(rank: str) -> str:
 def check_rank_exists(self: "PrimeBDS", target: Player, rank: str):
     if rank not in PERMISSIONS:
         self.db.update_user_data(target.name, 'internal_rank', "Default")
+        return "Default"
+    return rank
 
-def get_rank_permissions(rank: str) -> list[str]:
+def get_rank_permissions(rank: str) -> dict[str, bool]:
     base_rank = normalize_rank_name(rank)
     seen_ranks = set()
-    seen_perms = set()
-    result = []
+    result: dict[str, bool] = {}
 
     def gather_permissions(r):
         r_norm = normalize_rank_name(r)
@@ -174,34 +207,36 @@ def get_rank_permissions(rank: str) -> list[str]:
             return
         seen_ranks.add(r_norm)
 
-        perms = PERMISSIONS.get(r_norm, [])
+        group = PERMISSIONS.get(r_norm)
+        if not group:
+            return
 
+        perms = group.get("permissions", {})
         if "*" in perms:
-            for perm in MANAGED_PERMISSIONS_LIST:
-                if perm not in seen_perms:
-                    result.append(perm)
-                    seen_perms.add(perm)
+            if perms["*"]:
+                for p in MANAGED_PERMISSIONS_LIST:
+                    result[p] = True
+            else:
+                for p in MANAGED_PERMISSIONS_LIST:
+                    result[p] = False
 
-        for perm in perms:
-            perm = perm.lower()
+        for perm, allowed in perms.items():
+            if perm == "*":
+                continue
+            result[perm] = allowed  # True/False as stored
 
-            if perm.startswith("primebds.rank."):
-                inherited_rank = perm[len("primebds.rank."):]
-                gather_permissions(inherited_rank)
-            elif perm != "*" and perm not in seen_perms:
-                result.append(perm)
-                seen_perms.add(perm)
+        for parent in group.get("inherits", []):
+            gather_permissions(parent)
 
     gather_permissions(base_rank)
     return result
 
 perm_cache = {}
-
-def check_perms(self: "PrimeBDS", player_or_user, perm: str, check_rank = False) -> bool:
+def check_perms(self: "PrimeBDS", player_or_user, perm: str, check_rank=False) -> bool:
     now = time.time()
     xuid = getattr(player_or_user, "xuid", None)
 
-    if hasattr(player_or_user, "has_permission") and check_rank == False:
+    if hasattr(player_or_user, "has_permission") and not check_rank:
         return player_or_user.has_permission(perm)
 
     if xuid is None:
@@ -210,35 +245,33 @@ def check_perms(self: "PrimeBDS", player_or_user, perm: str, check_rank = False)
     cached = perm_cache.get(xuid)
     if cached:
         perms, ts = cached
-        return perm in perms or "*" in perms
+        return perm in perms
 
     user = self.db.get_offline_user(self.db.get_name_by_xuid(xuid))
     if not user:
         return False
 
     rank = getattr(user, "internal_rank", "").lower() if hasattr(user, "internal_rank") else ""
-    final_perms = set(get_rank_permissions(rank) or [])
+    final_perms = set(get_rank_permissions(rank))
 
-    user_permissions = self.db.get_permissions(xuid)  
+    user_permissions = self.db.get_permissions(xuid)
     for perm_name, allowed in user_permissions.items():
         if allowed:
             final_perms.add(perm_name)
         else:
-            final_perms.discard(perm_name) 
+            final_perms.discard(perm_name)
 
     perm_cache[xuid] = (final_perms, now)
 
     return perm in final_perms
 
 def invalidate_perm_cache(self, xuid: str):
-    """Call this after updating permissions to clear cache for a user."""
     perm_cache.pop(xuid, None)
             
 def check_internal_rank(user1_rank: str, user2_rank: str) -> bool:
-    """
-    Checks if user1 has a lower rank than user2.
-    Returns True if user1_rank is lower, otherwise False.
-    """
     if user1_rank not in RANKS or user2_rank not in RANKS:
         return False  # Handle cases where the rank is not found
     return RANKS.index(user1_rank) < RANKS.index(user2_rank)
+
+def reload_ranks():
+    RANKS = list(load_permissions().keys())

@@ -1,5 +1,6 @@
 import json
 import os
+import copy
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 while not (os.path.exists(os.path.join(current_dir, 'plugins')) and os.path.exists(os.path.join(current_dir, 'worlds'))):
@@ -13,22 +14,30 @@ RULES_PATH = os.path.join(CONFIG_FOLDER, 'rules.txt')
 os.makedirs(CONFIG_FOLDER, exist_ok=True)
 
 PERMISSIONS_DEFAULT = {
-        "Default": [
-            "endstone.broadcast",
-            "endstone.broadcast.user",
-            "endstone.command.version",
-            "endstone.command.plugins",
-            "primebds.command.ping",
-            "primebds.command.reply",
-            "minecraft.command.list",
-            "minecraft.command.help",
-            "minecraft.command.tell",
-            "minecraft.command.me",
-        ],
-        "Operator": [
-            "*"
-        ],
-    }
+    "Default": {
+        "permissions": {
+            "endstone.broadcast": True,
+            "endstone.broadcast.user": True,
+            "endstone.command.version": True,
+            "endstone.command.plugins": True,
+            "primebds.command.ping": True,
+            "primebds.command.reply": True,
+            "minecraft.command.list": True,
+            "minecraft.command.help": True,
+            "minecraft.command.tell": True,
+            "minecraft.command.me": True,
+        },
+        "inherits": [],
+        "weight": 0 
+    },
+    "Operator": {
+        "permissions": {
+            "*": True
+        },
+        "inherits": ["Default"],
+        "weight": 100
+    },
+}
 
 cache = None 
 permissions_cache = None
@@ -77,7 +86,7 @@ def save_permissions(permissions: dict, update_cache: bool = True) -> None:
     open_text_file(PERMISSIONS_PATH, mode="w", text=content)
 
     if update_cache:
-        permissions_cache = permissions
+        permissions_cache = copy.deepcopy(permissions)
 
 def load_permissions(default_permissions=None, cache=True):
     global permissions_cache
@@ -88,26 +97,34 @@ def load_permissions(default_permissions=None, cache=True):
         if default_permissions is None:
             default_permissions = PERMISSIONS_DEFAULT
         save_permissions(default_permissions)
-        permissions_cache = default_permissions
+        permissions_cache = copy.deepcopy(default_permissions)
     else:
         content = open_text_file(PERMISSIONS_PATH, mode="r")
-        if content:
-            permissions_cache = json.loads(content)
-        else:
+        try:
+            permissions_cache = json.loads(content) if content else default_permissions or PERMISSIONS_DEFAULT
+        except (json.JSONDecodeError, TypeError):
             permissions_cache = default_permissions or PERMISSIONS_DEFAULT
+            save_permissions(permissions_cache)
 
+    updated = False
+    for key in ["Default", "Operator"]:
+        if key not in permissions_cache:
+            permissions_cache[key] = PERMISSIONS_DEFAULT.get(key, {})
+            updated = True
+
+    if updated:
+        save_permissions(permissions_cache)
+        
     return permissions_cache
 
 def reset_permissions(default_permissions=None):
-    """Reset permissions.json to default permissions."""
     global permissions_cache
 
     if default_permissions is None:
         default_permissions = PERMISSIONS_DEFAULT
 
     open_text_file(PERMISSIONS_PATH, "w", text=json.dumps(default_permissions, indent=4))
-
-    permissions_cache = default_permissions.copy()
+    permissions_cache = copy.deepcopy(default_permissions)
 
 def save_rules(rules):
     os.makedirs(CONFIG_FOLDER, exist_ok=True)

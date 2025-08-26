@@ -1,7 +1,7 @@
 import re
 from endstone.command import CommandSender, BlockCommandSender
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.internal_permissions_util import RANKS
+from endstone_primebds.utils.internal_permissions_util import RANKS, reload_ranks
 from endstone_primebds.utils.config_util import load_permissions, save_permissions
 
 from typing import TYPE_CHECKING
@@ -14,7 +14,8 @@ command, permission = create_command(
     "Sets the internal rank for a player!",
     [
         "/rank (set)<rank_set: rank_set> <player: player> <rank: string>",
-        "/rank (add|remove)<rank_perm: rank_perm> <rank: string> <perm: message>",
+        "/rank (perm)<rank_perm: rank_perm> (add|remove)<perm_action: perm_action> <rank: string> <perm: string> [state: bool]",
+        "/rank (weight)<rank_weight: rank_weight> <rank: string> <weight: int>",
         "/rank (inherit)<rank_inherit: rank_inherit> <rank_child: string> <rank_parent: string>",
         "/rank (create|delete|list)<rank_action: rank_action> [rank: message]"
     ],
@@ -36,20 +37,17 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     
     perms = load_permissions()
 
-    def find_rank(name: str, perms: dict[str, list[str]]) -> str | None:
-        """Return the exact rank key matching `name` case-insensitively, or None if not found."""
+    def find_rank(name: str, perms: dict) -> str | None:
         return next((r for r in perms if r.lower() == name.lower()), None)
 
-    def rank_exists(name: str, perms: dict[str, list[str]]) -> bool:
-        """Return True if rank exists (case-insensitive)."""
+    def rank_exists(name: str, perms: dict) -> bool:
         return find_rank(name, perms) is not None
 
-    def permission_exists(rank: str, perm: str, perms: dict[str, list[str]]) -> bool:
-        """Check if `perm` exists in `rank`'s permissions case-insensitively."""
+    def permission_exists(rank: str, perm: str, perms: dict) -> bool:
         rank_key = find_rank(rank, perms)
         if not rank_key:
             return False
-        return any(p.lower() == perm.lower() for p in perms[rank_key])
+        return any(p.lower() == perm.lower() for p in perms[rank_key].get("permissions", {}))
 
     if subaction == "set":
         user = self.db.get_offline_user(target)
@@ -94,11 +92,16 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message(f"§cRank \"{rank_name}\" already exists")
             return False
 
-        perms[rank_name] = []
-        save_permissions(perms)
+        perms[rank_name] = {
+            "permissions": {},
+            "inherits": [],
+            "weight": 0
+        }
+        save_permissions(perms, True)
+        reload_ranks()
         sender.send_message(f"Created rank §e\"{rank_name}\" §rsuccessfully")
         return True
-
+    
     elif subaction == "delete":
         rank_name = args[1]
 
@@ -107,55 +110,60 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             return False
 
         actual_rank = find_rank(rank_name, perms)
+        if actual_rank == "Default" or actual_rank == "Operator":
+            sender.send_message(f"§cThis rank cannot be deleted")
+            return False
+
         del perms[actual_rank]
-        save_permissions(perms)
+        save_permissions(perms, True)
+        reload_ranks()
         updatePermissionsFiltered(self, {actual_rank})
         sender.send_message(f"Deleted rank §e\"{actual_rank}\" §rsuccessfully")
         return True
 
-    elif subaction == "add":
-        rank_name = args[1]
-        permission = args[2]
+    elif subaction == "perm":
+        if args[1] == "add":
+            rank_name = args[2]
+            permission = args[3]
+            state = True 
+            if len(args) > 4:
+                state = args[4].lower() in ("true", "1", "yes", "on")
 
-        if rank_name == "op":
-            rank_name = "operator"
+            if rank_name == "op":
+                rank_name = "operator"
 
-        if not rank_exists(rank_name, perms):
-            sender.send_message(f"§cRank \"{rank_name}\" does not exist")
-            return False
-        
-        actual_rank = find_rank(rank_name, perms)
-        if permission_exists(actual_rank, permission, perms):
-            sender.send_message(f"Rank §e\"{actual_rank}\" §ralready has permission §e\"{permission}\"")
-            return False
-        
-        perms[actual_rank].append(permission)
-        save_permissions(perms)
-        updatePermissionsFiltered(self, {actual_rank})
-        sender.send_message(f"Added permission §e\"{permission}\" §rto rank §e\"{actual_rank}\"")
-        return True
+            if not rank_exists(rank_name, perms):
+                sender.send_message(f"§cRank \"{rank_name}\" does not exist")
+                return False
 
-    elif subaction == "remove":
-        rank_name = args[1]
-        permission = args[2]
+            actual_rank = find_rank(rank_name, perms)
+            perms[actual_rank]["permissions"][permission] = state
+            save_permissions(perms, True)
+            updatePermissionsFiltered(self, {actual_rank})
+            sender.send_message(f"Set permission §e\"{permission}\" = {state} §rfor rank §e\"{actual_rank}\"")
+            return True
 
-        if rank_name == "op":
-            rank_name = "operator"
+        elif args[1] == "remove":
+            rank_name = args[2]
+            permission = args[3]
 
-        if not rank_exists(rank_name, perms):
-            sender.send_message(f"§cRank \"{rank_name}\" does not exist")
-            return False
-        
-        actual_rank = find_rank(rank_name, perms)
-        if not permission_exists(actual_rank, permission, perms):
-            sender.send_message(f"Rank §e\"{actual_rank}\" §rdoes not have permission §e\"{permission}\"")
-            return False
-        
-        perms[actual_rank] = [p for p in perms[actual_rank] if p.lower() != permission.lower()]
-        save_permissions(perms)
-        updatePermissionsFiltered(self, {actual_rank})
-        sender.send_message(f"Removed permission §e\"{permission}\" §rfrom rank §e\"{actual_rank}\"")
-        return True
+            if rank_name == "op":
+                rank_name = "operator"
+
+            if not rank_exists(rank_name, perms):
+                sender.send_message(f"§cRank \"{rank_name}\" does not exist")
+                return False
+
+            actual_rank = find_rank(rank_name, perms)
+            if not permission_exists(actual_rank, permission, perms):
+                sender.send_message(f"Rank §e\"{actual_rank}\" §rdoes not have permission §e\"{permission}\"")
+                return False
+
+            perms[actual_rank]["permissions"].pop(permission, None)
+            save_permissions(perms, True)
+            updatePermissionsFiltered(self, {actual_rank})
+            sender.send_message(f"Removed permission §e\"{permission}\" from rank §e\"{actual_rank}\"")
+            return True
 
     elif subaction == "list":
         if not perms:
@@ -173,12 +181,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         if child_rank == "op":
             child_rank = "operator"
-
         if parent_rank == "op":
             parent_rank = "operator"
 
         child = find_rank(child_rank, perms)
-        parent = find_rank(parent_rank, perms).lower()
+        parent = find_rank(parent_rank, perms)
 
         if not child:
             sender.send_message(f"§cChild rank \"{child_rank}\" does not exist")
@@ -187,17 +194,36 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message(f"§cParent rank \"{parent_rank}\" does not exist")
             return False
 
-        inherit_perm = f"primebds.rank.{parent}"
-
-        if permission_exists(child, inherit_perm, perms):
+        if parent in perms[child]["inherits"]:
             sender.send_message(f"Rank §e\"{child}\" §ralready inherits from §e\"{parent}\"")
             return False
 
-        perms[child].append(inherit_perm)
-        save_permissions(perms)
+        perms[child]["inherits"].append(parent)
+        save_permissions(perms, True)
         updatePermissionsFiltered(self, {child})
-        sender.send_message(f"Rank §e\"{child}\" §rnow inherits permissions from §e\"{parent}\"")
+        sender.send_message(f"Rank §e\"{child}\" §rnow inherits from §e\"{parent}\"")
         return True
+
+    elif subaction == "weight":
+        if not rank_exists(rank_name, perms):
+            sender.send_message(f"§cRank \"{rank_name}\" does not exist")
+            return False
+
+        actual_rank = find_rank(rank_name, perms)
+
+        try:
+            new_weight = int(args[2])
+        except ValueError:
+            sender.send_message("Weight must be an integer.")
+            return
+
+        perms[actual_rank]["weight"] = new_weight
+        save_permissions(perms, True)
+        updatePermissionsFiltered(self, {actual_rank})
+        sender.send_message(f"Updated weight for rank {rank_name} to {new_weight}.")
+
+    else:
+        sender.send_message("Invalid subaction. Available: weight")
 
     return True
 

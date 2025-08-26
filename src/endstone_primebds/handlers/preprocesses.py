@@ -13,8 +13,7 @@ if TYPE_CHECKING:
 MODERATION_COMMANDS = {
     "kick", "ban", "pardon", "unban",
     "permban", "tempban", "tempmute",
-    "mute", "ipban", "unmute", "warn",
-    "ban-ip", "unban-ip", "banlist"
+    "mute", "ipban", "unmute", "warn"
 }
 MSG_CMDS = {"me", "tell", "w", "whisper", "msg"}
 PARSE_COMMANDS = (
@@ -42,6 +41,10 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         return 
     
     config = load_config()
+    modules = config.get("modules", {})
+    perms_manager = modules.get("permissions_manager", {})
+    minecraft_enabled = perms_manager.get("minecraft", True)
+    endstone_enabled = perms_manager.get("endstone", True)
 
     if cmd in MSG_CMDS and command.count("@e") >= 5:
         if player.xuid not in self.crasher_patch_applied:
@@ -86,18 +89,18 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         event.is_cancelled = True
         return True
 
-    if (cmd == "teleport" or cmd == "tp") and player.has_permission("minecraft.command.teleport") and not player.is_op: # Bypass TP exception
+    if (cmd == "teleport" or cmd == "tp") and minecraft_enabled and player.has_permission("minecraft.command.teleport") and not player.is_op: # Bypass TP exception
         self.server.dispatch_command(self.server.command_sender, f"execute as \"{player.name}\" at \"{player.name}\" run {command}")
         event.is_cancelled = True
         return False
-    if cmd == "ban-ip" or cmd == "unban-ip" or cmd == "banlist":
+    if cmd == "ban-ip" or cmd == "unban-ip" or cmd == "banlist" and endstone_enabled:
         event.is_cancelled = True
         return False
-    elif cmd == "ban" and len(args) > 1:
+    elif cmd == "ban" and len(args) > 1 and endstone_enabled:
         player.perform_command(f'permban \"{args[1]}\"')
         event.is_cancelled = True
         return False
-    elif cmd in {"unban", "pardon"} and len(args) > 1:
+    elif cmd in {"unban", "pardon"} and len(args) > 1 and endstone_enabled:
         player.perform_command(f'removeban \"{args[1]}\"')
         event.is_cancelled = True
         return False

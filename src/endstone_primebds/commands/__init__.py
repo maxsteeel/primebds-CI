@@ -56,6 +56,12 @@ def preload_settings():
             "prefix": "§l§8[§c!§8] §r§e",
             "playsound": "random.toast"
         }),
+        "permissions_manager": OrderedDict({
+            "primebds": True,
+            "endstone": True,
+            "minecraft": True,
+            "*": True
+        }),
         "discord_logging": OrderedDict({
             "embed": OrderedDict({
                 "color": 781919,
