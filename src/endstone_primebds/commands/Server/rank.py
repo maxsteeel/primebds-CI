@@ -62,7 +62,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             new_rank_lower = "operator"
 
         if new_rank_lower not in ranks_map:
-            sender.send_message(f"§cInvalid rank: {args[2]}. Valid ranks are: {', '.join(RANKS)}")
+            sender.send_message(f"§cInvalid rank: §e{args[1]}§c. Valid ranks are: §e{', '.join(RANKS)}")
             return False
 
         proper_rank = ranks_map[new_rank_lower]
@@ -133,7 +133,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             rank_name = "operator"
 
         if rank_name not in ranks_map:
-            sender.send_message(f"Invalid rank: {args[2]}. Valid ranks are: {', '.join(RANKS)}")
+            sender.send_message(f"§cInvalid rank: §e{args[1]}§c. Valid ranks are: §e{', '.join(RANKS)}")
             return False
 
         proper_rank = ranks_map[rank_name]
