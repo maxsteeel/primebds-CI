@@ -44,12 +44,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     # Fetch all user sessions
-    sessions = self.slog.get_user_sessions(xuid)
+    sessions = self.sldb.get_user_sessions(xuid)
     if not sessions:
         sender.send_message(f"No session history found for {player_name}")
         return True
 
-    total_playtime_seconds = self.slog.get_total_playtime(xuid)
+    total_playtime_seconds = self.sldb.get_total_playtime(xuid)
     playtime_str = format_time(total_playtime_seconds)
 
     sessions.sort(key=lambda s: s['start_time'], reverse=True)

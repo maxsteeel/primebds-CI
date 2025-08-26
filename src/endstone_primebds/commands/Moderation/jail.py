@@ -35,7 +35,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
     
     target_jail = args[1]
-    jail = self.serverdata.get_jail(target_jail, self.server)
+    jail = self.serverdb.get_jail(target_jail, self.server)
 
     if jail == None:
         sender.send_message(f"§6Jail §e\"{target_jail}\" §6does not exist")

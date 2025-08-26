@@ -3,7 +3,6 @@ import threading
 import time
 import traceback
 from endstone import Player
-from endstone.permissions import PermissionAttachment, PermissionLevel
 from endstone.plugin import Plugin
 from endstone.command import Command, CommandSender
 
@@ -77,8 +76,8 @@ class PrimeBDS(Plugin):
 
         # DB
         self.db = UserDB("users.db")
-        self.slog = sessionDB("sessionlog.db")
-        self.serverdata = ServerDB("server.db")
+        self.sldb = sessionDB("sessionlog.db")
+        self.serverdb = ServerDB("server.db")
 
     # EVENT HANDLER
     @event_handler
@@ -154,16 +153,16 @@ class PrimeBDS(Plugin):
         self.register_events(self)
         self.db.migrate_table("users", User)
         self.db.migrate_table("mod_logs", ModLog)
-        self.serverdata.migrate_table("server_info", ServerData)
+        self.serverdb.migrate_table("server_info", ServerData)
 
         load_config()
 
         init_jail_intervals(self)
-        last_shutdown_time = self.serverdata.get_server_info().last_shutdown_time
+        last_shutdown_time = self.serverdb.get_server_info().last_shutdown_time
         self.last_shutdown_time = last_shutdown_time 
 
-        if not self.serverdata.get_server_info().allowlist_profile:
-            self.serverdata.update_server_info("allowlist_profile", "default")
+        if not self.serverdb.get_server_info().allowlist_profile:
+            self.serverdb.update_server_info("allowlist_profile", "default")
 
         self.check_for_inactive_sessions()
         self.server.scheduler.run_task(self, start_additional_servers(self), 1)
@@ -172,10 +171,10 @@ class PrimeBDS(Plugin):
         stop_intervals(self)
         clear_all_intervals(self)
         self.db.close_connection()
-        self.slog.close_connection()
+        self.sldb.close_connection()
 
-        self.serverdata.update_server_info("last_shutdown_time", int(time.time()))
-        self.serverdata.close_connection()
+        self.serverdb.update_server_info("last_shutdown_time", int(time.time()))
+        self.serverdb.close_connection()
 
         if not is_nested_multiworld_instance():
             stop_additional_servers(self)
@@ -192,7 +191,7 @@ class PrimeBDS(Plugin):
         )
 
         query = "SELECT xuid, name, start_time FROM sessions_log WHERE end_time IS NULL"
-        active_sessions = self.slog.execute(query).fetchall()
+        active_sessions = self.sldb.execute(query).fetchall()
 
         for xuid, player_name, start_time in active_sessions:
             player = self.server.get_player(player_name)
@@ -207,7 +206,7 @@ class PrimeBDS(Plugin):
                 if candidate_end > max_allowed_end:
                     candidate_end = max_allowed_end
 
-                self.slog.end_session(xuid, candidate_end)
+                self.sldb.end_session(xuid, candidate_end)
 
     def reload_custom_perms(self, player: Player):
         user = self.db.get_online_user(player.xuid)

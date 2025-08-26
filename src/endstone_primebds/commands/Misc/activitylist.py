@@ -35,7 +35,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             if len(args) >= 2 and args[1].isdigit():
                 page = int(args[1])
 
-    playtimes = self.slog.get_all_playtimes()
+    playtimes = self.sldb.get_all_playtimes()
     if not playtimes:
         sender.send_message("No player playtime data found")
         return True
@@ -47,7 +47,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     else: 
         sorted_playtimes = []
         for player in playtimes:
-            sessions = self.slog.get_user_sessions(player['xuid'])
+            sessions = self.sldb.get_user_sessions(player['xuid'])
             if sessions:
                 recent_session = max(sessions, key=lambda s: s['start_time'])
                 sorted_playtimes.append({

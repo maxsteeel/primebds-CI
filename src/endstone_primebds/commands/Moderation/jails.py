@@ -29,7 +29,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
 
     if len(args) == 0 or args[0].lower() == "list":
-        jails = self.serverdata.get_all_jails(self.server)
+        jails = self.serverdb.get_all_jails(self.server)
         if jails:
             sender.send_message("§6Jails on the server:")
             for jail_name in jails:
@@ -49,19 +49,19 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 sender.send_message("§cCannot determine a valid location to create the jail")
                 return False
 
-            self.serverdata.create_jail(jail_name, loc)
+            self.serverdb.create_jail(jail_name, loc)
             sender.send_message(f"§6Jail §e'{jail_name}' §6has been created at §e{round(loc.x)}, {round(loc.y)}, {round(loc.z)}")
             return True
 
         elif action == "delete":
-            if self.serverdata.delete_jail(jail_name):
+            if self.serverdb.delete_jail(jail_name):
                 sender.send_message(f"§6Jail §e'{jail_name}' §6has been deleted")
             else:
                 sender.send_message(f"§cJail '{jail_name}' not found")
             return True
 
         elif action == "tp":
-            jail = self.serverdata.get_jail(jail_name, self.server)
+            jail = self.serverdb.get_jail(jail_name, self.server)
             if jail:
                 if isinstance(sender, Player):
                     sender.teleport(jail["pos"])

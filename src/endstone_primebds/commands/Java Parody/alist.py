@@ -136,7 +136,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         try:
 
             config = load_config()
-            profile_name = self.serverdata.get_server_info().allowlist_profile
+            profile_name = self.serverdb.get_server_info().allowlist_profile
             profile_dir = get_allowlist_profiles_folder()
             profile_file = os.path.join(profile_dir, f"{profile_name}.json")
 
@@ -232,7 +232,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         current_allowlist = os.path.join(current_dir, "allowlist.json")
         config = load_config()
-        current_profile = self.serverdata.get_server_info().allowlist_profile
+        current_profile = self.serverdb.get_server_info().allowlist_profile
         current_profile_path = os.path.join(profiles_dir, f"{current_profile}.json")
 
         if os.path.exists(current_allowlist):
@@ -245,7 +245,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         def apply_profile():
             shutil.copyfile(target_path, current_allowlist)
-            self.serverdata.update_server_info("allowlist_profile", target_profile)
+            self.serverdb.update_server_info("allowlist_profile", target_profile)
             save_config(config)
             self.server.dispatch_command(self.server.command_sender, "whitelist reload")
 
@@ -270,7 +270,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 sender.send_message(f"No saved allowlist profiles.")
                 return True
 
-            current_profile = self.serverdata.get_server_info().allowlist_profile
+            current_profile = self.serverdb.get_server_info().allowlist_profile
 
             lines = []
             for profile in profiles:

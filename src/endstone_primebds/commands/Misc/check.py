@@ -167,7 +167,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         jail_info = ""
         
         if is_jailed:
-            jail = self.serverdata.get_jail(jail, self.server)
+            jail = self.serverdb.get_jail(jail, self.server)
             if jail:
                 parts = jail_return_loc.split(",")
                 x = float(parts[0])
