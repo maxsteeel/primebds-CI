@@ -1579,7 +1579,7 @@ class UserDB(DatabaseManager):
             value = f"{x},{y},{z}"
         self.update('mod_logs', {column: value}, 'name = ?', (name,))
 
-class sessionlog(DatabaseManager):
+class sessionDB(DatabaseManager):
     """Session tracking."""
 
     def __init__(self, db_name: str):

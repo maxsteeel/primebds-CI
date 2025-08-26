@@ -15,7 +15,7 @@ from endstone_primebds.commands import (
 
 from endstone_primebds.commands.Server.monitor import clear_all_intervals
 from endstone_primebds.utils.config_util import load_config
-from endstone_primebds.utils.db_util import UserDB, sessionlog, ServerDB, User, ModLog, ServerData
+from endstone_primebds.utils.db_util import UserDB, sessionDB, ServerDB, User, ModLog, ServerData
 from endstone_primebds.utils.internal_permissions_util import check_rank_exists, load_perms, get_rank_permissions, invalidate_perm_cache, MANAGED_PERMISSIONS_LIST
 
 def plugin_text():
@@ -35,8 +35,7 @@ Prime BDS Loaded!
 
 # EVENT & HANDLER IMPORTS
 from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent,
-                            ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, BlockBreakEvent, BlockPlaceEvent,
-                            PlayerInteractEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
+                            ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
                             PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent, 
                             PacketReceiveEvent, ServerLoadEvent)
 from endstone_primebds.handlers.chat import handle_chat_event
@@ -78,7 +77,7 @@ class PrimeBDS(Plugin):
 
         # DB
         self.db = UserDB("users.db")
-        self.slog = sessionlog("sessionlog.db")
+        self.slog = sessionDB("sessionlog.db")
         self.serverdata = ServerDB("server.db")
 
     # EVENT HANDLER
