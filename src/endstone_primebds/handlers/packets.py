@@ -14,10 +14,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
-
 def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
     if not PACKET_SUPPORT:
-        return  # disable silently if imports failed
+        return 
 
     if ev.packet_id == MinecraftPacketIds.AddPlayer:
         target_player = self.server.get_player(extract_player_name_from_addplayer(ev.payload))
