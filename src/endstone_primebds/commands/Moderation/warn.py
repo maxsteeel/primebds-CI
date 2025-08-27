@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "warn",
     "Warn a player that they are breaking a rule!",
-    ["/warn <player: player> <reason: message> [duration_number: int] (second|minute|hour|day|week|month|year)[duration_length: warn_length]"],
+    ["/warn <player: player> <reason: string> [duration_number: int] (second|minute|hour|day|week|month|year)[duration_length: warn_length]"],
     ["primebds.command.warn"]
 )
 
