@@ -155,7 +155,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         discordRelay(f"**{player.name} -> {target}**: {message}", "chat")
 
         for pl in self.server.online_players:
-            if self.db.get_online_user(pl.xuid).enabled_ss == 1:
+            if self.db.get_online_user(pl.xuid).enabled_ss == 1 and pl.has_permission("primebds.command.socialspy"):
                 pl.send_message(f"{config["modules"]["server_messages"]["social_spy_prefix"]}§8[§r{player.name} §7-> §r{target}§8] §7{message}")
 
 def handle_server_command_preprocess(self: "PrimeBDS", event: ServerCommandEvent):
