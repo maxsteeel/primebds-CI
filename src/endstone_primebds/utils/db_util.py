@@ -1378,18 +1378,21 @@ class UserDB(DatabaseManager):
             self.set_permissions(xuid, perms)
 
     def save_inventory(self, player: Player) -> None:
-        player_data = {
-            "xuid": player.xuid,
-            "name": player.name,
-            "inventory": [player.inventory.get_item(i) for i in range(player.inventory.size)],
-            "armor": {
-                "helmet": getattr(player.inventory, "helmet", None),
-                "chestplate": getattr(player.inventory, "chestplate", None),
-                "leggings": getattr(player.inventory, "leggings", None),
-                "boots": getattr(player.inventory, "boots", None),
-                "offhand": getattr(player.inventory, "item_in_off_hand", None)
+        try:
+            player_data = {
+                "xuid": player.xuid,
+                "name": player.name,
+                "inventory": [player.inventory.get_item(i) for i in range(player.inventory.size)],
+                "armor": {
+                    "helmet": getattr(player.inventory, "helmet", None),
+                    "chestplate": getattr(player.inventory, "chestplate", None),
+                    "leggings": getattr(player.inventory, "leggings", None),
+                    "boots": getattr(player.inventory, "boots", None),
+                    "offhand": getattr(player.inventory, "item_in_off_hand", None)
+                }
             }
-        }
+        except Exception as e:
+            print(f"[Inventory Save] {player.name} inventory could not be saved: {e}")
 
         values = []
 

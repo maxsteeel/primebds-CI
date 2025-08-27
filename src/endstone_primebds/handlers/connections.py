@@ -118,8 +118,8 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
     # Update Data On Leave
     self.db.update_user_data(ev.player.name, 'xp', ev.player.total_exp)
     self.db.update_user_data(ev.player.name, 'last_leave', int(time.time()))
-    self.db.save_inventory(ev.player)
-    self.db.save_enderchest(ev.player)
+    #self.db.save_inventory(ev.player)
+    #self.db.save_enderchest(ev.player)
     stop_jail_check_if_not_needed(self)
 
     # Ban System: ENHANCEMENT
