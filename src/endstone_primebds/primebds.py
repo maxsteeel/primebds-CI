@@ -132,11 +132,11 @@ class PrimeBDS(Plugin):
     def on_player_kick(self, ev: PlayerKickEvent):
         handle_kick_event(self, ev)
 
-    @event_handler()
+    @event_handler(priority=EventPriority.HIGHEST)
     def on_player_command_preprocess(self, ev: PlayerCommandEvent) -> None:
         handle_command_preprocess(self, ev)
 
-    @event_handler()
+    @event_handler(priority=EventPriority.HIGHEST)
     def on_player_server_command_preprocess(self, ev: ServerCommandEvent) -> None:
         handle_server_command_preprocess(self, ev)
 

@@ -149,9 +149,19 @@ def load_rules(default_rules=None):
 
 def save_properties_file(path: str, props: dict) -> bool:
     try:
-        content = "\n".join(f"{key}={value}" for key, value in props.items())
+        lines = []
+        for key, value in props.items():
+            if isinstance(value, bool):
+                value_str = "true" if value else "false"
+            else:
+                value_str = str(value)
+            lines.append(f"{key}={value_str}")
+
+        content = "\n".join(lines) + "\n"
+
         result = open_text_file(path, mode="w", text=content)
         return result is not None
+
     except Exception as e:
         print(f"Failed to save properties file {path}: {e}")
         return False
@@ -207,6 +217,62 @@ def find_and_load_config(
         depth += 1
 
     find_and_load_config._cache[filename] = None
+    return None
+
+def find_folder(
+    foldername,
+    start_path=None,
+    forbidden_subdir="multiworld",
+    max_depth=20,
+    refresh=False
+):
+    if not hasattr(find_folder, "_cache"):
+        find_folder._cache = {}
+
+    if not refresh and foldername in find_folder._cache:
+        return find_folder._cache[foldername]
+
+    if start_path is None:
+        start_path = os.getcwd()
+
+    current_path = os.path.abspath(start_path)
+    depth = 0
+
+    while depth < max_depth:
+        candidate_path = os.path.join(current_path, foldername)
+
+        if os.path.isdir(candidate_path):
+            norm_path = os.path.normpath(candidate_path)
+            path_parts = norm_path.split(os.sep)
+            if forbidden_subdir not in path_parts:
+                find_folder._cache[foldername] = candidate_path
+                return candidate_path
+
+        parent = os.path.dirname(current_path)
+        if parent == current_path:
+            break
+        current_path = parent
+        depth += 1
+
+    find_folder._cache[foldername] = None
+    return None
+
+def find_server_properties(start_path: str = None) -> str | None:
+    if start_path is None:
+        start_path = os.getcwd()
+    start_path = os.path.abspath(start_path)
+
+    current_dir = start_path
+    while True:
+        candidate = os.path.join(current_dir, "server.properties")
+        if os.path.isfile(candidate):
+            return candidate
+
+        parent_dir = os.path.dirname(current_dir)
+        if parent_dir == current_dir:  # Reached root without finding file
+            break
+        current_dir = parent_dir
+
     return None
 
 def parse_properties_file(path: str) -> dict:

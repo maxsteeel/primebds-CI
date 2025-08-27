@@ -12,6 +12,7 @@ from endstone.util import Vector
 from endstone_primebds.utils.address_util import same_subnet
 from endstone_primebds.utils.mod_util import format_time_remaining
 from endstone_primebds.utils.time_util import TimezoneUtils
+from endstone_primebds.utils.config_util import find_server_properties, find_and_load_config, parse_properties_file, find_folder
 from datetime import datetime
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -144,7 +145,30 @@ class DatabaseManager:
     _lock = threading.Lock()
 
     def __init__(self, db_name: str):
-        self.db_path = os.path.join(DB_FOLDER, db_name if db_name.endswith('.db') else db_name + '.db')
+        start_path = os.path.dirname(os.path.abspath(__file__))
+        config = find_and_load_config("primebds_data/config.json", start_path, "multiworld", 20, True)
+        main_server_properties = find_and_load_config("server.properties", start_path)
+        local_server_properties = parse_properties_file(find_server_properties(start_path))
+
+        main_level = main_server_properties.get("level-name", "Unknown")
+        level = local_server_properties.get("level-name", "Unknown")
+
+        if main_level.lower() == level.lower():
+            self.db_path = os.path.join(DB_FOLDER, db_name if db_name.endswith('.db') else db_name + '.db')
+        else:
+            multiworld = config.get("modules", {}).get("multiworld", {})
+            worlds = multiworld.get("worlds", {})
+            is_enabled = worlds[level].get("enabled", False)
+            if is_enabled:
+                main_root = find_folder("primebds_data/database", start_path, "multiworld", 20, True)
+                if main_root:
+                    self.db_path = os.path.join(main_root, db_name if db_name.endswith('.db') else db_name + '.db')
+                    print("DEBUG: SUB-WORLD DB LINKED")
+                else:
+                    self.db_path = os.path.join(DB_FOLDER, db_name if db_name.endswith('.db') else db_name + '.db')
+            else:
+                self.db_path = os.path.join(DB_FOLDER, db_name if db_name.endswith('.db') else db_name + '.db')
+
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.execute("PRAGMA journal_mode=WAL;")  # Enable WAL for concurrency
         self.cursor = self.conn.cursor()

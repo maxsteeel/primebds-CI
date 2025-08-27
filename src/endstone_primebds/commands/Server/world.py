@@ -1,6 +1,7 @@
 import os
 import shutil
 import socket
+import threading
 from endstone import Player
 from endstone.command import CommandSender, BlockCommandSender
 from endstone_primebds.handlers.multiworld import start_world, stop_world
@@ -320,6 +321,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         if self.server.level.name != main_level:
             send_feedback(f"[PrimeBDS] Worlds can only be deleted from the main world")
             return False
+        
+        if is_world_enabled(self, world_name):
+            send_feedback(f"[PrimeBDS] The world is currently running")
+            return False
 
         config = load_config()
         multiworld = config.get("modules", {}).get("multiworld", {})
@@ -331,7 +336,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         is_enabled = worlds[world_name].get("enabled", False)
         if not is_enabled:
-            start_world(self, world_name, worlds[world_name])
+            threading.Thread(
+                target=start_world,
+                args=(self, world_name, worlds[world_name]),
+                daemon=True
+            ).start()
+            send_feedback(f"[PrimeBDS] §e{world_name} §rwas §aenabled")
             worlds[world_name]["enabled"] = True
             save_config(config)
 
@@ -342,6 +352,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             return False
         elif self.server.level.name != main_level:
             send_feedback(f"[PrimeBDS] Worlds can only be disabled from the main world")
+            return False
+        
+        if not is_world_enabled(self, world_name):
+            send_feedback(f"[PrimeBDS] The world is already disabled")
             return False
 
         config = load_config()
@@ -354,12 +368,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         is_enabled = worlds[world_name].get("enabled", False)
         if is_enabled:
-            stop_world(self, world_name)
+            thread = threading.Thread(target=stop_world, args=(self, world_name))
+            thread.start()
+            send_feedback(f"[PrimeBDS] §e{world_name} §rwas §cdisabled")
             worlds[world_name]["enabled"] = False
             save_config(config)
 
     elif subaction == "config":
-        config = load_config()
         multiworld = config.get("modules", {}).get("multiworld", {})
         worlds = multiworld.get("worlds", {})
 
@@ -448,15 +463,22 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                     if resp.canceled:
                         return
                     if bool(resp.formValues[0]):
-                        stop_world(self, world_name)
-                        start_world(self, world_name, settings)
+                        stop_thread = threading.Thread(target=stop_world, args=(self, world_name))
+                        stop_thread.start()
+                        stop_thread.join()
+                        threading.Thread(
+                            target=start_world,
+                            args=(self, world_name, worlds[world_name]),
+                            daemon=True
+                        ).start()
                         player.send_message(f"World '{world_name}' restarted successfully")
                     else:
                         player.send_message(f"World '{world_name}' changes saved without restart")
                 
                 restart_form.show(player).then(lambda resp, pl=player: handle_restart(resp, pl))
             else:
-                stop_world(self, world_name)
+                thread = threading.Thread(target=stop_world, args=(self, world_name))
+                thread.start()
                 player.send_message(f"World '{world_name}' changes saved")
 
         form.show(sender).then(lambda resp, pl=sender: submit_modal(resp, pl))
@@ -464,4 +486,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     else:
         send_feedback(f"[PrimeBDS] Unknown subaction '{subaction}'")
         return False
+
+def is_world_enabled(self, world_key: str) -> bool:
+    with self.multiworld_lock:
+        return any(level_name.startswith(world_key) for level_name in self.multiworld_processes)
 

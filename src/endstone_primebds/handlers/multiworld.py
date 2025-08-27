@@ -1,12 +1,13 @@
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import threading
 import time
 
 import psutil
-from endstone_primebds.utils.config_util import load_config, save_properties_file, parse_properties_file
+from endstone_primebds.utils.config_util import find_and_load_config, load_config, save_properties_file, parse_properties_file
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -131,6 +132,12 @@ def stop_world(self, world_key: str):
         print(f"[PrimeBDS] Stopping world '{level_name}'")
         try:
             if proc.stdin:
+                hostname = socket.gethostname()
+                ip = socket.gethostbyname(hostname)
+                start_path = os.path.dirname(os.path.abspath(__file__))
+                server_properties = find_and_load_config("server.properties", start_path)
+                port = int(server_properties.get("server-port", 19132))
+                proc.stdin.write(f"send @a {ip} {port}\n")
                 proc.stdin.write("stop\n")
                 proc.stdin.flush()
             try:
@@ -148,7 +155,6 @@ def stop_world(self, world_key: str):
             self.multiworld_processes.pop(level_name, None)
             self.multiworld_ports.pop(level_name, None)
 
-    # If no tracked processes were found, attempt to kill by folder
     if not to_stop:
         world_dir = os.path.join(self.multiworld_base_dir, world_key)
         if os.path.exists(world_dir):
@@ -198,20 +204,18 @@ def forward_output(stream, prefix):
 def copy_plugins_to_world(root_plugins_dir, world_plugins_dir, timeout=5):
     os.makedirs(world_plugins_dir, exist_ok=True)
 
-    for file in os.listdir(world_plugins_dir):
-        if file.endswith(".whl"):
-            try:
-                os.remove(os.path.join(world_plugins_dir, file))
-            except Exception as e:
-                print(f"[PrimeBDS] Failed to remove '{file}': {e}")
-
     expected_plugins = []
     for item in os.listdir(root_plugins_dir):
         if not item.endswith(".whl"):
             continue
+
         source_path = os.path.join(root_plugins_dir, item)
         target_path = os.path.join(world_plugins_dir, item)
+
         try:
+            if os.path.exists(target_path):
+                os.remove(target_path)
+
             shutil.copy2(source_path, target_path)
             expected_plugins.append(item)
         except Exception as e:
