@@ -1383,64 +1383,72 @@ class UserDB(DatabaseManager):
             "name": player.name,
             "inventory": [player.inventory.get_item(i) for i in range(player.inventory.size)],
             "armor": {
-                "helmet": player.inventory.helmet,
-                "chestplate": player.inventory.chestplate,
-                "leggings": player.inventory.leggings,
-                "boots": player.inventory.boots,
-                "offhand": player.inventory.item_in_off_hand
+                "helmet": getattr(player.inventory, "helmet", None),
+                "chestplate": getattr(player.inventory, "chestplate", None),
+                "leggings": getattr(player.inventory, "leggings", None),
+                "boots": getattr(player.inventory, "boots", None),
+                "offhand": getattr(player.inventory, "item_in_off_hand", None)
             }
         }
 
-        with self._lock:
-            cursor = self.conn.cursor()
-            cursor.execute("DELETE FROM inventories WHERE xuid = ?", (player_data["xuid"],))
-            values = []
+        values = []
 
-            for i, item in enumerate(player_data["inventory"]):
-                if not item:
-                    continue
-                meta = item.item_meta
+        for i, item in enumerate(player_data["inventory"]):
+            if not item:
+                continue
+            try:
+                meta = getattr(item, "item_meta", None) or {}
                 values.append((
                     player_data["xuid"],
                     player_data["name"],
                     "slot",
                     i,
-                    str(item.type) or "minecraft:air",
-                    item.amount or 1,
-                    meta.damage,
-                    meta.display_name,
-                    json.dumps(meta.enchants),
-                    json.dumps(meta.lore),
-                    meta.is_unbreakable,
-                    item.data
+                    str(getattr(item, "type", "minecraft:air")),
+                    getattr(item, "amount", 1),
+                    getattr(meta, "damage", 0),
+                    getattr(meta, "display_name", ""),
+                    json.dumps(getattr(meta, "enchants", {})),
+                    json.dumps(getattr(meta, "lore", [])),
+                    getattr(meta, "is_unbreakable", False),
+                    getattr(item, "data", None)
                 ))
+            except Exception as e:
+                print(f"[Inventory Save] Failed to save slot {i} for {player.name}: {e}")
+                continue
 
-            for slot_type, item in player_data["armor"].items():
-                if not item:
-                    continue
-                meta = item.item_meta
+        for slot_type, item in player_data["armor"].items():
+            if not item:
+                continue
+            try:
+                meta = getattr(item, "item_meta", None) or {}
                 values.append((
                     player_data["xuid"],
                     player_data["name"],
                     slot_type,
                     0,
-                    str(item.type) or "minecraft:air",
-                    item.amount or 1,
-                    meta.damage,
-                    meta.display_name,
-                    json.dumps(meta.enchants),
-                    json.dumps(meta.lore),
-                    meta.is_unbreakable,
-                    item.data
+                    str(getattr(item, "type", "minecraft:air")),
+                    getattr(item, "amount", 1),
+                    getattr(meta, "damage", 0),
+                    getattr(meta, "display_name", ""),
+                    json.dumps(getattr(meta, "enchants", {})),
+                    json.dumps(getattr(meta, "lore", [])),
+                    getattr(meta, "is_unbreakable", False),
+                    getattr(item, "data", None)
                 ))
+            except Exception as e:
+                print(f"[Inventory Save] Failed to save {slot_type} for {player.name}: {e}")
+                continue
 
-            # Insert all at once
-            cursor.executemany("""
-                INSERT INTO inventories
-                (xuid, name, slot_type, slot, type, amount, damage, display_name, enchants, lore, unbreakable, data)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, values)
-            self.conn.commit()
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute("DELETE FROM inventories WHERE xuid = ?", (player_data["xuid"],))
+            if values:
+                cursor.executemany("""
+                    INSERT INTO inventories
+                    (xuid, name, slot_type, slot, type, amount, damage, display_name, enchants, lore, unbreakable, data)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, values)
+                self.conn.commit()
 
     def get_inventory(self, xuid: str) -> list[dict]:
         """Fetch inventory rows as flat dicts ready for load_inventory."""
@@ -1486,14 +1494,7 @@ class UserDB(DatabaseManager):
         player_data = {
             "xuid": player.xuid,
             "name": player.name,
-            "inventory": [player.inventory.get_item(i) for i in range(player.inventory.size)],
-            "armor": {
-                "helmet": player.inventory.helmet,
-                "chestplate": player.inventory.chestplate,
-                "leggings": player.inventory.leggings,
-                "boots": player.inventory.boots,
-                "offhand": player.inventory.item_in_off_hand
-            }
+            "inventory": [player.ender_chest.get_item(i) for i in range(player.ender_chest.size)],
         }
 
         with self._lock:
@@ -1510,25 +1511,6 @@ class UserDB(DatabaseManager):
                     player_data["name"],
                     "slot",
                     i,
-                    str(item.type) or "minecraft:air",
-                    item.amount or 1,
-                    meta.damage,
-                    meta.display_name,
-                    json.dumps(meta.enchants),
-                    json.dumps(meta.lore),
-                    meta.is_unbreakable,
-                    item.data
-                ))
-
-            for slot_type, item in player_data["armor"].items():
-                if not item:
-                    continue
-                meta = item.item_meta
-                values.append((
-                    player_data["xuid"],
-                    player_data["name"],
-                    slot_type,
-                    0,
                     str(item.type) or "minecraft:air",
                     item.amount or 1,
                     meta.damage,
@@ -1630,7 +1612,7 @@ class UserDB(DatabaseManager):
     def load_enderchest(self, player: Player) -> None:
         """Apply DB inventory to player object"""
         items = self.get_enderchest(player.xuid)
-        inv = player.inventory
+        inv = player.ender_chest
 
         for entry in items:
             try:
@@ -1651,19 +1633,7 @@ class UserDB(DatabaseManager):
 
                 slot_type = entry.get("slot_type", "slot")
                 slot = entry.get("slot", 0)
-
-                if slot_type == "helmet":
-                    inv.helmet = item
-                elif slot_type == "chestplate":
-                    inv.chestplate = item
-                elif slot_type == "leggings":
-                    inv.leggings = item
-                elif slot_type == "boots":
-                    inv.boots = item
-                elif slot_type == "offhand":
-                    inv.item_in_off_hand = item
-                elif slot_type == "slot":
-                    inv.set_item(slot, item)
+                inv.set_item(slot, item)
 
             except Exception as e:
                 print(f"Failed to load item for player {player.name} ({player.xuid}): {e}, entry={entry}")
