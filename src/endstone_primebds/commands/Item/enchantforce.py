@@ -1,5 +1,4 @@
 from endstone.command import CommandSender
-from endstone._internal.endstone_python import NamespacedKey
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.target_selector_util import get_matching_actors
 
@@ -45,7 +44,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
     
     try:
-        self.server.enchantment_registry.get_or_throw(NamespacedKey(self, enchant_name))
+        self.server.enchantment_registry.get_or_throw(enchant_name)
     except Exception:
         sender.send_message(f"§cEnchantment '{enchant_name}' is not registered")
         return False
