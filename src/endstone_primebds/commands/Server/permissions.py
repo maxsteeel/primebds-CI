@@ -13,7 +13,7 @@ command, permission = create_command(
     [
         "/permissions <player: player> (settrue|setfalse|setneutral)<set_perm: set_perm> <perm: string>"
      ],
-    ["primebds.command.permissions", "primebds.command.perms"],
+    ["primebds.command.permissions"],
     "op",
     ["perms"]
 )
