@@ -180,7 +180,7 @@ def passes_filters(players: List[Player], args: dict, origin: Vector) -> bool:
 
     return mask
 
-def get_matching_actors(self: "PrimeBDS", selector: str, origin: BlockCommandSender):
+def get_matching_actors(self: "PrimeBDS", selector: str, origin):
     all_actors = [a for a in self.server.online_players if isinstance(a, Player)]
     origin_loc = getattr(origin, "location", getattr(getattr(origin, "block", None), "location", Vector(0,0,0)))
     origin_key = (origin_loc.x, origin_loc.y, origin_loc.z)

@@ -215,7 +215,8 @@ class PrimeBDS(Plugin):
     def reload_custom_perms(self, player: Player):
         user = self.db.get_online_user(player.xuid)
         if not user:
-            return
+            self.db.save_user(player)
+            user = self.db.get_online_user(player.xuid)
 
         internal_rank = check_rank_exists(self, player, user.internal_rank)
 

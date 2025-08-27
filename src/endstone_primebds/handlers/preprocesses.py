@@ -133,10 +133,12 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         return False
 
     if cmd in MSG_CMDS and len(args) > 1:
-        if self.db.get_mod_log(player.xuid).is_muted == 1:
-            self.db.check_and_update_mute(player.xuid, player.name)
-            event.is_cancelled = True
-            return True
+        mod_log = self.db.get_mod_log(player.xuid)
+        if mod_log:
+            if mod_log.is_muted == 1:
+                self.db.check_and_update_mute(player.xuid, player.name)
+                event.is_cancelled = True
+                return True
         target = args[1]
         if "@" in target:
             player.send_message("§cTarget selectors are invalid for this command")
@@ -155,8 +157,10 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         discordRelay(f"**{player.name} -> {target}**: {message}", "chat")
 
         for pl in self.server.online_players:
-            if self.db.get_online_user(pl.xuid).enabled_ss == 1 and pl.has_permission("primebds.command.socialspy"):
-                pl.send_message(f"{config["modules"]["server_messages"]["social_spy_prefix"]}§8[§r{player.name} §7-> §r{target}§8] §7{message}")
+            user = self.db.get_online_user(pl.xuid)
+            if user:
+                if user.enabled_ss == 1 and pl.has_permission("primebds.command.socialspy"):
+                    pl.send_message(f"{config["modules"]["server_messages"]["social_spy_prefix"]}§8[§r{player.name} §7-> §r{target}§8] §7{message}")
 
 def handle_server_command_preprocess(self: "PrimeBDS", event: ServerCommandEvent):
     args = event.command.split()
