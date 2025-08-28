@@ -49,7 +49,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         for player in playtimes:
             sessions = self.sldb.get_user_sessions(player['xuid'])
             if sessions:
-                recent_session = max(sessions, key=lambda s: s['start_time'])
+                recent_session = max(sessions, key=lambda s: s['end_time'] or s['start_time'])
                 sorted_playtimes.append({
                     'name': player['name'],
                     'xuid': player['xuid'],

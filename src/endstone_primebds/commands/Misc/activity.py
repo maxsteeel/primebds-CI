@@ -33,6 +33,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
 
     player_name = args[0]
+    target = self.server.get_player(player_name)
     page = int(args[1]) if len(args) > 1 and args[1].isdigit() else 1
     if page < 1:
         page = 1
@@ -61,25 +62,33 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     sender.send_message(f"§bSession History for §e{player_name} §7(Page {page}/{total_pages}):")
     sender.send_message(f"§eTotal Playtime: §f{playtime_str}")
 
-    active_session = None
-    for session in sessions:
-        if session['end_time'] is None:
-            active_session = session
-            sessions.remove(session)
-            break
+    active_session = next((s for s in sessions if s['end_time'] is None), None)
 
-    # Display active session first (if applicable)
     if active_session:
-        start_time_str = TimezoneUtils.convert_to_timezone(active_session['start_time'], 'EST')
-        if not start_time_str.startswith("CORRUPTED"):
-            active_seconds = int(time.time() - active_session['start_time'])
-            sender.send_message(f"§7- §a{start_time_str}§7 - §aActive Now §f(+{format_time(active_seconds)})")
+        if target:
+            start_time_str = TimezoneUtils.convert_to_timezone(active_session['start_time'], 'EST')
+            if not start_time_str.startswith("CORRUPTED"):
+                active_seconds = int(time.time() - active_session['start_time'])
+                sender.send_message(
+                    f"§7- §a{start_time_str}§7 - §aActive Now §f(+{format_time(active_seconds)})"
+                )
+            sessions.remove(active_session)
+        else:
+            now = int(time.time())
+            MAX_SESSION_LENGTH = 3600 
 
-        # Remove duplicates from paginated sessions
-        paginated_sessions = [
-            s for s in paginated_sessions
-            if s['start_time'] != active_session['start_time']
-        ]
+            if self.last_shutdown_time and self.last_shutdown_time > active_session['start_time']:
+                candidate_end = self.last_shutdown_time
+            else:
+                candidate_end = now
+
+            max_allowed_end = active_session['start_time'] + MAX_SESSION_LENGTH
+            if candidate_end > max_allowed_end:
+                candidate_end = max_allowed_end
+
+            self.sldb.end_session(xuid, candidate_end)
+            active_session['end_time'] = candidate_end
+            active_session['duration'] = candidate_end - active_session['start_time']
 
     # Paginate session history
     for session in paginated_sessions:
