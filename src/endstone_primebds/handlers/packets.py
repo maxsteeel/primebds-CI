@@ -5,7 +5,8 @@ try:
         extract_player_name_from_addplayer,
     )
     PACKET_SUPPORT = True
-except Exception:
+except Exception as e:
+    print(e)
     PACKET_SUPPORT = False
 
 from endstone.event import PacketSendEvent, PacketReceiveEvent
