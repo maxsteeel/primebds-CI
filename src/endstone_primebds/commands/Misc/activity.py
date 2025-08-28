@@ -95,7 +95,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         start_str = TimezoneUtils.convert_to_timezone(session['start_time'], 'EST')
         end_str = TimezoneUtils.convert_to_timezone(session['end_time'], 'EST')
         duration_text = f"§f({format_time(session['duration'])})"
-        sender.send_message(f"§7- §a{start_str}§7 - §c{end_str} {duration_text}")
+        if start_str is not None and end_str is not None:
+            sender.send_message(f"§7- §a{start_str}§7 - §c{end_str} {duration_text}")
     
     return True
 

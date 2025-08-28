@@ -46,4 +46,4 @@ class TimezoneUtils:
             return local_time.strftime('%Y-%m-%d %I:%M:%S %p') + f" {timezone_label}"
 
         except (OSError, ValueError, TypeError):
-            return "CORRUPTED (CRASH) - Est. Duration"
+            return None
