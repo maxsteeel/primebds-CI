@@ -19,7 +19,7 @@ command, permission = create_command(
     [
         "/alist (list|check|profiles)<allowlist_sub: allowlist_list>",
         "/alist (add|remove)<allowlist_sub: allowlist_sub_action> <player: string> [ignore_max_player_limit: bool]",
-        "/alist (create|use|delete)<allowlist: allowlist_action> <name: string>",
+        "/alist (create|use|delete|clear)<allowlist: allowlist_action> <name: string>",
         "/alist (inherit)<allowlist: allowlist_inherit> <child_list: string> <parent_list: string>"
     ],
     ["primebds.command.alist"],
@@ -128,6 +128,56 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message(f"§rAllowlist players:\n" + "\n".join(f"§7- {line}" for line in lines))
         except Exception as e:
             sender.send_message(f"§rFailed to read allowlist: {e}")
+        return True
+
+    elif subcommand == "clear":
+        target_profile = args[1].strip()
+        profiles_dir = get_allowlist_profiles_folder()
+        target_path = os.path.join(profiles_dir, f"{target_profile}.json")
+
+        if not os.path.exists(target_path):
+            sender.send_message(f"Profile '{target_profile}' does not exist.")
+            return True
+
+        try:
+            with open(target_path, "r") as f:
+                data = json.load(f)
+
+            if not data:
+                sender.send_message(f"Profile '{target_profile}' is already empty.")
+                return True
+
+            for entry in data:
+                player_name = entry.get("name")
+                if player_name:
+                    self.server.dispatch_command(
+                        self.server.command_sender,
+                        f'whitelist remove "{player_name}"'
+                    )
+
+            with open(target_path, "w") as f:
+                json.dump([], f, indent=4)
+
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            while not (
+                os.path.exists(os.path.join(current_dir, 'plugins')) and
+                os.path.exists(os.path.join(current_dir, 'worlds'))
+            ):
+                current_dir = os.path.dirname(current_dir)
+
+            current_allowlist = os.path.join(current_dir, "allowlist.json")
+            current_profile = self.serverdb.get_server_info().allowlist_profile
+            if current_profile == target_profile:
+                with open(current_allowlist, "w") as f:
+                    json.dump([], f, indent=4)
+                self.server.dispatch_command(self.server.command_sender, "whitelist reload")
+                sender.send_message(f"Cleared and reloaded active profile '{target_profile}'")
+            else:
+                sender.send_message(f"Cleared profile '{target_profile}'")
+
+        except Exception as e:
+            sender.send_message(f"Failed to clear profile '{target_profile}': {e}")
+
         return True
 
     elif subcommand == "check":
@@ -338,9 +388,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         except Exception as e:
             sender.send_message(f"Failed to inherit profile: {e}")
 
-    else:
-        sender.send_message(f"Unknown subcommand '{subcommand}'")
-        return True
     return True
 
 def get_allowlist_profile_path(profile_name: str) -> str:
