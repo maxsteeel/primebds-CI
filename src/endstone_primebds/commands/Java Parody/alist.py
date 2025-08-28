@@ -19,7 +19,8 @@ command, permission = create_command(
     [
         "/alist (list|check|profiles)<allowlist_sub: allowlist_list>",
         "/alist (add|remove)<allowlist_sub: allowlist_sub_action> <player: string> [ignore_max_player_limit: bool]",
-        "/alist (create|use|delete)<allowlist: allowlist_action> <name: string>"
+        "/alist (create|use|delete)<allowlist: allowlist_action> <name: string>",
+        "/alist (inherit)<allowlist: allowlist_inherit> <child_list: string> <parent_list: string>"
     ],
     ["primebds.command.alist"],
     "op",
@@ -31,10 +32,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if isinstance(sender, BlockCommandSender):
         sender.send_message(f"§cThis command cannot be automated")
         return False
-
-    if len(args) == 0:
-        sender.send_message(f"Usage: /alist <add|remove|list> [name]")
-        return True
     
     if any("@" in arg for arg in args):
         sender.send_message(f"§cTarget selectors are invalid for this command")
@@ -285,6 +282,61 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         except Exception as e:
             sender.send_message(f"Failed to list profiles: {e}")
         return True
+
+    elif subcommand == "inherit":
+        child_name = args[1].strip()
+        parent_name = args[2].strip()
+
+        profiles_dir = get_allowlist_profiles_folder()
+        child_path = os.path.join(profiles_dir, f"{child_name}.json")
+        parent_path = os.path.join(profiles_dir, f"{parent_name}.json")
+
+        if not os.path.exists(child_path):
+            sender.send_message(f"Child profile '{child_name}' does not exist.")
+            return True
+        if not os.path.exists(parent_path):
+            sender.send_message(f"Parent profile '{parent_name}' does not exist.")
+            return True
+
+        try:
+            with open(parent_path, "r") as f:
+                parent_data = json.load(f)
+            with open(child_path, "r") as f:
+                child_data = json.load(f)
+
+            child_names = {entry.get("name") for entry in child_data}
+            merged_data = child_data[:]
+            for entry in parent_data:
+                if entry.get("name") not in child_names:
+                    merged_data.append(entry)
+
+            with open(child_path, "w") as f:
+                json.dump(merged_data, f, indent=4)
+
+            sender.send_message(f"Inherited {len(parent_data)} entries from '{parent_name}' into '{child_name}'")
+
+            current_profile = self.serverdb.get_server_info().allowlist_profile
+            if current_profile == child_name:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                while not (
+                    os.path.exists(os.path.join(current_dir, 'plugins')) and
+                    os.path.exists(os.path.join(current_dir, 'worlds'))
+                ):
+                    current_dir = os.path.dirname(current_dir)
+
+                current_allowlist = os.path.join(current_dir, "allowlist.json")
+                with open(current_allowlist, "w") as f:
+                    json.dump(merged_data, f, indent=4)
+
+                backup_path = os.path.join(profiles_dir, f"{child_name}.json")
+                with open(backup_path, "w") as f:
+                    json.dump(merged_data, f, indent=4)
+
+                self.server.dispatch_command(self.server.command_sender, "whitelist reload")
+                sender.send_message(f"Updated live allowlist.json and reloaded whitelist for active profile '{child_name}'")
+
+        except Exception as e:
+            sender.send_message(f"Failed to inherit profile: {e}")
 
     else:
         sender.send_message(f"Unknown subcommand '{subcommand}'")
