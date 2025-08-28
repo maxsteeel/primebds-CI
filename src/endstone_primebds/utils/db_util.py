@@ -63,6 +63,14 @@ class User:
     enabled_sc: int
 
 @dataclass
+class Alts:
+    main_name: str
+    main_xuid: str
+    alt_name: str
+    alt_xuid: str
+    expiry: int
+
+@dataclass
 class ModLog:
     xuid: str
     name: str
@@ -686,6 +694,15 @@ class UserDB(DatabaseManager):
         }
         self.create_table('mod_notes', mod_notes_columns)
 
+        alt_log_columns = {
+            'main_name': 'TEXT',
+            'main_xuid': 'TEXT',
+            'alt_name': 'TEXT',
+            'alt_xuid': 'TEXT',
+            'expiry': 'INTEGER'
+        }
+        self.create_table('alt_logs', alt_log_columns)
+
         warn_log_columns = {
             'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
             'xuid': 'TEXT',
@@ -891,6 +908,9 @@ class UserDB(DatabaseManager):
         return [dict(zip(columns, row)) for row in rows]
     
     def get_alts(self, ip: str, device_id: str, exclude_xuid: str) -> list[dict]:
+        now = int(time.time())
+        self.execute("DELETE FROM alt_logs WHERE expiry < ?", (now,))
+
         query = """
             SELECT u.name, u.xuid, COALESCE(m.ip_address, '') AS ip_address, u.device_id
             FROM users u
@@ -909,7 +929,38 @@ class UserDB(DatabaseManager):
             ):
                 results.append(alt)
 
+        extra_rows = self.execute(
+            """
+            SELECT alt_name, alt_xuid FROM alt_logs
+            WHERE main_xuid = ? AND expiry >= ?
+            """,
+            (exclude_xuid, now),
+            readonly=True
+        ).fetchall()
+
+        for alt_name, alt_xuid in extra_rows:
+            if not any(r["xuid"] == alt_xuid for r in results):
+                results.append({"name": alt_name, "xuid": alt_xuid,
+                                "ip_address": "", "device_id": ""})
+
         return results
+    
+    def check_alts(self, main_xuid: str, main_name: str, ip: str, device_id: str):
+        """Check for alt accounts and update alt_logs with 90-day expiry."""
+        now = int(time.time())
+        expiry_time = now + 90 * 24 * 60 * 60  # 90 days in seconds
+
+        alts = self.get_alts(ip, device_id, exclude_xuid=main_xuid)
+
+        for alt in alts:
+            self.execute(
+                """
+                INSERT INTO alt_logs (main_name, main_xuid, alt_name, alt_xuid, expiry)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(main_xuid, alt_xuid) DO UPDATE SET expiry=excluded.expiry
+                """,
+                (main_name, main_xuid, alt["name"], alt["xuid"], expiry_time),
+            )
 
     def add_ban(self, xuid, expiration: int, reason: str, ip_ban: bool = False):
         self.update('mod_logs', {'is_banned': 1, 'banned_time': expiration, 'ban_reason': reason, 'is_ip_banned': ip_ban}, 'xuid = ?', (xuid,))
