@@ -1,9 +1,7 @@
 from endstone import Player
-from endstone.inventory import ItemStack
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.target_selector_util import get_matching_actors
-from endstone._internal.endstone_python import Location
 from endstone_primebds.utils.lookup_util import get_runtime_id
 
 from typing import TYPE_CHECKING
@@ -56,8 +54,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     for target in targets:
         inv = target.inventory.contents
-        armor = [target.inventory.helmet, target.inventory.chestplate, target.inventory.leggings, target.inventory.boots, target.inventory.item_in_off_hand]
-        combined = inv + armor
+        #armor = [target.inventory.helmet, target.inventory.chestplate, target.inventory.leggings, target.inventory.boots, target.inventory.item_in_off_hand]
+        combined = inv# + armor
 
         item_list = "\n".join(
             f"§7- §e{item.type} §7x{item.amount}"
@@ -66,10 +64,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         item_list += '\n'
 
-        item_list += "\n".join(
+        """item_list += "\n".join(
              f"§7- §e{item.type} §7(equipped)"
             for item in armor if item
-        )
+        )"""
 
         if display_type == "chest":
             x = int(sender.location.block_x)
