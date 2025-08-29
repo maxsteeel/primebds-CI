@@ -99,10 +99,10 @@ def preload_settings():
             "shutdown": "Server has shutdown!"
         }),
         "server_messages": OrderedDict({
-            "rank_meta": True,
-            "cleaned_whispers": True,
-            "cleaned_chat": True,
-            "chat_prefix": " §r» ",
+            "enhanced_whispers": True,
+            "enhanced_chat": True,
+            "rank_meta_data": True,
+            "chat_prefix": "§r: ",
             "whisper_prefix": "§8[§bWhisper§8]§r ",
             "social_spy_prefix": "§8[§bSocial Spy§8]§r ",
             "staff_chat_prefix": "§8[§bStaff Chat§8]§r ",

@@ -38,9 +38,9 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
         ev.cancel()
         return False
     
-    # Prep chat overhaul
-    #message = f"{ev.player.name_tag}{config["modules"]["server_messages"]["chat_prefix"]}§r{ev.message}"
-    #ev.format = message
+    if config["modules"]["server_messages"]["enhanced_chat"]:
+        message = f"{ev.player.name_tag}{config["modules"]["server_messages"]["chat_prefix"]}§r{ev.message}"
+        ev.format = message
 
     discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")
 

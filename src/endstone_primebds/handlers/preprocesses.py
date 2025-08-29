@@ -156,7 +156,13 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         message = " ".join(args[2:]) if len(args) > 2 else ""
         discordRelay(f"**{player.name} -> {target}**: {message}", "chat")
 
-        for pl in self.server.online_players:
+        if config["modules"]["server_messages"]["enhanced_whispers"]:
+            online_target = self.server.get_player(target)
+            player.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7To {online_target.name}: §o{message}")
+            online_target.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7{player.name}: §o{message}")
+            event.is_cancelled = True
+
+        for pl in self.server.online_players:  
             user = self.db.get_online_user(pl.xuid)
             if user:
                 if user.enabled_ss == 1 and pl.has_permission("primebds.command.socialspy"):
