@@ -79,7 +79,7 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
     self.db.save_user(ev.player)
     self.db.update_user_data(ev.player.name, 'last_join', int(time.time()))
     self.db.check_alts(ev.player.xuid, ev.player.name, str(ev.player.address), ev.player.device_id)
-    self.reload_custom_perms(ev.player)
+    self.server.scheduler.run_task(self, self.reload_custom_perms(ev.player), 1)
     start_jail_check_if_needed(self)
 
     # Ban System: ENHANCEMENT
