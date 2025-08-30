@@ -159,7 +159,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         if config["modules"]["server_messages"]["enhanced_whispers"]:
             online_target = self.server.get_player(target)
             player.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7To {online_target.name}: §o{message}")
-            online_target.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7{player.name}: §o{message}")
+            online_target.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7From {player.name}: §o{message}")
             event.is_cancelled = True
 
         for pl in self.server.online_players:  
