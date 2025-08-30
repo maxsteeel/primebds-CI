@@ -194,12 +194,21 @@ class DatabaseManager:
                     self.conn.commit()
                 return self.cursor
 
-    def create_table(self, table_name: str, columns: Dict[str, str]):
+    def create_table(self, table_name: str, columns: Dict[str, str], unique: list = None):
         column_definitions = ', '.join([f"{col} {dtype}" for col, dtype in columns.items()])
         query = f"CREATE TABLE IF NOT EXISTS {table_name} ({column_definitions})"
         with self._lock:
             self.cursor.execute(query)
             self.conn.commit()
+
+        if unique:
+            index_name = f"idx_{table_name}_{'_'.join(unique)}"
+            cols = ', '.join(unique)
+            self.cursor.execute(
+                f"CREATE UNIQUE INDEX IF NOT EXISTS {index_name} ON {table_name} ({cols})"
+            )
+            self.conn.commit()
+
 
     def insert(self, table_name: str, data: Dict[str, Any]):
         if not data:
@@ -701,7 +710,7 @@ class UserDB(DatabaseManager):
             'alt_xuid': 'TEXT',
             'expiry': 'INTEGER'
         }
-        self.create_table('alt_logs', alt_log_columns)
+        self.create_table('alt_logs', alt_log_columns, unique=['main_xuid', 'alt_xuid'])
 
         warn_log_columns = {
             'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
