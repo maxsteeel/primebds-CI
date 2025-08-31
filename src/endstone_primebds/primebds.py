@@ -33,7 +33,7 @@ Prime BDS Loaded!
     )
 
 # EVENT & HANDLER IMPORTS
-from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent,
+from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent, ChunkLoadEvent, ChunkUnloadEvent,
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
                             PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent, 
                             PacketReceiveEvent, ServerLoadEvent, PlayerKickEvent)
@@ -46,6 +46,7 @@ from endstone_primebds.handlers.intervals import stop_intervals, init_jail_inter
 from endstone_primebds.handlers.packets import handle_packetsend_event, handle_packetreceive_event
 from endstone_primebds.handlers.actions import handle_gamemode_event, handle_interact_event
 from endstone_primebds.handlers.items import handle_item_pickup_event, handle_item_use, handle_item_drop_event
+from endstone_primebds.handlers.chunks import handle_chunk_load, handle_chunk_unload
 
 class PrimeBDS(Plugin):
     api_version = "0.6"
@@ -62,6 +63,8 @@ class PrimeBDS(Plugin):
         super().__init__()
         # Command Controls
         self.monitor_intervals = {}
+        self.packets_sent_count = {} 
+        self.sent_chunks = set()
         self.globalmute = 0
         self.crasher_patch_applied = set()
 
@@ -80,6 +83,14 @@ class PrimeBDS(Plugin):
         self.serverdb = ServerDB("server.db")
 
     # EVENT HANDLER
+    @event_handler
+    def on_chunk_load(self, ev: ChunkLoadEvent):
+        handle_chunk_unload(self, ev)
+
+    @event_handler
+    def on_chunk_unload(self, ev: ChunkUnloadEvent):
+        handle_chunk_unload(self, ev)
+
     @event_handler
     def on_player_gamemode(self, ev: PlayerGameModeChangeEvent):
         handle_gamemode_event(self, ev)
@@ -146,6 +157,7 @@ class PrimeBDS(Plugin):
 
     @event_handler()
     def on_server_load(self, ev: ServerLoadEvent):
+        self.server.dispatch_command(self.server.command_sender, "reloadpacketlimitconfig")
         load_perms(self)
         for player in self.server.online_players:
             self.reload_custom_perms(player)

@@ -1,10 +1,11 @@
 import importlib
+import json
 import pkgutil
 import os
 
 import endstone_primebds
 
-from endstone_primebds.utils.config_util import load_config, save_config, load_permissions, load_rules, PERMISSIONS_DEFAULT
+from endstone_primebds.utils.config_util import load_config, save_config, load_permissions, load_rules, find_and_load_config, PERMISSIONS_DEFAULT
 from collections import defaultdict, OrderedDict
 
 # Global storage for preloaded commands
@@ -97,6 +98,11 @@ def preload_settings():
             "join_message": "§e{player} joined the game",
             "leave_message": "§e{player} left the game",
             "shutdown": "Server has shutdown!"
+        }),
+        "server_optimizer": OrderedDict({
+            "chunk_loading": True,
+            "mute_laggy_sounds": True,
+            "set_optimized_limit_config": False
         }),
         "server_messages": OrderedDict({
             "enhanced_whispers": True,
@@ -246,6 +252,52 @@ def preload_commands():
 def preload_permissions():
     """Preload permissions.json with defaults if missing, preserving key order and removing unknown keys."""
     load_permissions(PERMISSIONS_DEFAULT, False)
+
+def preload_packetlimitconfig():
+    default_config = {
+        "limitGroups": [
+            {
+                "minecraftPacketIds": [4, 193],
+                "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 0.0013, "maxBucketSize": 1}}
+            },
+            {"minecraftPacketIds": [40], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 3, "maxBucketSize": 3}}},
+            {"minecraftPacketIds": [6], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 10, "maxBucketSize": 20}}},
+            {"minecraftPacketIds": [2, 3, 19], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 20, "maxBucketSize": 50}}},
+            {"minecraftPacketIds": [9], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 20, "maxBucketSize": 50}}},
+            {"minecraftPacketIds": [322], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 40, "maxBucketSize": 60}}},
+            {"minecraftPacketIds": [5], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 40, "maxBucketSize": 80}}},
+            {"minecraftPacketIds": [123], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 50, "maxBucketSize": 100}}},
+            {"minecraftPacketIds": [13], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 50, "maxBucketSize": 100}}},
+            {"minecraftPacketIds": [21, 110, 172, 174, 175], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 60, "maxBucketSize": 120}}},
+            {"minecraftPacketIds": [33], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 60, "maxBucketSize": 120}}},
+            {"minecraftPacketIds": [161], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 100, "maxBucketSize": 200}}},
+            {"minecraftPacketIds": [16, 18, 23, 27, 40, 111, 326], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 250, "maxBucketSize": 500}}},
+            {"minecraftPacketIds": [58, 144, 157], "algorithm": {"name": "BucketPacketLimitAlgorithm", "params": {"drainRatePerSec": 300, "maxBucketSize": 600}}}
+        ]
+    }
+
+    start_path = os.path.dirname(os.path.abspath(__file__))
+    root_path = start_path
+
+    while root_path and root_path != os.path.dirname(root_path):
+        if os.path.isdir(os.path.join(root_path, "plugins")):
+            break
+        root_path = os.path.dirname(root_path)
+
+    if not root_path or not os.path.isdir(os.path.join(root_path, "plugins")):
+        raise FileNotFoundError("Could not locate 'plugins' folder from: " + start_path)
+
+    config_path = os.path.join(root_path, "packetlimitconfig.json")
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(default_config, f, indent=2)
+
+    return default_config
+
+config = load_config()
+setlimitconfig = config.get("modules", {}).get("server_optimizer", {}).get("set_optimized_limit_config", False)
+if setlimitconfig:
+    preload_packetlimitconfig()
+
 
 # Run preload automatically when this file is imported
 preload_permissions()
