@@ -35,7 +35,7 @@ Prime BDS Loaded!
 # EVENT & HANDLER IMPORTS
 from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent, ChunkLoadEvent, ChunkUnloadEvent,
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
-                            PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent, 
+                            PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent, PlayerMoveEvent,
                             PacketReceiveEvent, ServerLoadEvent, PlayerKickEvent)
 from endstone_primebds.handlers.chat import handle_chat_event
 from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
@@ -85,7 +85,7 @@ class PrimeBDS(Plugin):
     # EVENT HANDLER
     @event_handler
     def on_chunk_load(self, ev: ChunkLoadEvent):
-        handle_chunk_unload(self, ev)
+        handle_chunk_load(self, ev)
 
     @event_handler
     def on_chunk_unload(self, ev: ChunkUnloadEvent):
