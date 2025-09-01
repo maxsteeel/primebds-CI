@@ -1,3 +1,4 @@
+import time
 from endstone import Player, ColorFormat
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
@@ -106,17 +107,26 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             )
 
         elif mode == "packets":
-            # Get top 10 packets
+            now = time.time()
+            elapsed = now - self.packet_last_sample["time"]
+            if elapsed <= 0:
+                elapsed = 1
+
             top_packets = sorted(
-                self.packets_sent_count.items(), 
-                key=lambda item: item[1], 
+                self.packets_sent_count.items(),
+                key=lambda item: item[1],
                 reverse=True
             )[:10]
 
             lines = []
             for pid, count in top_packets:
                 name = PACKET_ID_TO_NAME.get(pid, "Unknown")
-                lines.append(f"§r{name} §7({pid}): §a{count}")
+
+                prev = self.packet_last_sample["counts"].get(pid, 0)
+                diff = count - prev
+                pps = diff / elapsed
+
+                lines.append(f"§r{name} §7({pid}): §a{count} §7[{pps:.1f}/s]")
 
             if not lines:
                 lines = ["No packets yet"]
@@ -127,6 +137,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 f"{chr(10).join(lines)}\n"
                 f"§r-------------------"
             )
+
+            self.packet_last_sample["time"] = now
+            self.packet_last_sample["counts"] = dict(self.packets_sent_count)
 
     task = self.server.scheduler.run_task(
         self,

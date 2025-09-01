@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
 config = load_config()
-chunks = config["modules"]["server_optimizer"]["chunk_loading"]
 mute = config["modules"]["server_optimizer"]["mute_laggy_sounds"]
 def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
     if not PACKET_SUPPORT:
@@ -53,13 +52,3 @@ player_auth_input_cache = {}
 def handle_packetreceive_event(self: "PrimeBDS", ev: PacketReceiveEvent):
     if not PACKET_SUPPORT:
         return
-
-    if chunks and ev.packet_id == 144:
-        player = ev.player
-        xuid = player.xuid
-        last_input = player_auth_input_cache.get(xuid)
-        if last_input == ev.payload:
-            ev.is_cancelled = True
-            return
-        else:
-            player_auth_input_cache[xuid] = ev.payload

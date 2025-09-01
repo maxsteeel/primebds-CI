@@ -64,7 +64,10 @@ class PrimeBDS(Plugin):
         # Command Controls
         self.monitor_intervals = {}
         self.packets_sent_count = {} 
-        self.sent_chunks = set()
+        self.packet_last_sample = {
+            "time": time.time(),
+            "counts": {}
+        }
         self.globalmute = 0
         self.crasher_patch_applied = set()
 
