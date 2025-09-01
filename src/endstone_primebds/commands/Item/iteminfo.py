@@ -88,7 +88,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         lines = []
         lines.append(f"§bItem Info for {target.name}:")
         lines.append(f"§7- §eType: §f{held_item.type}")
-        lines.append(f"§7- §eData: §f{held_item.data}")
+        data_value = getattr(held_item, "data", None)
+        lines.append(f"§7- §eData: §f{data_value if data_value is not None else '?'}")
         lines.append(f"§7- §eAmount: §f{held_item.amount}")
 
         if slot_type:
