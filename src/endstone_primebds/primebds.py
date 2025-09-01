@@ -49,7 +49,7 @@ from endstone_primebds.handlers.items import handle_item_pickup_event, handle_it
 from endstone_primebds.handlers.chunks import handle_chunk_load, handle_chunk_unload
 
 class PrimeBDS(Plugin):
-    api_version = "0.6"
+    api_version = "0.9"
     authors = ["PrimeStrat"]
     name = "primebds"
     description = "An essentials plugin for diagnostics, stability, and quality of life on Minecraft Bedrock Edition."
@@ -160,10 +160,9 @@ class PrimeBDS(Plugin):
 
     @event_handler()
     def on_server_load(self, ev: ServerLoadEvent):
-        self.server.dispatch_command(self.server.command_sender, "reloadpacketlimitconfig")
-        load_perms(self)
+        self.server.scheduler.run_task(self, load_perms(self), 1)
         for player in self.server.online_players:
-            self.reload_custom_perms(player)
+            self.server.scheduler.run_task(self, self.reload_custom_perms(player), 1)
 
     def on_load(self):
         plugin_text()
@@ -256,15 +255,21 @@ class PrimeBDS(Plugin):
 
         plugin_stars = {}
         internal = {"minecraft", "minecraft.command", "endstone", "endstone.command"}
-        for plugin in self.server.plugin_manager.plugins:
-            if plugin.is_enabled:
-                for perm, value in perms_to_apply:
-                    if perm in internal:
-                        continue
-                    prefix = perm.split(".")[0]
-                    cmd = f"{prefix}.command"
-                    if prefix == perm or cmd == perm:
-                        plugin_stars[prefix] = value
+
+        try:
+            server_registered = {str(p.name).lower() for p in self.server.plugin_manager.permissions}
+        except RuntimeError:
+            server_registered = set()
+
+        for perm, value in perms_to_apply:
+            if perm in internal:
+                continue
+
+            prefix = perm.split(".")[0]
+            cmd = f"{prefix}.command"
+
+            if perm in server_registered or cmd in server_registered or prefix in server_registered:
+                plugin_stars[prefix] = value
                         
         for perm, value in perms_to_apply:
             if perm in internal:
