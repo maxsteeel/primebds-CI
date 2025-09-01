@@ -2,7 +2,11 @@ import os
 import json
 import requests
 from endstone import Player
-from endstone.command import CommandSender, BlockCommandSender
+from endstone.command import CommandSender
+try:
+    from endstone.command import BlockCommandSender
+except ImportError:
+    BlockCommandSender = None 
 
 import endstone_primebds
 from endstone_primebds.utils.config_util import open_text_file
@@ -21,9 +25,11 @@ command, permission = create_command(
 # RELOADPACKS FUNCTIONALITY
 def handler(self, sender: CommandSender, args: list[str]) -> bool:
 
-    if isinstance(sender, BlockCommandSender):
-        sender.send_message(f"§cThis command cannot be automated")
-        return False
+    if BlockCommandSender is not None and isinstance(sender, BlockCommandSender):
+       sender.send_message("§cThis command cannot be automated")
+       return False
+
+
 
     if not isinstance(sender, Player) and "behavior" in args:
         sender.send_message(f"You cannot update behavior packs from terminal")

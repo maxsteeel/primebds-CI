@@ -1,7 +1,11 @@
 from collections import Counter
 import math
 from endstone import Player
-from endstone.command import CommandSender, BlockCommandSender
+from endstone.command import CommandSender
+try:
+    from endstone.command import BlockCommandSender
+except ImportError:
+    BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.target_selector_util import get_target_entity
 

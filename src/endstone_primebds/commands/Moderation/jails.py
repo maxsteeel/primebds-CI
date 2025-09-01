@@ -1,4 +1,8 @@
-from endstone.command import CommandSender, BlockCommandSender
+from endstone.command import CommandSender
+try:
+    from endstone.command import BlockCommandSender
+except ImportError:
+    BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
 from endstone import Player
 from endstone.util import Vector

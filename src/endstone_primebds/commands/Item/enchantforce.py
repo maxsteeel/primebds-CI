@@ -44,7 +44,18 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
     
     try:
-        self.server.enchantment_registry.get_or_throw(enchant_name)
+        try:
+            from endstone._internal.endstone_python import NamespacedKey
+            has_namespacedkey = True
+        except ImportError:
+            has_namespacedkey = False
+
+        if has_namespacedkey:
+            key = NamespacedKey(self, enchant_name)
+            self.server.enchantment_registry.get_or_throw(key)
+        else:
+            self.server.enchantment_registry.get_or_throw(enchant_name)
+
     except Exception:
         sender.send_message(f"§cEnchantment '{enchant_name}' is not registered")
         return False

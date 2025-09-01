@@ -3,7 +3,11 @@ import shutil
 import socket
 import threading
 from endstone import Player
-from endstone.command import CommandSender, BlockCommandSender
+from endstone.command import CommandSender
+try:
+    from endstone.command import BlockCommandSender
+except ImportError:
+    BlockCommandSender = None 
 from endstone_primebds.handlers.multiworld import start_world, stop_world
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.config_util import find_and_load_config, save_config, load_config
@@ -39,9 +43,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         else:
             print(message)
 
-    if isinstance(sender, BlockCommandSender):
-        sender.send_message(f"§cThis command cannot be automated")
-        return False
+    if BlockCommandSender is not None and isinstance(sender, BlockCommandSender):
+       sender.send_message("§cThis command cannot be automated")
+       return False
+
+
 
     subaction = args[0].lower() if len(args) > 0 else None
     world_name = args[1] if len(args) > 1 else None

@@ -1,5 +1,9 @@
 import time
-from endstone.command import CommandSender, BlockCommandSender
+from endstone.command import CommandSender
+try:
+    from endstone.command import BlockCommandSender
+except ImportError:
+    BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.handlers.intervals import stop_jail_check_if_not_needed
 from endstone.level import Location
@@ -22,10 +26,10 @@ command, permission = create_command(
 
 # UNJAIL COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    if isinstance(sender, BlockCommandSender):
-        sender.send_message(f"§cThis command cannot be automated")
-        return False
-    
+    if BlockCommandSender is not None and isinstance(sender, BlockCommandSender):
+       sender.send_message("§cThis command cannot be automated")
+       return False
+
     if any("@" in arg for arg in args):
         sender.send_message(f"§cTarget selectors are invalid for this command")
         return False

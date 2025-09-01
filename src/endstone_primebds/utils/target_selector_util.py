@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, List, Optional
 from endstone import Player
 from endstone.actor import Actor
 from endstone.util import Vector
-from endstone.command import BlockCommandSender
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS

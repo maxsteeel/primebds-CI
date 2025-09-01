@@ -1,4 +1,8 @@
-from endstone.command import CommandSender, BlockCommandSender
+from endstone.command import CommandSender
+try:
+    from endstone.command import BlockCommandSender
+except ImportError:
+    BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
 
 from typing import TYPE_CHECKING
@@ -15,9 +19,11 @@ command, permission = create_command(
 )
 
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    if isinstance(sender, BlockCommandSender):
-        sender.send_message(f"§cThis command cannot be automated")
-        return False
+    if BlockCommandSender is not None and isinstance(sender, BlockCommandSender):
+       sender.send_message("§cThis command cannot be automated")
+       return False
+
+
 
     empty_lines = 100
     for player in self.server.online_players:

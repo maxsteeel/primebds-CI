@@ -56,9 +56,22 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     try:
         if "invisiblebedrock" in block_id:
             block_id = "invisible_bedrock"
-        if "minecraft:" not in block_id:
+
+        if ':' not in block_id:
             block_id = f"minecraft:{block_id}"
-        self.server.item_registry.get_or_throw(block_id)
+
+        try:
+            from endstone._internal.endstone_python import NamespacedKey
+            has_namespacedkey = True
+        except ImportError:
+            has_namespacedkey = False
+
+        if has_namespacedkey:
+            key = NamespacedKey(self, block_id)
+            self.server.item_registry.get_or_throw(key)
+        else:
+            self.server.item_registry.get_or_throw(block_id)
+
     except Exception:
         sender.send_message("§cInvalid block ID")
         return False
