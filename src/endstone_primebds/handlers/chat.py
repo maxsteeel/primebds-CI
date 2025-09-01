@@ -14,7 +14,7 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
     ip_muted, ip_mute_time, ip_mute_reason = self.db.check_ip_mute(str(ev.player.address))
     if self.globalmute == 1 and not ev.player.has_permission("primebds.globalmute.exempt"):
         ev.player.send_message(f"§cGlobal chat is currently muted by an admin")
-        ev.cancel() # Utilize until fix then switch to ev.is_cancelled = true
+        ev.is_cancelled = True
         return False
 
     if user_muted or ip_muted:
@@ -27,7 +27,7 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
             ev.player.send_message(f"""§6You are currently muted.
 §6Expires: §e{format_time_remaining(ip_mute_time)}
 §6Reason: §e{ip_mute_reason}""")
-        ev.cancel()
+        ev.is_cancelled = True
         return False
     
     config = load_config()
@@ -35,7 +35,7 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
     if user.enabled_sc:
         message = f"{config["modules"]["server_messages"]["staff_chat_prefix"]}§e{ev.player.name}§7: §6{ev.message}"
         self.server.broadcast(message, "primebds.command.staffchat")
-        ev.cancel()
+        ev.is_cancelled = True
         return False
     
     if config["modules"]["server_messages"]["enhanced_chat"]:
