@@ -48,7 +48,6 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
 
     self.packets_sent_count[ev.packet_id] = self.packets_sent_count.get(ev.packet_id, 0) + 1
 
-player_auth_input_cache = {}
 def handle_packetreceive_event(self: "PrimeBDS", ev: PacketReceiveEvent):
     if not PACKET_SUPPORT:
         return
