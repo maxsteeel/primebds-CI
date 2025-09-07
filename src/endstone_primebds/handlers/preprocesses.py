@@ -145,6 +145,9 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
             event.is_cancelled = True
             return True
         
+        if cmd == "me":
+            return True
+        
         self.db.update_user_data(player.name, 'last_messaged', target)
         target_user = self.db.get_offline_user(target)
         if target_user is not None:

@@ -40,6 +40,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     new_vanish_status = 0 if user.is_vanish else 1
     self.db.update_user_data(sender.name, "is_vanish", new_vanish_status)
     user.is_vanish = new_vanish_status
+    self.vanish_state[sender.unique_id] = bool(new_vanish_status)
 
     sender.send_message(f"§6Vanish {'§aEnabled' if new_vanish_status else '§cDisabled'}")
 

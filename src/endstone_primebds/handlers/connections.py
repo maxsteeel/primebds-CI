@@ -82,6 +82,12 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
     self.server.scheduler.run_task(self, self.reload_custom_perms(ev.player), 1)
     start_jail_check_if_needed(self)
 
+    user = self.db.get_online_user(ev.player.xuid)
+    if user:
+        self.vanish_state[ev.player.unique_id] = bool(user.is_vanish)
+    else:
+        self.vanish_state[ev.player.unique_id] = False
+
     # Ban System: ENHANCEMENT
     mod_log = self.db.get_mod_log(ev.player.xuid)
     if mod_log:
@@ -122,6 +128,9 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
     #self.db.save_inventory(ev.player) do not save until more nbt
     #self.db.save_enderchest(ev.player)
     stop_jail_check_if_not_needed(self)
+
+    if ev.player.unique_id in self.vanish_state:
+        del self.vanish_state[ev.player.unique_id]
 
     # Ban System: ENHANCEMENT
     mod_log = self.db.get_mod_log(ev.player.xuid)

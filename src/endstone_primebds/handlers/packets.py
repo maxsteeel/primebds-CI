@@ -23,31 +23,30 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
         return 
 
     if ev.packet_id == MinecraftPacketIds.AddPlayer:
-        target_player = self.server.get_player(extract_player_name_from_addplayer(ev.payload))
-        cache_add_player_packet(self, target_player, ev.payload)
-
-        user = self.db.get_online_user(target_player.xuid) if target_player else None
-        if user is not None and getattr(user, "is_vanish", None):
-            ev.is_cancelled = True
+        player_name = extract_player_name_from_addplayer(ev.payload)
+        target_player = self.server.get_player(player_name)
+        if not target_player:
             return
+
+        if target_player.xuid not in self.cached_players:
+            cache_add_player_packet(self, target_player, ev.payload)
+            self.cached_players.add(target_player.xuid)
+
+        if self.vanish_state.get(target_player.unique_id, False):
+            ev.is_cancelled = True
+        return
 
     elif ev.packet_id == MinecraftPacketIds.LevelSoundEvent:
         packet = LevelSoundEventPacket()
         packet.deserialize(ev.payload)
-        entity_id = packet.actor_unique_id
         sound = packet.sound_type
         if mute and (sound == 259 or sound == 42):
             ev.is_cancelled = True
             return
 
         if packet.entity_type == "minecraft:player":
-            user = self.db.get_online_user_by_unique_id(entity_id)
-            if user is not None and getattr(user, "is_vanish", None):
+            if self.vanish_state.get(packet.actor_unique_id, False):
                 ev.is_cancelled = True
                 return
-
+            
     self.packets_sent_count[ev.packet_id] = self.packets_sent_count.get(ev.packet_id, 0) + 1
-
-def handle_packetreceive_event(self: "PrimeBDS", ev: PacketReceiveEvent):
-    if not PACKET_SUPPORT:
-        return

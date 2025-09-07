@@ -35,15 +35,15 @@ Prime BDS Loaded!
 # EVENT & HANDLER IMPORTS
 from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent, ChunkLoadEvent, ChunkUnloadEvent,
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
-                            PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent, PlayerMoveEvent,
-                            PacketReceiveEvent, ServerLoadEvent, PlayerKickEvent)
+                            PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent,
+                            ServerLoadEvent, PlayerKickEvent)
 from endstone_primebds.handlers.chat import handle_chat_event
 from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
 from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event, handle_kick_event
 from endstone_primebds.handlers.combat import handle_kb_event, handle_damage_event
 from endstone_primebds.handlers.multiworld import start_additional_servers, stop_additional_servers, is_nested_multiworld_instance
 from endstone_primebds.handlers.intervals import stop_intervals, init_jail_intervals
-from endstone_primebds.handlers.packets import handle_packetsend_event, handle_packetreceive_event
+from endstone_primebds.handlers.packets import handle_packetsend_event
 from endstone_primebds.handlers.actions import handle_gamemode_event, handle_interact_event
 from endstone_primebds.handlers.items import handle_item_pickup_event, handle_item_use, handle_item_drop_event
 from endstone_primebds.handlers.chunks import handle_chunk_load, handle_chunk_unload
@@ -64,6 +64,8 @@ class PrimeBDS(Plugin):
         # Command Controls
         self.monitor_intervals = {}
         self.packets_sent_count = {} 
+        self.cached_players = set()
+        self.vanish_state = {}
         self.packet_last_sample = {
             "time": time.time(),
             "counts": {}
@@ -105,10 +107,6 @@ class PrimeBDS(Plugin):
     @event_handler()
     def on_packet_send(self, ev: PacketSendEvent):
         handle_packetsend_event(self, ev)
-
-    @event_handler()
-    def on_packet_receive(self, ev: PacketReceiveEvent):
-        handle_packetreceive_event(self, ev)
 
     @event_handler()
     def on_item_use(self, ev: PlayerItemConsumeEvent):
@@ -231,6 +229,11 @@ class PrimeBDS(Plugin):
         if not user:
             self.db.save_user(player)
             user = self.db.get_online_user(player.xuid)
+            
+        if user:
+            self.vanish_state[player.unique_id] = bool(user.is_vanish)
+        else:
+            self.vanish_state[player.unique_id] = False
 
         internal_rank = check_rank_exists(self, player, user.internal_rank)
 
@@ -244,8 +247,10 @@ class PrimeBDS(Plugin):
         for perm, allowed in user_permissions.items():
             final_permissions[perm] = allowed
 
-        to_remove = [attinfo.attachment for attinfo in player.effective_permissions
-             if attinfo.permission == "primebdsoverride"]
+        to_remove = [
+            attinfo.attachment for attinfo in player.effective_permissions
+            if attinfo.permission == "primebdsoverride"
+        ]
         
         for attachment in to_remove:
             attachment.remove()
@@ -256,20 +261,15 @@ class PrimeBDS(Plugin):
         plugin_stars = {}
         internal = {"minecraft", "minecraft.command", "endstone", "endstone.command"}
 
-        try:
-            server_registered = {str(p.name).lower() for p in self.server.plugin_manager.permissions}
-        except RuntimeError:
-            server_registered = set()
-
-        for perm, value in perms_to_apply:
-            if perm in internal:
-                continue
-
-            prefix = perm.split(".")[0]
-            cmd = f"{prefix}.command"
-
-            if perm in server_registered or cmd in server_registered or prefix in server_registered:
-                plugin_stars[prefix] = value
+        for plugin in self.server.plugin_manager.plugins:
+            if plugin.is_enabled:
+                for perm, value in perms_to_apply:
+                    if perm in internal:
+                        continue
+                    prefix = perm.split(".")[0]
+                    cmd = f"{prefix}.command"
+                    if prefix == perm or cmd == perm:
+                        plugin_stars[prefix] = value
                         
         for perm, value in perms_to_apply:
             if perm in internal:

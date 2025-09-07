@@ -3,6 +3,12 @@ from endstone._internal.endstone_python import ItemStack
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.target_selector_util import get_matching_actors
 
+try:
+    from endstone._internal.endstone_python import NamespacedKey
+    HAS_NAMESPACEDKEY = True
+except ImportError:
+    HAS_NAMESPACEDKEY = False
+
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -53,30 +59,15 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message("§cNo matching players found")
         return False
     
+    if "invisiblebedrock" in block_id:
+        block_id = "invisible_bedrock"
+
     try:
-        if "invisiblebedrock" in block_id:
-            block_id = "invisible_bedrock"
-
-        if ':' not in block_id:
-            block_id = f"minecraft:{block_id}"
-
-        try:
-            from endstone._internal.endstone_python import NamespacedKey
-            has_namespacedkey = True
-        except ImportError:
-            has_namespacedkey = False
-
-        if has_namespacedkey:
-            key = NamespacedKey(self, block_id)
-            self.server.item_registry.get_or_throw(key)
-        else:
-            self.server.item_registry.get_or_throw(block_id)
-
-    except Exception:
+        block = ItemStack(block_id, amount, data)
+    except KeyError:
         sender.send_message("§cInvalid block ID")
         return False
     
-    block = ItemStack(block_id, amount, data)
     for target in targets:
         target.inventory.add_item(block)
 
