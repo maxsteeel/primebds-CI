@@ -22,6 +22,19 @@ def init_intervals(self: "PrimeBDS"):
     setup_intervals(self)
     start_jail_check_if_needed(self)
 
+def refresh_jail_cache(self: "PrimeBDS", player):
+    """Update jail cache from DB only when needed."""
+    is_jailed, is_expired = self.db.check_jailed(player.xuid)
+    if is_jailed:
+        mod_user = self.db.get_mod_log(player.xuid)
+        self.jail_cache[player.xuid] = {
+            "is_jailed": True,
+            "is_expired": is_expired,
+            "data": mod_user,
+        }
+    else:
+        self.jail_cache[player.xuid] = {"is_jailed": False, "is_expired": False, "data": None}
+
 def setup_intervals(self: "PrimeBDS"):
     """Prepare jail-check system, but don't start it until needed."""
     self.interval_manager = IntervalManager(self, tick_interval=20)
@@ -45,19 +58,22 @@ def check_jailed(self: "PrimeBDS"):
     """Handle players whose jail time has expired."""
     for player in self.server.online_players:
         try:
-            is_jailed, is_expired = self.db.check_jailed(player.xuid)
-            if is_jailed and is_expired:
-                mod_user = self.db.get_mod_log(player.xuid)
-                x_str, y_str, z_str = mod_user.return_jail_pos.split(",")
-                x, y, z = float(x_str), float(y_str), float(z_str)
+            cached = self.jail_cache.get(player.xuid)
 
+            if not cached or (cached["is_jailed"] and cached["is_expired"]):
+                refresh_jail_cache(player)
+                cached = self.jail_cache[player.xuid]
+
+            if cached["is_jailed"] and cached["is_expired"]:
+                mod_user = cached["data"]
+
+                x, y, z = map(float, mod_user.return_jail_pos.split(","))
                 loc = Location(
                     self.server.level.get_dimension(mod_user.return_jail_dim),
                     x, y, z,
                     player.location.pitch,
-                    player.location.yaw
+                    player.location.yaw,
                 )
-                
                 player.teleport(loc)
                 player.game_mode = GameMode(int(mod_user.jail_gamemode))
                 self.db.remove_jail(player.name)
@@ -66,14 +82,14 @@ def check_jailed(self: "PrimeBDS"):
                     f'effect "{player.name}" clear saturation'
                 )
                 player.send_message("§6You were freed from jail, time expired!")
+
                 self.db.load_inventory(player)
+                self.jail_cache[player.xuid] = {"is_jailed": False, "is_expired": False, "data": None}
 
         except Exception as e:
-            print(
-                f"[PrimeBDS] Error handling player {getattr(player, 'name', 'Unknown')}: {e}"
-            )
+            print(f"[PrimeBDS] Error handling player {getattr(player, 'name', 'Unknown')}: {e}")
 
-    stop_jail_check_if_not_needed(self)
+        stop_jail_check_if_not_needed(self)
 
 def stop_intervals(self: "PrimeBDS"):
     """Stop all periodic checks safely (on shutdown)."""

@@ -66,6 +66,7 @@ class PrimeBDS(Plugin):
         self.packets_sent_count = {} 
         self.cached_players = set()
         self.vanish_state = {}
+        self.jail_cache = {}
         self.packet_last_sample = {
             "time": time.time(),
             "counts": {}
