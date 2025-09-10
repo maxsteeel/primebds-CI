@@ -173,12 +173,23 @@ def normalize_rank_name(rank: str) -> str:
     return "Default"
 
 def check_rank_exists(self: "PrimeBDS", target: Player, rank: str):
-    if rank not in PERMISSIONS:
+    """Ensure a rank exists; fallback to Default if missing or invalid."""
+    try:
+        if rank not in PERMISSIONS or not isinstance(PERMISSIONS.get(rank), dict):
+            raise ValueError("Rank missing or invalid")
+
+        group = PERMISSIONS.get(rank)
+        if "permissions" not in group or not isinstance(group["permissions"], (dict, list)):
+            raise ValueError("Rank permissions invalid")
+
+        return rank
+    except Exception as e:
+        print(f"Invalid rank {rank} for {target.name}, resetting to Default: {e}")
         self.db.update_user_data(target.name, 'internal_rank', "Default")
         return "Default"
-    return rank
 
 def get_rank_permissions(rank: str) -> dict[str, bool]:
+    """Collect permissions for a rank, handling malformed definitions gracefully."""
     base_rank = normalize_rank_name(rank)
     seen_ranks = set()
     result: dict[str, bool] = {}
@@ -190,27 +201,50 @@ def get_rank_permissions(rank: str) -> dict[str, bool]:
         seen_ranks.add(r_norm)
 
         group = PERMISSIONS.get(r_norm)
-        if not group:
+        if not group or not isinstance(group, dict):
             return
 
         perms = group.get("permissions", {})
-        if "*" in perms:
-            if perms["*"]:
+        fixed_perms: dict[str, bool] = {}
+
+        if isinstance(perms, dict):
+            fixed_perms = perms
+        elif isinstance(perms, list):
+            fixed_perms = {p: True for p in perms if isinstance(p, str)}
+        else:
+            return
+
+        if "*" in fixed_perms:
+            if fixed_perms["*"]:
                 for p in MANAGED_PERMISSIONS_LIST:
                     result[p] = True
             else:
                 for p in MANAGED_PERMISSIONS_LIST:
                     result[p] = False
 
-        for perm, allowed in perms.items():
+        for perm, allowed in fixed_perms.items():
             if perm == "*":
                 continue
-            result[perm] = allowed  # True/False as stored
+            if isinstance(allowed, bool):
+                result[perm] = allowed
+            else:
+                result[perm] = True
 
-        for parent in group.get("inherits", []):
-            gather_permissions(parent)
+        inherits = group.get("inherits", [])
+        if isinstance(inherits, list):
+            for parent in inherits:
+                if isinstance(parent, str):
+                    gather_permissions(parent)
 
-    gather_permissions(base_rank)
+    try:
+        gather_permissions(base_rank)
+    except Exception as e:
+        result.clear()
+        gather_permissions("Default")
+
+    if not result:
+        gather_permissions("Default")
+
     return result
 
 perm_cache = {}
