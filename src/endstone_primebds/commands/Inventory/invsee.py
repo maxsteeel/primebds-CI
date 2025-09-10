@@ -54,8 +54,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     for target in targets:
         inv = target.inventory.contents
-        #armor = [target.inventory.helmet, target.inventory.chestplate, target.inventory.leggings, target.inventory.boots, target.inventory.item_in_off_hand]
-        combined = inv# + armor
+        armor = [target.inventory.helmet, target.inventory.chestplate, target.inventory.leggings, target.inventory.boots, target.inventory.item_in_off_hand]
+        combined = inv + armor
 
         item_list = "\n".join(
             f"§7- §e{item.type} §7x{item.amount}"
@@ -64,10 +64,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         item_list += '\n'
 
-        """item_list += "\n".join(
+        item_list += "\n".join(
              f"§7- §e{item.type} §7(equipped)"
             for item in armor if item
-        )"""
+        )
 
         if display_type == "chest":
             x = int(sender.location.block_x)
