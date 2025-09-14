@@ -1,5 +1,5 @@
 try:
-    from bedrock_protocol.packets import MinecraftPacketIds, LevelSoundEventPacket, LevelSoundEventType
+    from bedrock_protocol.packets import MinecraftPacketIds, LevelSoundEventPacket
     from endstone_primebds.utils.packet_utils.add_player import (
         cache_add_player_packet,
         extract_player_name_from_addplayer,
@@ -9,7 +9,7 @@ except Exception as e:
     print(e)
     PACKET_SUPPORT = False
 
-from endstone.event import PacketSendEvent, PacketReceiveEvent
+from endstone.event import PacketSendEvent
 from endstone_primebds.utils.config_util import load_config
 
 from typing import TYPE_CHECKING
@@ -48,5 +48,5 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
             if self.vanish_state.get(packet.actor_unique_id, False):
                 ev.is_cancelled = True
                 return
-            
+
     self.packets_sent_count[ev.packet_id] = self.packets_sent_count.get(ev.packet_id, 0) + 1
