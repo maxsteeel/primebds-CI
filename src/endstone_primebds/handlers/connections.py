@@ -94,7 +94,6 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
         if mod_log.is_banned:
             ev.join_message = "" 
         else:
-
             # Handle Alt Detection
             alts = self.db.get_alts(str(ev.player.address), ev.player.device_id, ev.player.xuid)
             if len(alts) > 0:
@@ -125,8 +124,8 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
     # Update Data On Leave
     self.db.update_user_data(ev.player.name, 'xp', ev.player.total_exp)
     self.db.update_user_data(ev.player.name, 'last_leave', int(time.time()))
-    self.db.save_inventory(ev.player)
-    self.db.save_enderchest(ev.player)
+    #self.db.save_inventory(ev.player)
+    #self.db.save_enderchest(ev.player)
     stop_jail_check_if_not_needed(self)
 
     if ev.player.unique_id in self.vanish_state:
@@ -164,8 +163,12 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
 
 def handle_kick_event(self: "PrimeBDS", ev: PlayerKickEvent):
     self.sldb.end_session(ev.player.xuid, int(time.time()))
-    if ev.reason is not config["modules"]["join_leave_messages"]["shutdown"]:
-        log(self, f"§6Player §e{ev.player.name} §6was kicked §6for §e\"{ev.reason}\"", "mod")
+    if ev.reason != config["modules"]["join_leave_messages"]["shutdown"]:
+        log(
+            self,
+            f"§6Player §e{ev.player.name} §6was kicked §6for §e\"{ev.reason}\"",
+            "mod"
+        )
 
 def check_unset_scoreboards(self):
     current_dir = os.path.dirname(os.path.abspath(__file__))
