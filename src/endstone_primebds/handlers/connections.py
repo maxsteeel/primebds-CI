@@ -163,7 +163,7 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
 
 def handle_kick_event(self: "PrimeBDS", ev: PlayerKickEvent):
     self.sldb.end_session(ev.player.xuid, int(time.time()))
-    if ev.reason != config["modules"]["join_leave_messages"]["shutdown"]:
+    if str(ev.reason) != config["modules"]["join_leave_messages"]["shutdown"]:
         log(
             self,
             f"§6Player §e{ev.player.name} §6was kicked §6for §e\"{ev.reason}\"",
