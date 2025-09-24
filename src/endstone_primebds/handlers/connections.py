@@ -163,12 +163,6 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
 
 def handle_kick_event(self: "PrimeBDS", ev: PlayerKickEvent):
     self.sldb.end_session(ev.player.xuid, int(time.time()))
-    if str(ev.reason) != config["modules"]["join_leave_messages"]["shutdown"]:
-        log(
-            self,
-            f"§6Player §e{ev.player.name} §6was kicked §6for §e\"{ev.reason}\"",
-            "mod"
-        )
 
 def check_unset_scoreboards(self):
     current_dir = os.path.dirname(os.path.abspath(__file__))
