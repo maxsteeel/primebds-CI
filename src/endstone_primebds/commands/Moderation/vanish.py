@@ -5,7 +5,7 @@ from endstone_primebds.utils.config_util import load_config
 
 try:
     from endstone_primebds.utils.packet_utils.add_player import return_cached_add_player_packet
-    from bedrock_protocol.packets import RemoveActorPacket
+    from bedrock_protocol.packets.minecraft_packets import RemoveActorPacket
     PACKET_SUPPORT = True
 except Exception:
     PACKET_SUPPORT = False

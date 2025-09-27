@@ -1,5 +1,3 @@
-import struct
-
 from endstone import Player
 from typing import TYPE_CHECKING
 

@@ -1,5 +1,5 @@
 try:
-    from bedrock_protocol.packets import MinecraftPacketIds, LevelSoundEventPacket
+    from bedrock_protocol.packets import minecraft_packets, MinecraftPacketIds
     from endstone_primebds.utils.packet_utils.add_player import (
         cache_add_player_packet,
         extract_player_name_from_addplayer,
@@ -37,7 +37,7 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
         return
 
     elif ev.packet_id == MinecraftPacketIds.LevelSoundEvent:
-        packet = LevelSoundEventPacket()
+        packet = minecraft_packets.LevelSoundEventPacket()
         packet.deserialize(ev.payload)
         sound = packet.sound_type
         if mute and (sound == 259 or sound == 42):
