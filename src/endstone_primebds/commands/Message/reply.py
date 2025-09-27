@@ -33,7 +33,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         if target:
             config = load_config()
             if config["modules"]["server_messages"]["enhanced_whispers"]:
-                sender.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7To {target}: §o{args[0]}")
+                sender.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7To {target.name}: §o{args[0]}")
                 target.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7From {sender.name}: §o{args[0]}")
             else:
                 sender.send_message(f"You whisper to {target.name}: {args[0]}")
