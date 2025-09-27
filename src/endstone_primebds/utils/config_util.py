@@ -27,14 +27,16 @@ PERMISSIONS_DEFAULT = {
             "minecraft.command.me": True,
         },
         "inherits": [],
-        "weight": 0 
+        "weight": 0
     },
     "Operator": {
         "permissions": {
             "*": True
         },
         "inherits": ["Default"],
-        "weight": 100
+        "weight": 100,
+        "prefix": "§8[§cAdmin§8] §c",
+        "suffix": "§r"
     },
 }
 

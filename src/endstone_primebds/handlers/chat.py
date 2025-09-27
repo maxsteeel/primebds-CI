@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from endstone.event import PlayerChatEvent
+from endstone_primebds.utils.internal_permissions_util import get_prefix, get_suffix, PERMISSIONS
 from endstone_primebds.utils.config_util import load_config
 from endstone_primebds.utils.mod_util import format_time_remaining
 from endstone_primebds.utils.logging_util import discordRelay
@@ -39,7 +40,9 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
         return False
     
     if config["modules"]["server_messages"]["enhanced_chat"]:
-        message = f"{ev.player.name_tag}{config["modules"]["server_messages"]["chat_prefix"]}§r{ev.message}"
+        prefix = get_prefix(user.internal_rank, PERMISSIONS)
+        suffix = get_suffix(user.internal_rank, PERMISSIONS)
+        message = f"{prefix}{ev.player.name_tag}{suffix}{config["modules"]["server_messages"]["chat_prefix"]}§r{ev.message}"
         ev.format = message
 
     discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")

@@ -15,7 +15,9 @@ from endstone_primebds.commands import (
 from endstone_primebds.commands.Server.monitor import clear_all_intervals
 from endstone_primebds.utils.config_util import load_config
 from endstone_primebds.utils.db_util import UserDB, sessionDB, ServerDB, User, ModLog, ServerData
-from endstone_primebds.utils.internal_permissions_util import check_rank_exists, load_perms, get_rank_permissions, invalidate_perm_cache, MANAGED_PERMISSIONS_LIST
+from endstone_primebds.utils.internal_permissions_util import (check_rank_exists, load_perms, get_rank_permissions, 
+                                                               clear_prefix_suffix_cache, invalidate_perm_cache, 
+                                                               MANAGED_PERMISSIONS_LIST)
 
 def plugin_text():
     print(
@@ -237,7 +239,6 @@ class PrimeBDS(Plugin):
             self.vanish_state[player.unique_id] = False
 
         internal_rank = check_rank_exists(self, player, user.internal_rank)
-
         permissions = get_rank_permissions(internal_rank)
         user_permissions = self.db.get_permissions(player.xuid)
         managed_perms = MANAGED_PERMISSIONS_LIST[:]
@@ -292,6 +293,7 @@ class PrimeBDS(Plugin):
             player.add_attachment(self, "endstone.command.banlist", False)
         player.update_commands()
         player.recalculate_permissions()
+        clear_prefix_suffix_cache()
         invalidate_perm_cache(self, player.xuid)
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:

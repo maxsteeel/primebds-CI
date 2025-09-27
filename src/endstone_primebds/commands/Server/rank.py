@@ -5,7 +5,7 @@ try:
 except ImportError:
     BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.internal_permissions_util import RANKS, reload_ranks
+from endstone_primebds.utils.internal_permissions_util import RANKS
 from endstone_primebds.utils.config_util import load_permissions, save_permissions
 
 from typing import TYPE_CHECKING
@@ -102,7 +102,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             "weight": 0
         }
         save_permissions(perms, True)
-        reload_ranks()
         sender.send_message(f"§bCreated rank §e\"{rank_name}\" §bsuccessfully")
         return True
     
@@ -120,7 +119,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         del perms[actual_rank]
         save_permissions(perms, True)
-        reload_ranks()
         updatePermissionsFiltered(self, {actual_rank})
         sender.send_message(f"§bDeleted rank §e\"{actual_rank}\" §bsuccessfully")
         return True

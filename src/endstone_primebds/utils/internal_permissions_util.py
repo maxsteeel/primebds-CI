@@ -281,13 +281,51 @@ def check_perms(self: "PrimeBDS", player_or_user, perm: str, check_rank=False) -
 
     return perm in final_perms
 
+_prefix_cache = {}
+_suffix_cache = {}
+def get_prefix(rank: str, permissions=None) -> str:
+    """
+    Returns the prefix for a given rank, using cache if available.
+    """
+    global _prefix_cache
+    if rank in _prefix_cache:
+        return _prefix_cache[rank]
+
+    if permissions is None:
+        permissions = load_permissions(cache=True)
+
+    prefix = permissions.get(rank, {}).get("prefix", "")
+    _prefix_cache[rank] = prefix
+    return prefix
+
+
+def get_suffix(rank: str, permissions=None) -> str:
+    """
+    Returns the suffix for a given rank, using cache if available.
+    """
+    global _suffix_cache
+    if rank in _suffix_cache:
+        return _suffix_cache[rank]
+
+    if permissions is None:
+        permissions = load_permissions(cache=True)
+
+    suffix = permissions.get(rank, {}).get("suffix", "")
+    _suffix_cache[rank] = suffix
+    return suffix
+
+def clear_prefix_suffix_cache():
+    """
+    Clears the prefix/suffix caches (useful if permissions are reloaded).
+    """
+    global _prefix_cache, _suffix_cache
+    _prefix_cache.clear()
+    _suffix_cache.clear()
+
 def invalidate_perm_cache(self, xuid: str):
     perm_cache.pop(xuid, None)
             
 def check_internal_rank(user1_rank: str, user2_rank: str) -> bool:
     if user1_rank not in RANKS or user2_rank not in RANKS:
-        return False  # Handle cases where the rank is not found
+        return False
     return RANKS.index(user1_rank) < RANKS.index(user2_rank)
-
-def reload_ranks():
-    RANKS = list(load_permissions().keys())
