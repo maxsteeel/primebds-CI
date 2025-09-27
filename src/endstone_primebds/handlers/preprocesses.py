@@ -15,7 +15,7 @@ MODERATION_COMMANDS = {
     "permban", "tempban", "tempmute",
     "mute", "ipban", "unmute", "warn"
 }
-MSG_CMDS = {"me", "tell", "w", "whisper", "msg"}
+MSG_CMDS = {"me", "tell", "w", "whisper", "msg", "say"}
 PARSE_COMMANDS = (
     MODERATION_COMMANDS
     | MSG_CMDS
