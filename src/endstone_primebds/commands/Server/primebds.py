@@ -369,10 +369,10 @@ def open_module_editor(player: Player, module_name: str, settings: dict, config:
                 primitives()
                 return
             elif result.selection == 1:
-                #open_projectiles_modal(player, settings["projectiles"], config)
+                open_projectiles(player)
                 return
             elif result.selection == 2:
-                #open_tag_override_list(player, settings, config)
+                open_tag_overrides(player)
                 return
             elif result.selection == 3:
                 if parent_name:
@@ -385,5 +385,116 @@ def open_module_editor(player: Player, module_name: str, settings: dict, config:
 
     primitives()
     
+def open_projectiles(player: Player):
+    config = load_config()
+    proj = config["modules"]["combat"]["projectiles"]
+
+    form = ModalFormData()
+    form.title("Projectile Settings")
+
+    form.text_field("Horizontal KB Modifier", "e.g. 0.0", str(proj["horizontal_knockback_modifier"]))
+    form.text_field("Vertical KB Modifier", "e.g. 0.0", str(proj["vertical_knockback_modifier"]))
+
+    def submit(player: Player, result: ModalFormResponse):
+        if result.canceled:
+            return
+        try:
+            config["modules"]["combat"]["projectiles"]["horizontal_knockback_modifier"] = float(result.formValues[0])
+            config["modules"]["combat"]["projectiles"]["vertical_knockback_modifier"] = float(result.formValues[1])
+            save_config(config, True)
+            player.send_message("§aProjectile settings updated!")
+        except ValueError:
+            player.send_message("§cInvalid input, please enter numbers.")
+
+    form.show(player).then(lambda player=player, result=None: submit(player, result))
+
+def open_tag_overrides(player: Player):
+    config = load_config()
+    tag_overrides = config["modules"]["combat"]["tag_overrides"]
+
+    form = ActionFormData()
+    form.title("Tag Overrides")
+    form.body("Select a tag to edit:")
+
+    tags = list(tag_overrides.keys())
+    if not tags:
+        player.send_message("§cNo tag overrides defined.")
+        return
+
+    for tag in tags:
+        form.button(tag)
+
+    def submit(player: Player, result: ActionFormResponse):
+        if result.canceled or result.selection >= len(tags):
+            return
+        chosen_tag = tags[result.selection]
+        edit_tag_override(player, chosen_tag)
+
+    form.show(player).then(lambda player=player, result=None: submit(player, result))
+
+def edit_tag_override(player: Player, tag: str):
+    config = load_config()
+    settings = config["modules"]["combat"]["tag_overrides"][tag]
+    projectiles = settings.get("projectiles", {})
+
+    form = ModalFormData()
+    form.title(f"Edit Tag: {tag}")
+
+    for key, value in settings.items():
+        if key == "projectiles":
+            continue
+
+        if isinstance(value, bool):
+            form.toggle(format_label(key), value)
+        else:
+            form.text_field(format_label(key), str(value), str(value))
+
+    for key, value in projectiles.items():
+        label = f"Projectile {format_label(key)}"
+        if isinstance(value, bool):
+            form.toggle(label, value)
+        else:
+            form.text_field(label, str(value), str(value))
+
+
+    def submit(player: Player, result: ModalFormResponse):
+        if result.canceled:
+            return
+
+        values = result.formValues
+        idx = 0
+
+        for key in settings:
+            if key == "projectiles":
+                continue
+            value = settings[key]
+            if isinstance(value, bool):
+                settings[key] = values[idx]
+            elif isinstance(value, int):
+                settings[key] = int(values[idx]) if values[idx] else 0
+            elif isinstance(value, float):
+                settings[key] = float(values[idx]) if values[idx] else 0.0
+            else:
+                settings[key] = values[idx]
+            idx += 1
+
+        for key in projectiles:
+            value = projectiles[key]
+            if isinstance(value, bool):
+                projectiles[key] = values[idx]
+            elif isinstance(value, int):
+                projectiles[key] = int(values[idx]) if values[idx] else 0
+            elif isinstance(value, float):
+                projectiles[key] = float(values[idx]) if values[idx] else 0.0
+            else:
+                projectiles[key] = values[idx]
+            idx += 1
+
+        settings["projectiles"] = projectiles
+        save_config(config, True)
+        player.send_message(f"§aTag override '{tag}' updated!")
+
+    form.show(player).then(lambda player=player, result=None: submit(player, result))
+
 def format_label(key: str) -> str:
     return " ".join(word.capitalize() for word in key.split("_"))
