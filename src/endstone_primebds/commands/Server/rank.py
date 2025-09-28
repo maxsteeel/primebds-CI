@@ -5,7 +5,7 @@ try:
 except ImportError:
     BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.internal_permissions_util import RANKS
+from endstone_primebds.utils.internal_permissions_util import RANKS, reload_rank_list
 from endstone_primebds.utils.config_util import load_permissions, save_permissions
 
 from typing import TYPE_CHECKING
@@ -18,6 +18,7 @@ command, permission = create_command(
     "Sets the internal rank for a player!",
     [
         "/rank (set)<rank_set: rank_set> <player: player> <rank: string>",
+        "/rank (prefix|suffix)<rank_meta: rank_meta> <rank: string> <meta: message>",
         "/rank (perm)<rank_perm: rank_perm> (add|remove)<perm_action: perm_action> <rank: string> <perm: string> [state: bool]",
         "/rank (weight)<rank_weight: rank_weight> <rank: string> <weight: int>",
         "/rank (inherit)<rank_inherit: rank_inherit> <rank_child: string> <rank_parent: string>",
@@ -103,6 +104,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         }
         save_permissions(perms, True)
         sender.send_message(f"§bCreated rank §e\"{rank_name}\" §bsuccessfully")
+        reload_rank_list()
         return True
     
     elif subaction == "delete":
@@ -121,6 +123,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         save_permissions(perms, True)
         updatePermissionsFiltered(self, {actual_rank})
         sender.send_message(f"§bDeleted rank §e\"{actual_rank}\" §bsuccessfully")
+        reload_rank_list()
         return True
 
     elif subaction == "info":
@@ -251,6 +254,35 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         save_permissions(perms, True)
         updatePermissionsFiltered(self, {actual_rank})
         sender.send_message(f"§bUpdated weight for rank §e{rank_name} §bto §b{new_weight}")
+
+    elif subaction == "prefix":
+        if not rank_exists(rank_name, perms):
+            sender.send_message(f"§cRank \"{rank_name}\" does not exist")
+            return False
+
+        actual_rank = find_rank(rank_name, perms)
+
+        new_prefix = args[2]
+        perms[actual_rank]["prefix"] = new_prefix
+        save_permissions(perms, True)
+        updatePermissionsFiltered(self, {actual_rank})
+        sender.send_message(f"§bUpdated prefix for rank §e{rank_name} §bto §b{new_prefix}")
+
+        return True
+    
+    elif subaction == "suffix":
+        if not rank_exists(rank_name, perms):
+            sender.send_message(f"§cRank \"{rank_name}\" does not exist")
+            return False
+
+        actual_rank = find_rank(rank_name, perms)
+        new_suffix = args[2]
+        perms[actual_rank]["suffix"] = new_suffix
+        save_permissions(perms, True)
+        updatePermissionsFiltered(self, {actual_rank})
+        sender.send_message(f"§bUpdated suffix for rank §e{rank_name} §bto §b{new_suffix}")
+
+        return True
 
     return True
 
