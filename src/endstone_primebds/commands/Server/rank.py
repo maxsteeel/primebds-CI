@@ -147,6 +147,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"§bRank: §r{proper_rank}")
         sender.send_message(f"§bWeight: §r{rank.get('weight', 0)}")
         sender.send_message(f"§bInherits: §r{rank.get('inherits', [])}")
+        sender.send_message(f"§bPrefix: §r{rank.get('prefix', "Unset")}")
+        sender.send_message(f"§bSuffix: §r{rank.get('suffix', "Unset")}")
         sender.send_message("§bPermissions:")
         for perm, value in rank.get("permissions", {}).items():
             color = "§a" if value else "§c"
@@ -238,6 +240,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     elif subaction == "weight":
+        rank_name = args[1].lower()
+        if rank_name == "op":
+            rank_name = "operator"
+
         if not rank_exists(rank_name, perms):
             sender.send_message(f"§cRank \"{rank_name}\" does not exist")
             return False
@@ -256,6 +262,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"§bUpdated weight for rank §e{rank_name} §bto §b{new_weight}")
 
     elif subaction == "prefix":
+        rank_name = args[1].lower()
+        if rank_name == "op":
+            rank_name = "operator"
+
         if not rank_exists(rank_name, perms):
             sender.send_message(f"§cRank \"{rank_name}\" does not exist")
             return False
@@ -271,6 +281,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
     
     elif subaction == "suffix":
+        rank_name = args[1].lower()
+        if rank_name == "op":
+            rank_name = "operator"
+            
         if not rank_exists(rank_name, perms):
             sender.send_message(f"§cRank \"{rank_name}\" does not exist")
             return False
