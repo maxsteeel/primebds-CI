@@ -298,7 +298,6 @@ def get_prefix(rank: str, permissions=None) -> str:
     _prefix_cache[rank] = prefix
     return prefix
 
-
 def get_suffix(rank: str, permissions=None) -> str:
     """
     Returns the suffix for a given rank, using cache if available.
@@ -329,3 +328,6 @@ def check_internal_rank(user1_rank: str, user2_rank: str) -> bool:
     if user1_rank not in RANKS or user2_rank not in RANKS:
         return False
     return RANKS.index(user1_rank) < RANKS.index(user2_rank)
+
+def reload_rank_list():
+    RANKS = list(load_permissions().keys())
