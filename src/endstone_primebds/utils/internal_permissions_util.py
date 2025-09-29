@@ -211,19 +211,24 @@ def normalize_rank_name(rank: str) -> str:
             return r
     return "Default"
 
-def check_rank_exists(self: "PrimeBDS", target: Player, rank: str):
-    """Ensure a rank exists; fallback to Default if missing or invalid."""
+def check_rank_exists(self: "PrimeBDS", target: Player, rank: str) -> str:
+    """Ensure a rank exists; fallback to Default if missing or invalid. Case-insensitive."""
     try:
-        if rank not in PERMISSIONS or not isinstance(PERMISSIONS.get(rank), dict):
+        ranks_map = {r.lower(): r for r in PERMISSIONS.keys()}
+
+        rank_lower = rank.lower()
+        if rank_lower not in ranks_map:
             raise ValueError("Rank missing or invalid")
 
-        group = PERMISSIONS.get(rank)
-        if "permissions" not in group or not isinstance(group["permissions"], (dict, list)):
+        proper_rank = ranks_map[rank_lower]
+        group = PERMISSIONS.get(proper_rank)
+
+        if not isinstance(group, dict) or "permissions" not in group or not isinstance(group["permissions"], (dict, list)):
             raise ValueError("Rank permissions invalid")
 
-        return rank
+        return proper_rank
     except Exception as e:
-        print(f"Invalid rank {rank} for {target.name}, resetting to Default: {e}")
+        print(f"Invalid rank '{rank}' for {target.name}, resetting to Default: {e}")
         self.db.update_user_data(target.name, 'internal_rank', "Default")
         return "Default"
 
