@@ -67,7 +67,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             new_rank_lower = "operator"
 
         if new_rank_lower not in ranks_map:
-            sender.send_message(f"§cInvalid rank: §e{args[1]}§c. Valid ranks are: §e{', '.join(RANKS)}")
+            sender.send_message(f"§cInvalid rank: §e{args[2]}§c. Valid ranks are: §e{', '.join(RANKS)}")
             return False
 
         proper_rank = ranks_map[new_rank_lower]
@@ -259,7 +259,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         perms[actual_rank]["weight"] = new_weight
         save_permissions(perms, True)
         updatePermissionsFiltered(self, {actual_rank})
-        sender.send_message(f"§bUpdated weight for rank §e{rank_name} §bto §b{new_weight}")
+        sender.send_message(f"§bUpdated weight for rank §e{rank_name} §bto §e{new_weight}")
 
     elif subaction == "prefix":
         rank_name = args[1].lower()
@@ -276,7 +276,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         perms[actual_rank]["prefix"] = new_prefix
         save_permissions(perms, True)
         updatePermissionsFiltered(self, {actual_rank})
-        sender.send_message(f"§bUpdated prefix for rank §e{rank_name} §bto §b{new_prefix}")
+        sender.send_message(f"§bUpdated prefix for rank §e{rank_name} §bto §e{new_prefix}")
 
         return True
     
@@ -294,7 +294,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         perms[actual_rank]["suffix"] = new_suffix
         save_permissions(perms, True)
         updatePermissionsFiltered(self, {actual_rank})
-        sender.send_message(f"§bUpdated suffix for rank §e{rank_name} §bto §b{new_suffix}")
+        sender.send_message(f"§bUpdated suffix for rank §e{rank_name} §bto §e{new_suffix}")
 
         return True
 
