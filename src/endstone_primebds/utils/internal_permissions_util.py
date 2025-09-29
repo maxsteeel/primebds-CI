@@ -209,7 +209,15 @@ def normalize_rank_name(rank: str) -> str:
     for r in RANKS:
         if r.lower() == rank:
             return r
+        
     return "Default"
+
+def get_rank_group(rank_name: str) -> dict | None:
+    rank_lower = rank_name.lower()
+    for key, value in PERMISSIONS.items():
+        if key.lower() == rank_lower:
+            return value
+    return None
 
 def check_rank_exists(self: "PrimeBDS", target: Player, rank: str) -> str:
     """Ensure a rank exists; fallback to Default if missing or invalid. Case-insensitive."""
@@ -221,7 +229,7 @@ def check_rank_exists(self: "PrimeBDS", target: Player, rank: str) -> str:
             raise ValueError("Rank missing or invalid")
 
         proper_rank = ranks_map[rank_lower]
-        group = PERMISSIONS.get(proper_rank)
+        group = get_rank_group(proper_rank)
 
         if not isinstance(group, dict) or "permissions" not in group or not isinstance(group["permissions"], (dict, list)):
             raise ValueError("Rank permissions invalid")
@@ -233,10 +241,13 @@ def check_rank_exists(self: "PrimeBDS", target: Player, rank: str) -> str:
         return "Default"
 
 def get_rank_permissions(rank: str) -> dict[str, bool]:
-    """Collect permissions for a rank, handling malformed definitions gracefully."""
+    
+    global PERMISSIONS
+    PERMISSIONS = load_permissions(None, True)
+
     base_rank = normalize_rank_name(rank)
     seen_ranks = set()
-    result: dict[str, bool] = {}
+    result: dict[str, bool] = {p: False for p in MANAGED_PERMISSIONS_LIST}
 
     def gather_permissions(r):
         r_norm = normalize_rank_name(r)
@@ -244,7 +255,7 @@ def get_rank_permissions(rank: str) -> dict[str, bool]:
             return
         seen_ranks.add(r_norm)
 
-        group = PERMISSIONS.get(r_norm)
+        group = get_rank_group(r_norm)
         if not group or not isinstance(group, dict):
             return
 
@@ -252,43 +263,35 @@ def get_rank_permissions(rank: str) -> dict[str, bool]:
         fixed_perms: dict[str, bool] = {}
 
         if isinstance(perms, dict):
-            fixed_perms = perms
+            fixed_perms = {k.lower(): bool(v) for k, v in perms.items()}
         elif isinstance(perms, list):
-            fixed_perms = {p: True for p in perms if isinstance(p, str)}
+            fixed_perms = {p.lower(): True for p in perms if isinstance(p, str)}
         else:
             return
+        
+        print(fixed_perms)
 
+        # Wildcard handling: only set True for missing permissions
         if "*" in fixed_perms:
-            if fixed_perms["*"]:
-                for p in MANAGED_PERMISSIONS_LIST:
-                    result[p] = True
-            else:
-                for p in MANAGED_PERMISSIONS_LIST:
-                    result[p] = False
+            wildcard_value = fixed_perms["*"]
+            for p in MANAGED_PERMISSIONS_LIST:
+                if p not in fixed_perms:
+                    result[p] = wildcard_value
 
+        # Apply explicit permissions from this rank
         for perm, allowed in fixed_perms.items():
             if perm == "*":
                 continue
-            if isinstance(allowed, bool):
-                result[perm] = allowed
-            else:
-                result[perm] = True
+            result[perm] = allowed
 
+        # Recurse on inherited ranks
         inherits = group.get("inherits", [])
         if isinstance(inherits, list):
             for parent in inherits:
                 if isinstance(parent, str):
                     gather_permissions(parent)
 
-    try:
-        gather_permissions(base_rank)
-    except Exception as e:
-        result.clear()
-        gather_permissions("Default")
-
-    if not result:
-        gather_permissions("Default")
-
+    gather_permissions(base_rank)
     return result
 
 perm_cache = {}
@@ -338,7 +341,7 @@ def get_prefix(rank: str, permissions=None) -> str:
     if permissions is None:
         permissions = load_permissions(cache=True)
 
-    prefix = permissions.get(rank, {}).get("prefix", "")
+    prefix = get_rank_group(rank, {}).get("prefix", "")
     _prefix_cache[rank] = prefix
     return prefix
 
@@ -353,7 +356,7 @@ def get_suffix(rank: str, permissions=None) -> str:
     if permissions is None:
         permissions = load_permissions(cache=True)
 
-    suffix = permissions.get(rank, {}).get("suffix", "")
+    suffix = get_rank_group(rank, {}).get("suffix", "")
     _suffix_cache[rank] = suffix
     return suffix
 

@@ -159,6 +159,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     elif subaction == "perm":
+        
         if args[1] == "add":
             rank_name = args[2]
             permission = args[3]
@@ -196,10 +197,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 sender.send_message(f"Rank §e\"{actual_rank}\" §rdoes not have permission §e\"{permission}\"")
                 return False
 
+            permission = permission.lower()
             perms[actual_rank]["permissions"].pop(permission, None)
             save_permissions(perms, True)
             updatePermissionsFiltered(self, {actual_rank})
-            sender.send_message(f"Removed permission §e\"{permission}\" from rank §e\"{actual_rank}\"")
+            sender.send_message(f"§bRemoved permission §e\"{permission}\" from rank §e\"{actual_rank}\"")
             return True
 
     elif subaction == "list":

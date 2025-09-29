@@ -4,7 +4,6 @@ try:
 except ImportError:
     BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.internal_permissions_util import check_perms
 
 from typing import TYPE_CHECKING
 

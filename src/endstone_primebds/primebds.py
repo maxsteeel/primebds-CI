@@ -243,11 +243,11 @@ class PrimeBDS(Plugin):
         user_permissions = self.db.get_permissions(player.xuid)
         managed_perms = MANAGED_PERMISSIONS_LIST[:]
 
-        final_permissions = {rperm: False for rperm in managed_perms}
+        final_permissions = {rperm.lower(): False for rperm in managed_perms}
         for perm, allowed in permissions.items():
-            final_permissions[perm] = allowed
+            final_permissions[perm.lower()] = allowed
         for perm, allowed in user_permissions.items():
-            final_permissions[perm] = allowed
+            final_permissions[perm.lower()] = allowed
 
         to_remove = [
             attinfo.attachment for attinfo in player.effective_permissions
@@ -278,6 +278,8 @@ class PrimeBDS(Plugin):
                 continue
 
             prefix = perm.split(".")[0]
+            if value:
+                print(perm)
             if prefix in plugin_stars:
                 attachment.set_permission(perm, plugin_stars[prefix])
             else:
