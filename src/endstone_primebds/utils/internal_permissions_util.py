@@ -105,6 +105,13 @@ EXTRA_PERMS = [
     "primebds.command.repair.other"
 ]
 
+def reload_rank_list():
+    global RANKS
+    RANKS = list(load_permissions().keys())
+
+def get_ranks() -> list[str]:
+    return RANKS
+
 def load_perms(self: "PrimeBDS"):
     config = load_config()
     modules = config.get("modules", {})
@@ -360,6 +367,3 @@ def check_internal_rank(user1_rank: str, user2_rank: str) -> bool:
     if user1_rank not in RANKS or user2_rank not in RANKS:
         return False
     return RANKS.index(user1_rank) < RANKS.index(user2_rank)
-
-def reload_rank_list():
-    RANKS = list(load_permissions().keys())
