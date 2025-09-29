@@ -35,10 +35,10 @@ Prime BDS Loaded!
     )
 
 # EVENT & HANDLER IMPORTS
-from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent, ChunkLoadEvent, ChunkUnloadEvent,
+from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent,
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
                             PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent,
-                            ServerLoadEvent, PlayerKickEvent)
+                            ServerLoadEvent, PlayerKickEvent, ActorSpawnEvent, ActorRemoveEvent)
 from endstone_primebds.handlers.chat import handle_chat_event
 from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
 from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event, handle_kick_event
@@ -47,8 +47,8 @@ from endstone_primebds.handlers.multiworld import start_additional_servers, stop
 from endstone_primebds.handlers.intervals import stop_intervals, init_jail_intervals
 from endstone_primebds.handlers.packets import handle_packetsend_event
 from endstone_primebds.handlers.actions import handle_gamemode_event, handle_interact_event
+from endstone_primebds.handlers.actors import handle_spawn_event, handle_remove_event
 from endstone_primebds.handlers.items import handle_item_pickup_event, handle_item_use, handle_item_drop_event
-from endstone_primebds.handlers.chunks import handle_chunk_load, handle_chunk_unload
 
 class PrimeBDS(Plugin):
     api_version = "0.9"
@@ -92,12 +92,12 @@ class PrimeBDS(Plugin):
 
     # EVENT HANDLER
     @event_handler
-    def on_chunk_load(self, ev: ChunkLoadEvent):
-        handle_chunk_load(self, ev)
+    def on_actor_spawn(self, ev: ActorSpawnEvent):
+        handle_spawn_event(self, ev)
 
     @event_handler
-    def on_chunk_unload(self, ev: ChunkUnloadEvent):
-        handle_chunk_unload(self, ev)
+    def on_actor_remove(self, ev: ActorRemoveEvent):
+        handle_remove_event(self, ev)
 
     @event_handler
     def on_player_gamemode(self, ev: PlayerGameModeChangeEvent):
