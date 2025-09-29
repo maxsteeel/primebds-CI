@@ -1,8 +1,17 @@
 from endstone import Player
+from endstone.level import Location
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.target_selector_util import get_matching_actors
 from endstone_primebds.utils.lookup_util import get_runtime_id
+
+try:
+    from bedrock_protocol.packets import minecraft_packets, MinecraftPacketIds, types
+    from bedrock_protocol.nbt import IntTag, StringTag, compound_tag
+    PACKET_SUPPORT = True
+except Exception as e:
+    print(e)
+    PACKET_SUPPORT = False
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -69,12 +78,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             for item in armor if item
         )
 
-        if display_type == "chest":
+        if display_type == "chest" and PACKET_SUPPORT:
             x = int(sender.location.block_x)
             y = int(sender.location.block_y + 3)
             z = int(sender.location.block_z)
             chest = get_runtime_id(self, "minecraft:chest")
-            #chestView(self, sender, x, y, z, chest, combined)
+            chestView(self, sender, x, y, z, chest, combined)
 
         elif display_type == "chat":
             sender.send_message(f"§6Inventory of §e{target.name}§6:\n{item_list}")
@@ -82,20 +91,48 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message("§cInvalid display type")
 
     return True
-"""
+
 open_chests = {}
 def chestView(self: "PrimeBDS", sender: Player, x, y, z, chest, items):
     ub_id = MinecraftPacketIds.UpdateBlock
-    
-    fakechest1 = UpdateBlockPacket(x, y, z, chest, 3, 0)
+
+    fakechest1 = minecraft_packets.UpdateBlockPacket(types.NetworkBlockPosition(x, y, z), chest, 3, 0)
     payload1 = fakechest1.serialize()
     sender.send_packet(ub_id, payload1)
     
-    fakechest2 = UpdateBlockPacket(x + 1, y, z, chest, 3, 0)
+    fakechest2 = minecraft_packets.UpdateBlockPacket(types.NetworkBlockPosition(x+1, y, z), chest, 3, 0)
     payload2 = fakechest2.serialize()
     sender.send_packet(ub_id, payload2)
+
+    pos1 = fakechest1.block_position
+    pos2 = fakechest2.block_position
+
+    chest1_nbt = compound_tag.CompoundTag()
+    chest1_nbt.put("id", StringTag("Chest"))
+    chest1_nbt.put("x", IntTag(pos1.x))
+    chest1_nbt.put("y", IntTag(pos1.y))
+    chest1_nbt.put("z", IntTag(pos1.z))
+    chest1_nbt.put("pairx", IntTag(pos2.x))
+    chest1_nbt.put("pairz", IntTag(pos2.z))
+    chest1_nbt.put("pairLead", IntTag(1))
+
+    chest2_nbt = compound_tag.CompoundTag()
+    chest2_nbt.put("id", StringTag("Chest"))
+    chest2_nbt.put("x", IntTag(pos2.x))
+    chest2_nbt.put("y", IntTag(pos2.y))
+    chest2_nbt.put("z", IntTag(pos2.z))
+    chest2_nbt.put("pairx", IntTag(pos1.x))
+    chest2_nbt.put("pairz", IntTag(pos1.z))
+    chest2_nbt.put("pairLead", IntTag(0))
+
+    bap1 = minecraft_packets.BlockActorDataPacket(types.NetworkBlockPosition(x, y, z), nbt=chest1_nbt)
+    bap2 = minecraft_packets.BlockActorDataPacket(types.NetworkBlockPosition(x+1, y, z), nbt=chest2_nbt)
+    bap1_payload = bap1.serialize()
+    bap2_payload = bap2.serialize()
+    sender.send_packet(bap1.get_packet_id(), bap1_payload)
+    sender.send_packet(bap2.get_packet_id(), bap2_payload)
     
-    open_packet = OpenContainerPacket(2, 0, x, y, z, 1)
+    open_packet = minecraft_packets.ContainerOpenPacket(2, 0, x, y, z, 1)
     oc_id = open_packet.get_packet_id()
     payload3 = open_packet.serialize()
     sender.send_packet(oc_id, payload3)
@@ -107,11 +144,6 @@ def chestView(self: "PrimeBDS", sender: Player, x, y, z, chest, items):
         (x, y, z),
         (x + 1, y, z)
     ]
-
-    #content_packet = InventoryContentPacket(2, items, "Chest")
-    #id = MinecraftPacketIds.InventoryContent
-    #payload4 = content_packet.serialize()
-    #sender.send_packet(id, payload4)
 
 def closeChestView(self: "PrimeBDS", sender: Player):
     if not hasattr(self, "open_chests"):
@@ -126,8 +158,8 @@ def closeChestView(self: "PrimeBDS", sender: Player):
     for (cx, cy, cz) in chest_coords:
         block_id = self.server.level.get_dimension(sender.location.dimension.name).get_block_at(Location(sender.location.dimension, cx, cy, cz)).type
         replace_id = get_runtime_id(self, block_id)
-        pkt = UpdateBlockPacket(cx, cy, cz, replace_id, 3, 0)
+        pkt = minecraft_packets.UpdateBlockPacket(cx, cy, cz, replace_id, 3, 0)
         sender.send_packet(ub_id, pkt.serialize())
     
     del open_chests[sender.name]
-"""
+
