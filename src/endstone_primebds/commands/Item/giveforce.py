@@ -64,7 +64,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     try:
         block = ItemStack(block_id, amount, data)
-    except KeyError:
+    except Exception:
         sender.send_message("§cInvalid block ID")
         return False
     
