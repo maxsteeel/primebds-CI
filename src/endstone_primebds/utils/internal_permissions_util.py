@@ -121,57 +121,63 @@ def load_perms(self: "PrimeBDS"):
     endstone_enabled = perms_manager.get("endstone", True)
     wildcard_enabled = perms_manager.get("*", True)
 
+    can_count = True
     plugin_perms = set()
-    for plugin in self.server.plugin_manager.plugins:
-        plugin_perm_set = set()
-        data = getattr(plugin, "_get_description", lambda: None)()
-        if not data:
-            continue
-        
-        perms = getattr(data, "permissions", [])
-        commands = getattr(data, "commands", [])
+    try:
+        for plugin in self.server.plugin_manager.plugins:
+            plugin_perm_set = set()
 
-        if perms:
-            for attachment in perms:
-                perm_lower = attachment.name.lower()
-                if perm_lower in {"endstone.command.banip", "endstone.command.unbanip", "endstone.command.banlist"}:
-                    continue
+            data = getattr(plugin, "_get_description", lambda: None)()
+            if not data:
+                continue
+            
+            perms = getattr(data, "permissions", [])
+            commands = getattr(data, "commands", [])
 
-                prefix = perm_lower.split(".")[0]
-                if (prefix == "minecraft" and minecraft_enabled) or \
-                (prefix == "primebds" and primebds_enabled) or \
-                (prefix == "endstone" and endstone_enabled) or \
-                (prefix not in {"minecraft", "primebds", "endstone"} and wildcard_enabled):
-                    plugin_perms.add(perm_lower)
-                    plugin_perm_set.add(perm_lower)
-        elif commands and wildcard_enabled:
-            for cmd in commands:
-                perms = cmd.permissions
-                for perm in perms:
-                    perm_lower = perm.lower()
-                    plugin_perms.add(perm_lower)
-                    plugin_perm_set.add(perm_lower)
+            if perms:
+                for attachment in perms:
+                    perm_lower = attachment.name.lower()
+                    if perm_lower in {"endstone.command.banip", "endstone.command.unbanip", "endstone.command.banlist"}:
+                        continue
 
-        if getattr(plugin, "name", "") == "primebds":
-            for perm in EXTRA_PERMS:
-                plugin_perms.add(perm)
-                plugin_perm_set.add(perm)
+                    prefix = perm_lower.split(".")[0]
+                    if (prefix == "minecraft" and minecraft_enabled) or \
+                    (prefix == "primebds" and primebds_enabled) or \
+                    (prefix == "endstone" and endstone_enabled) or \
+                    (prefix not in {"minecraft", "primebds", "endstone"} and wildcard_enabled):
+                        plugin_perms.add(perm_lower)
+                        plugin_perm_set.add(perm_lower)
+            elif commands and wildcard_enabled:
+                for cmd in commands:
+                    perms = cmd.permissions
+                    for perm in perms:
+                        perm_lower = perm.lower()
+                        plugin_perms.add(perm_lower)
+                        plugin_perm_set.add(perm_lower)
 
-        plugin_name = getattr(plugin, "name", None)
-        if plugin_name == None:
+            if getattr(plugin, "name", "") == "primebds":
+                for perm in EXTRA_PERMS:
+                    plugin_perms.add(perm)
+                    plugin_perm_set.add(perm)
+
+            plugin_name = getattr(plugin, "name", None)
+            if plugin_name == None:
+                if plugin_perm_set:
+                    first_perm = next(iter(plugin_perm_set))
+                    plugin_name = first_perm.split(".")[0]
+                else:
+                    plugin_name = "unnamed plugin"
+
             if plugin_perm_set:
-                first_perm = next(iter(plugin_perm_set))
-                plugin_name = first_perm.split(".")[0]
-            else:
-                plugin_name = "unnamed plugin"
-
-        if plugin_perm_set:
-            first_prefix = next(iter(plugin_perm_set)).split(".")[0]
-            if (first_prefix == "minecraft" and minecraft_enabled) or \
-                (first_prefix == "primebds" and primebds_enabled) or \
-                (first_prefix == "endstone" and endstone_enabled) or \
-                (first_prefix not in {"minecraft", "primebds", "endstone"} and wildcard_enabled):
-                print(f"[PrimeBDS] {plugin_name}: Loaded {len(plugin_perm_set)} permissions")
+                first_prefix = next(iter(plugin_perm_set)).split(".")[0]
+                if (first_prefix == "minecraft" and minecraft_enabled) or \
+                    (first_prefix == "primebds" and primebds_enabled) or \
+                    (first_prefix == "endstone" and endstone_enabled) or \
+                    (first_prefix not in {"minecraft", "primebds", "endstone"} and wildcard_enabled):
+                    print(f"[PrimeBDS] {plugin_name}: Loaded {len(plugin_perm_set)} permissions")
+    except Exception as e:
+        print(f"[PrimeBDS] An error occured when scanning plugins... (RTTI error caused by a plugin). This will not affect permissions. However, permissions for plugins may not be listed in /permissionslist")
+        can_count = False
 
     server_registered = {str(p.name).lower() for p in self.server.plugin_manager.permissions}
 
@@ -199,7 +205,12 @@ def load_perms(self: "PrimeBDS"):
 
     minecraft_filtered = [perm for perm in plugin_perms if perm in {p.lower() for p in MINECRAFT_PERMISSIONS}]
     print(f"[PrimeBDS] minecraft: Loaded {len(minecraft_filtered)} permissions")
-    print(f"[PrimeBDS] Total managed permissions: {len(MANAGED_PERMISSIONS_LIST)}")
+
+    if can_count:
+        print(f"[PrimeBDS] Total managed permissions: {len(MANAGED_PERMISSIONS_LIST)}")
+    else:
+        print(f"[PrimeBDS] Total managed permissions: {len(MANAGED_PERMISSIONS_LIST)}+ (Estimate)")
+        print(f"[PrimeBDS] Some permissions may be missing due to RTTI error")
 
 def normalize_rank_name(rank: str) -> str:
     rank = rank.lower()

@@ -263,15 +263,25 @@ class PrimeBDS(Plugin):
         plugin_stars = {}
         internal = {"minecraft", "minecraft.command", "endstone", "endstone.command"}
 
-        for plugin in self.server.plugin_manager.plugins:
-            if plugin.is_enabled:
-                for perm, value in perms_to_apply:
-                    if perm in internal:
-                        continue
-                    prefix = perm.split(".")[0]
-                    cmd = f"{prefix}.command"
-                    if prefix == perm or cmd == perm:
-                        plugin_stars[prefix] = value
+        try:
+            for plugin in self.server.plugin_manager.plugins:
+                if plugin.is_enabled:
+                    for perm, value in perms_to_apply:
+                        if perm in internal:
+                            continue
+                        prefix = perm.split(".")[0]
+                        cmd = f"{prefix}.command"
+                        if prefix == perm or cmd == perm:
+                            plugin_stars[prefix] = value
+        except Exception as e:
+            server_registered = {str(p.name).lower() for p in self.server.plugin_manager.permissions}
+            for perm in server_registered:
+                if perm in internal:
+                    continue
+                prefix = perm.split(".")[0]
+                cmd = f"{prefix}.command"
+                if prefix == perm or cmd == perm:
+                    plugin_stars[prefix] = value
                         
         for perm, value in perms_to_apply:
             if perm in internal:
