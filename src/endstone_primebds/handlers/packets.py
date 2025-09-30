@@ -9,7 +9,7 @@ except Exception as e:
     print(e)
     PACKET_SUPPORT = False
 
-from endstone.event import PacketSendEvent
+from endstone.event import PacketSendEvent, PacketReceiveEvent
 from endstone_primebds.utils.config_util import load_config
 
 from typing import TYPE_CHECKING

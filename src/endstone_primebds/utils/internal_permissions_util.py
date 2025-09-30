@@ -268,8 +268,6 @@ def get_rank_permissions(rank: str) -> dict[str, bool]:
             fixed_perms = {p.lower(): True for p in perms if isinstance(p, str)}
         else:
             return
-        
-        print(fixed_perms)
 
         # Wildcard handling: only set True for missing permissions
         if "*" in fixed_perms:
@@ -341,7 +339,7 @@ def get_prefix(rank: str, permissions=None) -> str:
     if permissions is None:
         permissions = load_permissions(cache=True)
 
-    prefix = get_rank_group(rank, {}).get("prefix", "")
+    prefix = permissions.get(rank, {}).get("prefix", "")
     _prefix_cache[rank] = prefix
     return prefix
 
@@ -356,7 +354,7 @@ def get_suffix(rank: str, permissions=None) -> str:
     if permissions is None:
         permissions = load_permissions(cache=True)
 
-    suffix = get_rank_group(rank, {}).get("suffix", "")
+    suffix = permissions.get(rank, {}).get("suffix", "")
     _suffix_cache[rank] = suffix
     return suffix
 

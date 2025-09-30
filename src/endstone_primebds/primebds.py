@@ -278,8 +278,6 @@ class PrimeBDS(Plugin):
                 continue
 
             prefix = perm.split(".")[0]
-            if value:
-                print(perm)
             if prefix in plugin_stars:
                 attachment.set_permission(perm, plugin_stars[prefix])
             else:
