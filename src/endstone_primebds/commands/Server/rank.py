@@ -5,7 +5,7 @@ try:
 except ImportError:
     BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.internal_permissions_util import reload_rank_list, get_ranks
+from endstone_primebds.utils.internal_permissions_util import reload_rank_list, get_ranks, clear_prefix_suffix_cache
 from endstone_primebds.utils.config_util import load_permissions, save_permissions
 
 from typing import TYPE_CHECKING
@@ -266,6 +266,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"§bUpdated weight for rank §e{rank_name} §bto §e{new_weight}")
 
     elif subaction == "prefix":
+        clear_prefix_suffix_cache()
         rank_name = args[1].lower()
         if rank_name == "op":
             rank_name = "operator"
@@ -285,6 +286,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
     
     elif subaction == "suffix":
+        clear_prefix_suffix_cache()
         rank_name = args[1].lower()
         if rank_name == "op":
             rank_name = "operator"
