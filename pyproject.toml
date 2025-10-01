@@ -9,7 +9,8 @@ description = "An essentials plugin for diagnostics, stability, and quality of l
 author = "PrimeStrat"
 dependencies = [
     "bedrock-protocol-packets==0.0.5",
-    "RapidNBT==1.1.5"
+    "RapidNBT==1.1.5",
+    "chest_form_api_endstone >= 1.0.0"
 ]
 
 [project.entry-points."endstone"]
