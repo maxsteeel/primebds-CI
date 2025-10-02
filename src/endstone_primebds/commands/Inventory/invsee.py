@@ -1,4 +1,5 @@
 from endstone import Player
+from endstone.inventory import ItemStack
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.target_selector_util import get_matching_actors
@@ -16,7 +17,6 @@ command, permission = create_command(
     ["primebds.command.invsee"]
 )
 
-# INVSEE COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if any("@a" in arg for arg in args):
         sender.send_message("§cYou cannot select all players for this command")
@@ -32,138 +32,151 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     targets = get_matching_actors(self, args[0], sender)
 
     if not targets:
-        xuid = self.db.get_xuid_by_name(args[0])
-
-        if not xuid:
+        user = self.db.get_offline_user(args[0])
+        if not user or not user.xuid:
             sender.send_message("§cNo matching player found")
             return False
-        
-        combined_inventory = self.db.get_inventory(xuid)
+
+        combined_inventory = self.db.get_inventory(user.xuid)
         if not combined_inventory:
             sender.send_message("§cNo inventory found for that player")
             return False
 
-        item_list = "\n".join(
-            f"§7- §e{entry['type']} §7x{entry['amount']}"
-            + (" §7(equipped)" if entry['slot_type'] in ("helmet","chestplate","leggings","boots","offhand","mainhand") else "")
-            for entry in combined_inventory
-        )
-
-        if display_type == "chest":
-            chest = ChestForm(self, f"{target.name}'s Inventory", True)
-
-            for slot, item in enumerate(inv):
-                if not item:
-                    continue
-
-                meta = getattr(item, "item_meta", None)
-
-                if 9 <= slot <= 35:
-                    chest_slot = slot - 9
-                elif 0 <= slot <= 8: 
-                    chest_slot = 36 + slot
-                else:
-                    continue 
-
-                chest.set_slot(
-                    chest_slot,
-                    getattr(getattr(item, "type", None), "id", None),
-                    None,
-                    item_amount=getattr(item, "amount", None),
-                    item_data=getattr(item, "data", None),
-                    display_name=getattr(meta, "display_name", None) if meta else None,
-                    lore=getattr(meta, "lore", None) if meta else None,
-                    enchants=getattr(meta, "enchants", None) if meta else None,
-            )
-
-            start_slot = 54 - len(armor)
-            for offset, item in enumerate(armor):
-                if item:
-                    meta = getattr(item, "item_meta", None)
-                    chest.set_slot(
-                        start_slot + offset,
-                        getattr(getattr(item, "type", None), "id", None),
-                        None,
-                        item_amount=getattr(item, "amount", None),
-                        item_data=getattr(item, "data", None),
-                        display_name=getattr(meta, "display_name", None) if meta else None,
-                        lore=getattr(meta, "lore", None) if meta else None,
-                        enchants=getattr(meta, "enchants", None) if meta else None,
-                    )
-
-            chest.send_to(sender)
-
-        elif display_type == "chat":
-            sender.send_message(f"§6Inventory of §e{target.name}§6:\n{item_list}")
+        items = [normalize_item(entry) for entry in combined_inventory]
+        if display_type == "chat":
+            sender.send_message(f"§6Inventory of §e{user.name}§6:\n{build_item_list(items)}")
+        elif display_type == "chest":
+            show_chest(self, sender, f"{user.name}'s Inventory", items, True)
         else:
             sender.send_message("§cInvalid display type")
         return True
 
     for target in targets:
-        inv = target.inventory.contents
-        armor = [target.inventory.helmet, target.inventory.chestplate, target.inventory.leggings, target.inventory.boots, target.inventory.item_in_off_hand]
+        inv_items = [normalize_item(item, slot) for slot, item in enumerate(target.inventory.contents)]
+        armor_items = [
+            normalize_item(target.inventory.helmet, slot_type="helmet"),
+            normalize_item(target.inventory.chestplate, slot_type="chestplate"),
+            normalize_item(target.inventory.leggings, slot_type="leggings"),
+            normalize_item(target.inventory.boots, slot_type="boots"),
+            normalize_item(target.inventory.item_in_off_hand, slot_type="offhand")
+        ]
 
-        item_list = "\n".join(
-            f"§7- §e{item.type} §7x{item.amount}"
-            for item in inv if item
-        )
+        items = [i for i in inv_items + armor_items if i]
 
-        item_list += '\n'
-
-        item_list += "\n".join(
-             f"§7- §e{item.type} §7(equipped)"
-            for item in armor if item
-        )
-
-        if display_type == "chest":
-            chest = ChestForm(self, f"{target.name}'s Inventory", True)
-
-            for slot, item in enumerate(inv):
-                if not item:
-                    continue
-
-                meta = getattr(item, "item_meta", None)
-
-                if 9 <= slot <= 35:
-                    chest_slot = slot - 9
-                elif 0 <= slot <= 8: 
-                    chest_slot = 36 + slot
-                else:
-                    continue 
-
-                chest.set_slot(
-                    chest_slot,
-                    getattr(getattr(item, "type", None), "id", None),
-                    None,
-                    item_amount=getattr(item, "amount", None),
-                    item_data=getattr(item, "data", None),
-                    display_name=getattr(meta, "display_name", None) if meta else None,
-                    lore=getattr(meta, "lore", None) if meta else None,
-                    enchants=getattr(meta, "enchants", None) if meta else None,
-            )
-
-            start_slot = 54 - len(armor)
-            for offset, item in enumerate(armor):
-                if item:
-                    meta = getattr(item, "item_meta", None)
-                    chest.set_slot(
-                        start_slot + offset,
-                        getattr(getattr(item, "type", None), "id", None),
-                        None,
-                        item_amount=getattr(item, "amount", None),
-                        item_data=getattr(item, "data", None),
-                        display_name=getattr(meta, "display_name", None) if meta else None,
-                        lore=getattr(meta, "lore", None) if meta else None,
-                        enchants=getattr(meta, "enchants", None) if meta else None,
-                    )
-
-            chest.send_to(sender)
-
-        elif display_type == "chat":
-            sender.send_message(f"§6Inventory of §e{target.name}§6:\n{item_list}")
+        if display_type == "chat":
+            sender.send_message(f"§6Inventory of §e{target.name}§6:\n{build_item_list(items)}")
+        elif display_type == "chest":
+            show_chest(self, sender, f"{target.name}'s Inventory", items, True)
         else:
             sender.send_message("§cInvalid display type")
 
     return True
 
+def normalize_item(item, slot: int | None = None):
+    def invalid_item(slot: int | None = None):
+        return {
+            "slot": slot,
+            "type": "minecraft:barrier",
+            "amount": 1,
+            "data": 0,
+            "display_name": "§cItem No Longer Exists",
+            "lore": None,
+            "enchants": None,
+        }
 
+    if not item:
+        return None
+
+    if isinstance(item, dict):
+        item_id = item.get("type")
+        amount = item.get("amount", 1)
+        data = item.get("data", 0)
+
+        try:
+            _ = ItemStack(item_id, amount, data)
+        except Exception:
+            return invalid_item(item.get("slot"))
+
+        return {
+            "slot": item.get("slot"),
+            "type": item_id,
+            "amount": amount,
+            "data": data,
+            "display_name": item.get("display_name"),
+            "lore": item.get("lore"),
+            "enchants": item.get("enchants"),
+        }
+
+    else:
+        item_id = getattr(getattr(item, "type", None), "id", None)
+        amount = getattr(item, "amount", 1)
+        data = getattr(item, "data", 0)
+
+        try:
+            _ = ItemStack(item_id, amount, data)
+        except Exception:
+            return invalid_item(slot)
+
+        meta = getattr(item, "item_meta", None)
+        return {
+            "slot": slot,
+            "type": item_id,
+            "amount": amount,
+            "data": data,
+            "display_name": getattr(meta, "display_name", None) if meta else None,
+            "lore": getattr(meta, "lore", None) if meta else None,
+            "enchants": getattr(meta, "enchants", None) if meta else None,
+        }
+
+def build_item_list(items: list[dict]) -> str:
+    """Builds the text fallback for chat display."""
+    lines = []
+    for entry in items:
+        if not entry:
+            continue
+        line = f"§7- §e{entry['type']} §7x{entry['amount']}"
+        if entry.get("slot_type") in ("helmet","chestplate","leggings","boots","offhand","mainhand"):
+            line += " §7(equipped)"
+        lines.append(line)
+    return "\n".join(lines)
+
+def slot_mapping(entry: dict) -> int | None:
+    """Map a normalized item dict to chest GUI slot index."""
+    slot_type = entry.get("slot_type")
+    if isinstance(entry.get("slot"), int):
+        raw_slot = entry["slot"]
+        if 9 <= raw_slot <= 35:
+            return raw_slot - 9
+        elif 0 <= raw_slot <= 8:
+            return 36 + raw_slot
+    elif slot_type in ("helmet","chestplate","leggings","boots","offhand","mainhand"):
+        equip_map = {
+            "helmet": 54 - 4,
+            "chestplate": 54 - 3,
+            "leggings": 54 - 2,
+            "boots": 54 - 1,
+            "offhand": 54 - 5,
+            "mainhand": 54 - 6
+        }
+        return equip_map.get(slot_type)
+    return None
+
+def show_chest(self, sender, title: str, items: list[dict], allow_armor: bool):
+    chest = ChestForm(self, title, allow_armor)
+    for entry in items:
+        if not entry:
+            continue
+        chest_slot = slot_mapping(entry)
+        if chest_slot is None:
+            continue
+        chest.set_slot(
+            chest_slot,
+            entry.get("type"),
+            None,
+            item_amount=entry.get("amount"),
+            item_data=entry.get("data"),
+            display_name=entry.get("display_name"),
+            lore=entry.get("lore"),
+            enchants=entry.get("enchants"),
+        )
+    chest.send_to(sender)
