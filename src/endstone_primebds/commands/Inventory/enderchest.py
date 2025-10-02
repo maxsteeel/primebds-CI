@@ -136,13 +136,19 @@ def show_chest(self, sender, title: str, items: list[dict], allow_armor: bool = 
         slot = entry.get("slot")
         if slot is None:
             continue
+
+        item_type = entry.get("type") or "minecraft:barrier"
+        item_amount = entry.get("amount") or 1
+        item_data = entry.get("data") or 0
+        display_name = entry.get("display_name") or ("§cInvalid Item" if item_type == "minecraft:barrier" else None)
+
         chest.set_slot(
             slot,
-            entry.get("type"),
+            item_type,
             None,
-            item_amount=entry.get("amount"),
-            item_data=entry.get("data"),
-            display_name=entry.get("display_name"),
+            item_amount=item_amount,
+            item_data=item_data,
+            display_name=display_name,
             lore=entry.get("lore"),
             enchants=entry.get("enchants"),
         )
