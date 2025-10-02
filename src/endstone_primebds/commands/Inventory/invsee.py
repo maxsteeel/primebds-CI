@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
-# Register command
 command, permission = create_command(
     "invsee",
     "Allows you to view another player's inventory!",
@@ -52,7 +51,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     for target in targets:
-        inv_items = [normalize_item(item, slot) for slot, item in enumerate(target.inventory.contents)]
+        inv_items = [normalize_item(item, slot=slot) for slot, item in enumerate(target.inventory.contents)]
         armor_items = [
             normalize_item(target.inventory.helmet, slot_type="helmet"),
             normalize_item(target.inventory.chestplate, slot_type="chestplate"),
@@ -72,10 +71,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     return True
 
-def normalize_item(item, slot: int | None = None):
-    def invalid_item(slot: int | None = None):
+def normalize_item(item, slot: int | None = None, slot_type: str | None = None):
+    def invalid_item(slot: int | None = None, slot_type: str | None = None):
         return {
             "slot": slot,
+            "slot_type": slot_type,
             "type": "minecraft:barrier",
             "amount": 1,
             "data": 0,
@@ -95,10 +95,11 @@ def normalize_item(item, slot: int | None = None):
         try:
             _ = ItemStack(item_id, amount, data)
         except Exception:
-            return invalid_item(item.get("slot"))
+            return invalid_item(item.get("slot"), item.get("slot_type"))
 
         return {
             "slot": item.get("slot"),
+            "slot_type": item.get("slot_type"),
             "type": item_id,
             "amount": amount,
             "data": data,
@@ -115,11 +116,12 @@ def normalize_item(item, slot: int | None = None):
         try:
             _ = ItemStack(item_id, amount, data)
         except Exception:
-            return invalid_item(slot)
+            return invalid_item(slot, slot_type)
 
         meta = getattr(item, "item_meta", None)
         return {
             "slot": slot,
+            "slot_type": slot_type,
             "type": item_id,
             "amount": amount,
             "data": data,
@@ -129,7 +131,6 @@ def normalize_item(item, slot: int | None = None):
         }
 
 def build_item_list(items: list[dict]) -> str:
-    """Builds the text fallback for chat display."""
     lines = []
     for entry in items:
         if not entry:
@@ -141,7 +142,6 @@ def build_item_list(items: list[dict]) -> str:
     return "\n".join(lines)
 
 def slot_mapping(entry: dict) -> int | None:
-    """Map a normalized item dict to chest GUI slot index."""
     slot_type = entry.get("slot_type")
     if isinstance(entry.get("slot"), int):
         raw_slot = entry["slot"]
@@ -149,14 +149,14 @@ def slot_mapping(entry: dict) -> int | None:
             return raw_slot - 9
         elif 0 <= raw_slot <= 8:
             return 36 + raw_slot
-    elif slot_type in ("helmet","chestplate","leggings","boots","offhand","mainhand"):
+    if slot_type in ("helmet","chestplate","leggings","boots","offhand","mainhand"):
         equip_map = {
-            "helmet": 54 - 4,
-            "chestplate": 54 - 3,
-            "leggings": 54 - 2,
-            "boots": 54 - 1,
-            "offhand": 54 - 5,
-            "mainhand": 54 - 6
+            "helmet": 50,
+            "chestplate": 51,
+            "leggings": 52,
+            "boots": 53,
+            "offhand": 49,
+            "mainhand": 48
         }
         return equip_map.get(slot_type)
     return None
