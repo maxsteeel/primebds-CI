@@ -94,24 +94,41 @@ def get_arg_value(args, key, default):
         return val
     return default
 
-def passes_filters(players: List[Player], args: dict, origin: Vector) -> bool:
-    """
-    Returns a boolean mask of players passing the filters
-    """
+from typing import List, Optional
+import numpy as np
 
+def passes_filters(players: List[object], args: dict, origin: Optional[object] = None) -> np.ndarray:
+    """
+    Returns a boolean mask of players/command-senders passing the filters.
+    Safely handles missing origin or missing player.location by using (0,0,0).
+    """
     n = len(players)
     if n == 0:
         return np.array([], dtype=bool)
 
-    # Build arrays of positions
-    positions = np.array([[p.location.x, p.location.y, p.location.z] for p in players], dtype=np.float32)
-    origin_arr = np.array([origin.x, origin.y, origin.z], dtype=np.float32)
+    # origin fallback to (0,0,0)
+    origin_arr = np.array([
+        getattr(origin, "x", 0.0) if origin is not None else 0.0,
+        getattr(origin, "y", 0.0) if origin is not None else 0.0,
+        getattr(origin, "z", 0.0) if origin is not None else 0.0,
+    ], dtype=np.float32)
+
+    # Build arrays of positions (safe: default to 0,0,0 if missing)
+    positions = np.array([
+        (
+            getattr(getattr(p, "location", None), "x", 0.0),
+            getattr(getattr(p, "location", None), "y", 0.0),
+            getattr(getattr(p, "location", None), "z", 0.0),
+        )
+        for p in players
+    ], dtype=np.float32)
+
 
     # Distance squared
     deltas = positions - origin_arr
     dist_sq = np.sum(deltas**2, axis=1)
 
-    # Min/max radius
+    # Mask start
     mask = np.ones(n, dtype=bool)
     r_min = args.get("rm", (None, False))[0]
     r_max = args.get("r", (None, False))[0]
@@ -121,58 +138,84 @@ def passes_filters(players: List[Player], args: dict, origin: Vector) -> bool:
     if r_max is not None:
         mask &= dist_sq <= float(r_max)**2
 
-    # Name filter
+    # Name filter (safe fallback to empty string)
     if "name" in args:
         val, negate = args["name"]
         val = str(val).lower()
-        player_names = np.array([p.name.lower() for p in players])
+        player_names = np.array([str(getattr(p, "name", "")).lower() for p in players])
         if negate:
             mask &= player_names != val
         else:
             mask &= player_names == val
 
-    # Type filter
+    # Type filter (safe fallback to empty string)
     if "type" in args:
         val, negate = args["type"]
         val = str(val).lower().removeprefix("minecraft:")
-        player_types = np.array([p.type.lower().removeprefix("minecraft:") for p in players])
+        player_types = np.array([str(getattr(p, "type", "")).lower().removeprefix("minecraft:") for p in players])
         if negate:
             mask &= player_types != val
         else:
             mask &= player_types == val
 
-    # Tag filter
+    # Tag filter (safe fallback to empty iterable)
     if "tag" in args:
         val, negate = args["tag"]
-        tag_check = np.array([val in p.scoreboard_tags for p in players])
-        mask &= tag_check != negate  # if negate, invert
+        tag_check = np.array([val in getattr(p, "scoreboard_tags", []) for p in players], dtype=bool)
+        mask &= tag_check != negate  # if negate True -> invert
 
-    # dX/dY/dZ axis filters
+    # dX/dY/dZ axis filters (safe origin & player location handling)
     for axis in ("x", "y", "z"):
         d_key = "d" + axis
         if d_key in args and axis in args:
-            min_val = parse_coord(args[axis][0], getattr(origin, axis))
-            delta_val = parse_coord(args[d_key][0], getattr(origin, axis))
+            origin_val = getattr(origin, axis, 0.0) if origin is not None else 0.0
+            min_val = parse_coord(args[axis][0], origin_val)
+            delta_val = parse_coord(args[d_key][0], origin_val)
             max_val = min_val + delta_val
             if min_val > max_val:
                 min_val, max_val = max_val, min_val
-            axis_vals = np.array([getattr(p.location, axis) for p in players])
+            axis_vals = np.array([
+                getattr(getattr(p, "location", None), axis, 0.0) if getattr(p, "location", None) is not None else 0.0
+                for p in players
+            ], dtype=np.float32)
             mask &= (axis_vals >= min_val) & (axis_vals <= max_val)
 
-    # Scores filter (cannot fully vectorize if different objectives per player; loop per objective)
+    # Scores filter (robustly handle missing scoreboard/objective/score -> treat as no match)
     if "scores" in args:
         for scoreboard_name, (value_data, negate) in args["scores"].items():
-            scores = np.array([p.scoreboard.get_objective(scoreboard_name).get_score(p).value if p.scoreboard.get_objective(scoreboard_name) else None for p in players])
+            # collect scores (None if missing)
+            raw_scores = []
+            for p in players:
+                board = getattr(p, "scoreboard", None)
+                if board is None:
+                    raw_scores.append(None)
+                    continue
+                obj = board.get_objective(scoreboard_name) if callable(getattr(board, "get_objective", None)) else None
+                if obj is None:
+                    raw_scores.append(None)
+                    continue
+                try:
+                    score_obj = obj.get_score(p)
+                    s = getattr(score_obj, "value", None)
+                except Exception:
+                    s = None
+                raw_scores.append(s)
+
+            # convert to float array with NaN for missing values
+            scores_arr = np.array([float(s) if s is not None else np.nan for s in raw_scores], dtype=float)
+
             valid = np.ones(n, dtype=bool)
             exact_type = value_data[0] == "exact"
             if exact_type:
-                valid &= scores == value_data[1]
+                target = float(value_data[1])
+                valid &= (~np.isnan(scores_arr)) & (scores_arr == target)
             else:
                 start, end = value_data[1], value_data[2]
                 if start is not None:
-                    valid &= scores >= start
+                    valid &= (~np.isnan(scores_arr)) & (scores_arr >= float(start))
                 if end is not None:
-                    valid &= scores <= end
+                    valid &= (~np.isnan(scores_arr)) & (scores_arr <= float(end))
+
             if negate:
                 valid = ~valid
             mask &= valid

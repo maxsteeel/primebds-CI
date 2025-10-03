@@ -17,6 +17,10 @@ command, permission = create_command(
 )
 
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
+    if not isinstance(sender, Player):
+        sender.send_message("§cThis command can only be executed by a player")
+        return False
+
     if any("@a" in arg for arg in args):
         sender.send_message("§cYou cannot select all players for this command")
         return False
@@ -24,9 +28,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     display_type = "chest"
     if len(args) > 1 and args[1]:
         display_type = args[1].lower()
-
-    if not isinstance(sender, Player):
-        display_type = "chat"
 
     targets = get_matching_actors(self, args[0], sender)
 
