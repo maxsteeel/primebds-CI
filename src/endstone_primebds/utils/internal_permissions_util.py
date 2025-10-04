@@ -252,13 +252,14 @@ def check_rank_exists(self: "PrimeBDS", target: Player, rank: str) -> str:
         return "Default"
 
 def get_rank_permissions(rank: str) -> dict[str, bool]:
-    
+    """Return a dict of permissions (lowercased) -> bool for the given rank, including inheritance."""
     global PERMISSIONS
     PERMISSIONS = load_permissions(None, True)
 
     base_rank = normalize_rank_name(rank)
     seen_ranks = set()
-    result: dict[str, bool] = {p: False for p in MANAGED_PERMISSIONS_LIST}
+
+    result: dict[str, bool] = {p.lower(): False for p in MANAGED_PERMISSIONS_LIST}
 
     def gather_permissions(r):
         r_norm = normalize_rank_name(r)
@@ -266,39 +267,38 @@ def get_rank_permissions(rank: str) -> dict[str, bool]:
             return
         seen_ranks.add(r_norm)
 
-        group = get_rank_group(r_norm)
+        group = None
+        for key, val in PERMISSIONS.items():
+            if key.lower() == r_norm.lower():
+                group = val
+                break
         if not group or not isinstance(group, dict):
             return
 
-        perms = group.get("permissions", {})
-        fixed_perms: dict[str, bool] = {}
-
-        if isinstance(perms, dict):
-            fixed_perms = {k.lower(): bool(v) for k, v in perms.items()}
-        elif isinstance(perms, list):
-            fixed_perms = {p.lower(): True for p in perms if isinstance(p, str)}
-        else:
-            return
-
-        # Wildcard handling: only set True for missing permissions
-        if "*" in fixed_perms:
-            wildcard_value = fixed_perms["*"]
-            for p in MANAGED_PERMISSIONS_LIST:
-                if p not in fixed_perms:
-                    result[p] = wildcard_value
-
-        # Apply explicit permissions from this rank
-        for perm, allowed in fixed_perms.items():
-            if perm == "*":
-                continue
-            result[perm] = allowed
-
-        # Recurse on inherited ranks
         inherits = group.get("inherits", [])
         if isinstance(inherits, list):
             for parent in inherits:
                 if isinstance(parent, str):
                     gather_permissions(parent)
+
+        perms = group.get("permissions", {})
+        if isinstance(perms, dict):
+            fixed_perms = {k.lower(): bool(v) for k, v in perms.items()}
+        elif isinstance(perms, list):
+            fixed_perms = {p.lower(): True for p in perms if isinstance(p, str)}
+        else:
+            fixed_perms = {}
+
+        if "*" in fixed_perms:
+            wildcard_value = fixed_perms["*"]
+            for p in list(result.keys()):
+                if p not in fixed_perms:
+                    result[p] = wildcard_value
+
+        for perm_name, allowed in fixed_perms.items():
+            if perm_name == "*":
+                continue
+            result[perm_name] = allowed
 
     gather_permissions(base_rank)
     return result
@@ -309,7 +309,8 @@ def check_perms(self: "PrimeBDS", player_or_user, perm: str, check_rank=False) -
     xuid = getattr(player_or_user, "xuid", None)
 
     if hasattr(player_or_user, "has_permission") and not check_rank:
-        return player_or_user.has_permission(perm)
+        result = player_or_user.has_permission(perm)
+        return result
 
     if xuid is None:
         return False
@@ -317,25 +318,24 @@ def check_perms(self: "PrimeBDS", player_or_user, perm: str, check_rank=False) -
     cached = perm_cache.get(xuid)
     if cached:
         perms, ts = cached
-        return perm in perms
+        result = perm in perms
+        return result
 
-    user = self.db.get_offline_user(self.db.get_name_by_xuid(xuid))
+    user_name = self.db.get_name_by_xuid(xuid)
+    user = self.db.get_offline_user(user_name)
     if not user:
         return False
 
-    rank = getattr(user, "internal_rank", "").lower() if hasattr(user, "internal_rank") else ""
-    final_perms = set(get_rank_permissions(rank))
+    rank = getattr(user, "internal_rank", "") if hasattr(user, "internal_rank") else ""
+    final_perms = get_rank_permissions(rank)
 
     user_permissions = self.db.get_permissions(xuid)
     for perm_name, allowed in user_permissions.items():
-        if allowed:
-            final_perms.add(perm_name)
-        else:
-            final_perms.discard(perm_name)
+        final_perms[perm_name.lower()] = bool(allowed)
 
     perm_cache[xuid] = (final_perms, now)
-
-    return perm in final_perms
+    result = final_perms.get(perm.lower(), False)
+    return result
 
 _prefix_cache = {}
 _suffix_cache = {}

@@ -83,7 +83,7 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
                 (cmd in {"mute", "tempmute"} and check_perms(self, target, "primebds.exempt.mute")) or
                 (cmd in {"permban", "tempban", "ipban", "ban", "ban-ip"} and check_perms(self, target, "primebds.exempt.ban"))
             ):
-                player.send_message(f"§6Player §e{target.name} §6is exempt from {cmd}")
+                player.send_message(f"§6Player §e{target.name} §6is exempt from §e{cmd}")
                 is_exempt = True
     if is_exempt:
         event.is_cancelled = True

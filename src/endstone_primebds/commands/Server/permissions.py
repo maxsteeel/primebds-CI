@@ -45,7 +45,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         self.db.set_permission(user.xuid, permission, True)
         if player:
             self.reload_custom_perms(player)
-        sender.send_message(f"§e{permission} §fpermission for §e{target} §fwas set to §atrue")
+        sender.send_message(f"§e{permission} §bpermission for §e{target} §bwas set to §atrue")
 
     elif subaction == "setfalse":
         permission = args[2]
@@ -53,7 +53,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         self.db.set_permission(user.xuid, permission, False)
         if player:
             self.reload_custom_perms(player)
-        sender.send_message(f"§e{permission} §fpermission for §e{target} §fwas set to §cfalse")
+        sender.send_message(f"§e{permission} §bpermission for §e{target} §bwas set to §cfalse")
 
     elif subaction == "setneutral":
         permission = args[2]
@@ -62,6 +62,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         if player:
             self.reload_custom_perms(player)
 
-        sender.send_message(f"§e{permission} §fpermission for §e{target} §fwas set to §7neutral")
+        sender.send_message(f"§e{permission} §bpermission for §e{target} §bwas set to §7neutral")
 
     return True
