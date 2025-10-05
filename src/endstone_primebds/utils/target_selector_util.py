@@ -1,6 +1,7 @@
 import re
 import random
 import numpy as np
+from collections import OrderedDict
 from typing import TYPE_CHECKING, List, Optional
 from endstone import Player
 from endstone.actor import Actor
@@ -9,7 +10,8 @@ from endstone.util import Vector
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
-selector_cache = {}
+MAX_CACHE_SIZE = 1000
+selector_cache = OrderedDict()
 player_to_cache_keys = {}
 
 def invalidate_player_cache(player: Player):
@@ -93,9 +95,6 @@ def get_arg_value(args, key, default):
             return val[0]
         return val
     return default
-
-from typing import List, Optional
-import numpy as np
 
 def passes_filters(players: List[object], args: dict, origin: Optional[object] = None) -> np.ndarray:
     """
@@ -225,7 +224,7 @@ def passes_filters(players: List[object], args: dict, origin: Optional[object] =
 def get_matching_actors(self: "PrimeBDS", selector: str, origin):
     all_actors = [a for a in self.server.online_players if isinstance(a, Player)]
     origin_loc = getattr(origin, "location", getattr(getattr(origin, "block", None), "location", Vector(0,0,0)))
-    origin_key = (origin_loc.x, origin_loc.y, origin_loc.z)
+    origin_key = (round(origin_loc.x, 1), round(origin_loc.y, 1), round(origin_loc.z, 1))
     cache_key = (selector, origin_key)
 
     if cache_key in selector_cache:
@@ -263,9 +262,16 @@ def get_matching_actors(self: "PrimeBDS", selector: str, origin):
     elif selector_type == "r":
         result = [random.choice(result)] if result else []
 
-    selector_cache[cache_key] = result
+    cache_set(cache_key, result)
     register_cache_for_players(result, cache_key)
     return result
+
+def cache_set(key, value):
+    if key in selector_cache:
+        selector_cache.move_to_end(key)
+    selector_cache[key] = value
+    if len(selector_cache) > MAX_CACHE_SIZE:
+        selector_cache.popitem(last=False)
 
 def get_target_entity(player: Player, max_distance: float = 10) -> Optional[Actor]:
     if not player or not hasattr(player, "location"):
