@@ -22,15 +22,15 @@ command, permission = create_command(
         "/ipmute <player: player> <duration_number: int> (second|minute|hour|day|week|month|year)<duration_length: ip_mute_length> [reason: message]",
         "/ipmute <player: player> (forever)<perm_mute: perm_mute> [reason: message]"
     ],
-    ["primebds.command.mute"]
+    ["primebds.command.mute"],
+    "op",
+    ["mute-ip"]
 )
 
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if BlockCommandSender is not None and isinstance(sender, BlockCommandSender):
        sender.send_message("§cThis command cannot be automated")
        return False
-
-
 
     if any("@" in arg for arg in args):
         sender.send_message("§cTarget selectors are invalid for this command")
@@ -52,7 +52,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"§cPlayer '{player_name}' not found")
         return False
 
-    # Check if already muted
     if target_user.is_muted:
         formatted_expiration = format_time_remaining(target_user.mute_time, True)
         sender.send_message(
