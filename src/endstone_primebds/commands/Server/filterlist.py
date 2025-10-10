@@ -81,10 +81,39 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return muted_players
 
     def get_banned():
-        return [p['name'] for p in self.db.get_all_users() if self.db.get_offline_mod_log(p['name']).is_banned]
+        """Return a list of all banned player names with labels for type."""
+        banned_players = []
+
+        for user in self.db.get_all_users():
+            name = user['name']
+            mod_log = self.db.get_offline_mod_log(name)
+
+            if mod_log and getattr(mod_log, "is_banned", False):
+                banned_players.append(f"{name} §7(User Banned)")
+
+        try:
+            server_bans = self.serverdb.get_all_bans()
+            for entry in server_bans:
+                banned_name = entry.get("name") if isinstance(entry, dict) else str(entry)
+                if banned_name:
+                    banned_players.append(f"{banned_name} §7(Name Banned)")
+        except Exception as e:
+            self.logger.warn(f"Failed to fetch server bans: {e}")
+
+        return banned_players
 
     def get_ipbanned():
-        return [p['name'] for p in self.db.get_all_users() if self.db.get_offline_mod_log(p['name']).is_ip_banned]
+        """Return a list of currently IP-banned player names."""
+        ipbanned_players = []
+
+        for user in self.db.get_all_users():
+            name = user['name']
+            mod_log = self.db.get_offline_mod_log(name)
+
+            if mod_log and getattr(mod_log, "is_ip_banned", False):
+                ipbanned_players.append(name)
+
+        return ipbanned_players
 
     filters = {
         "ops": get_ops,
