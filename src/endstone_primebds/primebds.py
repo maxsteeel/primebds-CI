@@ -293,14 +293,6 @@ class PrimeBDS(Plugin):
             else:
                 attachment.set_permission(perm, value)
 
-        config = load_config()
-        modules = config.get("modules", {})
-        perms_manager = modules.get("permissions_manager", {})
-        endstone_enabled = perms_manager.get("endstone", True)
-        if endstone_enabled:
-            player.add_attachment(self, "endstone.command.banip", False)
-            player.add_attachment(self, "endstone.command.unbanip", False)
-            player.add_attachment(self, "endstone.command.banlist", False)
         player.update_commands()
         player.recalculate_permissions()
         clear_prefix_suffix_cache()
