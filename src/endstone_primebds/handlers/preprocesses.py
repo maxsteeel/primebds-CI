@@ -13,7 +13,8 @@ if TYPE_CHECKING:
 MODERATION_COMMANDS = {
     "kick", "ban", "pardon", "unban",
     "permban", "tempban", "tempmute",
-    "mute", "ipban", "unmute", "warn"
+    "mute", "ipban", "unmute", "warn",
+    "banlist", "ban-ip", "unban-ip"
 }
 MSG_CMDS = {"me", "tell", "w", "whisper", "msg", "say"}
 PARSE_COMMANDS = (
@@ -97,14 +98,23 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         for player in self.server.online_players:
             player.kick(config["modules"]["join_leave_messages"]["shutdown"])
         return False
-    elif cmd == "ban-ip" or cmd == "unban-ip" or cmd == "banlist" and endstone_enabled:
+    elif cmd == "ban-ip" and endstone_enabled:
+        if args[2]:
+            player.perform_command(f'ipban \"{args[1]}\" forever \"{args[2]}\"')
+        else:
+            player.perform_command(f'ipban \"{args[1]}\" forever')
+        event.is_cancelled = True
+        return False
+    elif cmd == "banlist":
+        player.perform_command(f'flist banned')
+        player.perform_command(f'flist ipbanned')
         event.is_cancelled = True
         return False
     elif cmd == "ban" and len(args) > 1 and endstone_enabled:
         player.perform_command(f'permban \"{args[1]}\"')
         event.is_cancelled = True
         return False
-    elif cmd in {"unban", "pardon"} and len(args) > 1 and endstone_enabled:
+    elif cmd in {"unban", "pardon", "unban-ip"} and len(args) > 1 and endstone_enabled:
         player.perform_command(f'removeban \"{args[1]}\"')
         event.is_cancelled = True
         return False
