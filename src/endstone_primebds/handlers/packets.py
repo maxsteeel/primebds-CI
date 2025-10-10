@@ -9,6 +9,7 @@ except Exception as e:
     print(e)
     PACKET_SUPPORT = False
 
+import time
 from endstone.event import PacketSendEvent, PacketReceiveEvent
 from endstone_primebds.utils.config_util import load_config
 
@@ -48,5 +49,6 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
             if self.vanish_state.get(packet.actor_unique_id, False):
                 ev.is_cancelled = True
                 return
-
-    self.packets_sent_count[ev.packet_id] = self.packets_sent_count.get(ev.packet_id, 0) + 1
+            
+    if len(self.monitor_intervals) != 0:
+        self.packets_sent_count[ev.packet_id] = self.packets_sent_count.get(ev.packet_id, 0) + 1

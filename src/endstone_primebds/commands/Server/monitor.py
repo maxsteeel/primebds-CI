@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "monitor",
     "Monitor server performance in real time!",
-    ["/monitor (server|packets)[debug: debug]"],
+    ["/monitor (server|packets|disable)[debug: debug]"],
     ["primebds.command.monitor"]
 )
 
@@ -34,14 +34,20 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not hasattr(self, "monitor_intervals"):
         self.monitor_intervals = {}
 
-    if player_name in self.monitor_intervals and not args:
+    if player_name in self.monitor_intervals:
         self.server.scheduler.cancel_task(self.monitor_intervals[player_name])
         del self.monitor_intervals[player_name]
-        sender.send_message("§cMonitoring turned off")
-        return True 
-    elif player_name in self.monitor_intervals and args:
-        self.server.scheduler.cancel_task(self.monitor_intervals[player_name])
-        del self.monitor_intervals[player_name]
+
+        if not args or args[0].lower() == "disable":
+            if len(self.monitor_intervals) == 0:
+                self.packets_sent_count.clear()
+                self.packet_last_sample = {
+                    "time": time.time(),
+                    "counts": {}
+                }
+            sender.send_message("§cMonitoring turned off")
+            return True
+
         sender.send_message("§ePrevious monitoring canceled, applying new settings...")
 
     if mode == "packets" and not PACKET_SUPPORT:
