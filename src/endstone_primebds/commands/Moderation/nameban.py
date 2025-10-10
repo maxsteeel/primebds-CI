@@ -103,11 +103,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     else:
         if permanent:
             sender.send_message(
-                f"§6Player §e{player_name} §6was permanently IP banned for §e'{reason}' §7§o(Offline, Permanent Name Ban)"
+                f"§6Player §e{player_name} §6was permanently name banned for §e'{reason}' §7§o(Offline, Permanent Name Ban)"
             )
         else:
             sender.send_message(
-                f"§6Player §e{player_name} §6was IP banned for §e'{reason}' §6for {formatted_expiration} §7§o(Offline, Name Banned)"
+                f"§6Player §e{player_name} §6was name banned for §e'{reason}' §6for {formatted_expiration} §7§o(Offline, Name Banned)"
             )
 
     log(self,
