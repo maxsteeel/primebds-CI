@@ -26,8 +26,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
        sender.send_message("§cThis command cannot be automated")
        return False
 
-
-
     if len(args) < 1:
         sender.send_message(f"Usage: /unmute <player>")
         return False
@@ -38,19 +36,14 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     player_name = args[0].strip('"')
     
-    # Get the mod log to check if the player is muted
     mod_log = self.db.get_offline_mod_log(player_name)
 
     if not mod_log or not mod_log.is_muted:
-        # Player is not muted, return an error message
         sender.send_message(f"§6Player §e{player_name} §6is not muted")
         
         return False
 
-    # Remove the mute
     self.db.remove_mute(player_name)
-    
-    # Notify the sender that the mute has been removed
     sender.send_message(f"§6Player §e{player_name} §6has been unmuted")
     log(self, f"§6Player §e{player_name} §6was unmuted by §e{sender.name}", "mod")
     
