@@ -293,6 +293,11 @@ class PrimeBDS(Plugin):
             else:
                 attachment.set_permission(perm, value)
 
+        if user.internal_rank.lower() == "operator" and player.is_op == False and player.is_valid:
+            self.server.dispatch_command(self.server.command_sender, f"op \"{user.name}\"")
+        elif user.internal_rank.lower() != "operator" and player.is_op == True and player.is_valid:
+            self.server.dispatch_command(self.server.command_sender, f"deop \"{user.name}\"")
+
         player.update_commands()
         player.recalculate_permissions()
         clear_prefix_suffix_cache()
