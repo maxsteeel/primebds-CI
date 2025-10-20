@@ -118,34 +118,32 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             if elapsed <= 0:
                 elapsed = 1
 
-            top_packets = sorted(
-                self.packets_sent_count.items(),
-                key=lambda item: item[1],
-                reverse=True
-            )[:10]
-
             lines = []
-            for pid, count in top_packets:
-                name = PACKET_ID_TO_NAME.get(pid, "Unknown")
-
+            for pid, count in self.packets_sent_count.items():
                 prev = self.packet_last_sample["counts"].get(pid, 0)
                 diff = count - prev
                 pps = diff / elapsed
 
-                lines.append(f"§r{name} §7({pid}): §a{count} §7[{pps:.1f}/s]")
+                if pps > 0: 
+                    name = PACKET_ID_TO_NAME.get(pid, "Unknown")
+                    lines.append(f"§r{name} §7({pid}): §a{pps:.1f} §7P/S")
 
+            lines.sort(key=lambda l: float(l.split("§a")[1].split()[0]), reverse=True)
             if not lines:
                 lines = ["No packets yet"]
 
             player.send_tip(
                 f"§bPacket Monitor§r\n"
                 f"§r-------------------\n"
-                f"{chr(10).join(lines)}\n"
+                f"{chr(10).join(lines[:10])}\n"
                 f"§r-------------------"
             )
 
-            self.packet_last_sample["time"] = now
-            self.packet_last_sample["counts"] = dict(self.packets_sent_count)
+            self.packet_last_sample = {
+                "time": time.time(),
+                "counts": {}
+            }
+            self.packets_sent_count.clear()
 
     task = self.server.scheduler.run_task(
         self,

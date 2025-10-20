@@ -9,8 +9,7 @@ except Exception as e:
     print(e)
     PACKET_SUPPORT = False
 
-import time
-from endstone.event import PacketSendEvent, PacketReceiveEvent
+from endstone.event import PacketSendEvent
 from endstone_primebds.utils.config_util import load_config
 
 from typing import TYPE_CHECKING
@@ -29,9 +28,12 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
         if not target_player:
             return
 
-        if target_player.xuid not in self.cached_players:
-            cache_add_player_packet(self, target_player, ev.payload)
-            self.cached_players.add(target_player.xuid)
+        xuid = target_player.xuid
+        if xuid in self.cached_players:
+            return
+
+        cache_add_player_packet(self, target_player, ev.payload)
+        self.cached_players.add(xuid)
 
         if self.vanish_state.get(target_player.unique_id, False):
             ev.is_cancelled = True
@@ -50,5 +52,6 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
                 ev.is_cancelled = True
                 return
             
-    if len(self.monitor_intervals) != 0:
-        self.packets_sent_count[ev.packet_id] = self.packets_sent_count.get(ev.packet_id, 0) + 1
+    if self.monitor_intervals:
+        pid = ev.packet_id
+        self.packets_sent_count[pid] = self.packets_sent_count.get(pid, 0) + 1
