@@ -128,17 +128,22 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                     name = PACKET_ID_TO_NAME.get(pid, "Unknown")
                     lines.append(f"§r{name} §7({pid}): §a{pps:.1f} §7P/S")
 
+            # Sort by P/S and limit to 10
             lines.sort(key=lambda l: float(l.split("§a")[1].split()[0]), reverse=True)
-            if not lines:
-                lines = ["No packets yet"]
+            lines = lines[:10]
+
+            # Always show 10 lines (fill with blanks if fewer)
+            while len(lines) < 10:
+                lines.append(" ")
 
             player.send_tip(
                 f"§bPacket Monitor§r\n"
                 f"§r-------------------\n"
-                f"{chr(10).join(lines[:10])}\n"
+                f"{chr(10).join(lines)}\n"
                 f"§r-------------------"
             )
 
+            # Reset counters
             self.packet_last_sample = {
                 "time": time.time(),
                 "counts": {}
