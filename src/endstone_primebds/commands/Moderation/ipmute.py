@@ -8,6 +8,7 @@ from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.logging_util import log
 from endstone_primebds.utils.mod_util import format_time_remaining
 from datetime import timedelta, datetime
+from endstone_primebds.utils.address_util import is_valid_ip
 
 from typing import TYPE_CHECKING
 
@@ -38,6 +39,10 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if len(args) < 2:
         sender.send_message("§cUsage: /ipmute <player> <duration_number> <unit> [reason] or /ipmute <player> forever [reason]")
+        return False
+    
+    if is_valid_ip(args[0].strip('"')):
+        sender.send_message(f"§cThis override only supports known player targets")
         return False
 
     player_name = args[0].strip('"')
