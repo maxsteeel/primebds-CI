@@ -15,9 +15,7 @@ from endstone_primebds.commands import (
 from endstone_primebds.commands.Server.monitor import clear_all_intervals
 from endstone_primebds.utils.config_util import load_config
 from endstone_primebds.utils.db_util import UserDB, sessionDB, ServerDB, User, ModLog, ServerData
-from endstone_primebds.utils.internal_permissions_util import (check_rank_exists, load_perms, get_rank_permissions, 
-                                                               clear_prefix_suffix_cache, invalidate_perm_cache, 
-                                                               MANAGED_PERMISSIONS_LIST)
+import endstone_primebds.utils.internal_permissions_util as perms_util
 
 def plugin_text():
     print(
@@ -161,7 +159,7 @@ class PrimeBDS(Plugin):
 
     @event_handler()
     def on_server_load(self, ev: ServerLoadEvent):
-        self.server.scheduler.run_task(self, load_perms(self), 1)
+        self.server.scheduler.run_task(self, perms_util.load_perms(self), 1)
         for player in self.server.online_players:
             self.server.scheduler.run_task(self, self.reload_custom_perms(player), 1)
 
@@ -238,10 +236,10 @@ class PrimeBDS(Plugin):
         else:
             self.vanish_state[player.unique_id] = False
 
-        internal_rank = check_rank_exists(self, player, user.internal_rank)
-        permissions = get_rank_permissions(internal_rank)
+        internal_rank = perms_util.check_rank_exists(self, player, user.internal_rank)
+        permissions = perms_util.get_rank_permissions(internal_rank)
         user_permissions = self.db.get_permissions(player.xuid)
-        managed_perms = MANAGED_PERMISSIONS_LIST[:]
+        managed_perms = perms_util.MANAGED_PERMISSIONS_LIST[:]
 
         final_permissions = {rperm.lower(): False for rperm in managed_perms}
         for perm, allowed in permissions.items():
@@ -300,8 +298,8 @@ class PrimeBDS(Plugin):
 
         player.update_commands()
         player.recalculate_permissions()
-        clear_prefix_suffix_cache()
-        invalidate_perm_cache(self, player.xuid)
+        perms_util.clear_prefix_suffix_cache()
+        perms_util.invalidate_perm_cache(self, player.xuid)
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically"""

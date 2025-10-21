@@ -3,7 +3,7 @@ from endstone.event import PlayerCommandEvent, ServerCommandEvent
 from typing import TYPE_CHECKING
 
 from endstone_primebds.utils.config_util import load_config
-from endstone_primebds.utils.internal_permissions_util import check_perms
+import endstone_primebds.utils.internal_permissions_util as perms_util
 from endstone_primebds.utils.logging_util import log, discordRelay
 
 if TYPE_CHECKING:
@@ -79,11 +79,11 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         target = self.db.get_offline_user(args[1])
         if target:
             if (
-                (cmd == "jail" and check_perms(self, target, "primebds.exempt.jail")) or
-                (cmd == "warn" and check_perms(self, target, "primebds.exempt.warn")) or
-                (cmd == "kick" and check_perms(self, target, "primebds.exempt.kick")) or
-                (cmd in {"mute", "tempmute"} and check_perms(self, target, "primebds.exempt.mute")) or
-                (cmd in {"permban", "tempban", "ipban", "ban", "ban-ip"} and check_perms(self, target, "primebds.exempt.ban"))
+                (cmd == "jail" and perms_util.check_perms(self, target, "primebds.exempt.jail")) or
+                (cmd == "warn" and perms_util.check_perms(self, target, "primebds.exempt.warn")) or
+                (cmd == "kick" and perms_util.check_perms(self, target, "primebds.exempt.kick")) or
+                (cmd in {"mute", "tempmute"} and perms_util.check_perms(self, target, "primebds.exempt.mute")) or
+                (cmd in {"permban", "tempban", "ipban", "ban", "ban-ip"} and perms_util.check_perms(self, target, "primebds.exempt.ban"))
             ):
                 player.send_message(f"§6Player §e{target.name} §6is exempt from §e{cmd}")
                 is_exempt = True

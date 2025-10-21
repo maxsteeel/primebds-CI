@@ -5,7 +5,7 @@ try:
 except ImportError:
     BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.internal_permissions_util import reload_rank_list, get_ranks, clear_prefix_suffix_cache
+import endstone_primebds.utils.internal_permissions_util as perms_util
 from endstone_primebds.utils.config_util import load_permissions, save_permissions
 
 from typing import TYPE_CHECKING
@@ -55,7 +55,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return any(p.lower() == perm.lower() for p in perms[rank_key].get("permissions", {}))
 
     if subaction == "set":
-        reload_rank_list()
+        perms_util.reload_rank_list()
 
         user = self.db.get_offline_user(target)
         if not user:
@@ -63,13 +63,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             return False
         
         new_rank_lower = args[2].lower()
-        ranks_map = {r.lower(): r for r in get_ranks()}
+        ranks_map = {r.lower(): r for r in perms_util.get_ranks()}
 
         if new_rank_lower == "op":
             new_rank_lower = "operator"
 
         if new_rank_lower not in ranks_map:
-            sender.send_message(f"§cInvalid rank: §e{args[2]}§c. Valid ranks are: §e{', '.join(get_ranks())}")
+            sender.send_message(f"§cInvalid rank: §e{args[2]}§c. Valid ranks are: §e{', '.join(perms_util.get_ranks())}")
             return False
 
         proper_rank = ranks_map[new_rank_lower]
@@ -106,7 +106,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         }
         save_permissions(perms, True)
         sender.send_message(f"§bCreated rank §e\"{rank_name}\" §bsuccessfully")
-        reload_rank_list()
+        perms_util.reload_rank_list()
         return True
     
     elif subaction == "delete":
@@ -125,7 +125,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         save_permissions(perms, True)
         updatePermissionsFiltered(self, {actual_rank})
         sender.send_message(f"§bDeleted rank §e\"{actual_rank}\" §bsuccessfully")
-        reload_rank_list()
+        perms_util.reload_rank_list()
         return True
 
     elif subaction == "info":
@@ -134,13 +134,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             return False
         rank_name = args[1].lower()
 
-        ranks_map = {r.lower(): r for r in get_ranks()}
+        ranks_map = {r.lower(): r for r in perms_util.get_ranks()}
 
         if rank_name == "op":
             rank_name = "operator"
 
         if rank_name not in ranks_map:
-            sender.send_message(f"§cInvalid rank: §e{args[1]}§c. Valid ranks are: §e{', '.join(get_ranks())}")
+            sender.send_message(f"§cInvalid rank: §e{args[1]}§c. Valid ranks are: §e{', '.join(perms_util.get_ranks())}")
             return False
 
         proper_rank = ranks_map[rank_name]
@@ -266,7 +266,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"§bUpdated weight for rank §e{rank_name} §bto §e{new_weight}")
 
     elif subaction == "prefix":
-        clear_prefix_suffix_cache()
+        perms_util.clear_prefix_suffix_cache()
         rank_name = args[1].lower()
         if rank_name == "op":
             rank_name = "operator"
@@ -286,7 +286,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
     
     elif subaction == "suffix":
-        clear_prefix_suffix_cache()
+        perms_util.clear_prefix_suffix_cache()
         rank_name = args[1].lower()
         if rank_name == "op":
             rank_name = "operator"

@@ -1,6 +1,6 @@
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.internal_permissions_util import invalidate_perm_cache
+import endstone_primebds.utils.internal_permissions_util as perms_util
 
 from typing import TYPE_CHECKING
 
@@ -32,7 +32,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             enabled = True
 
     player.add_attachment(self, "primebds.globalmute.exempt", enabled)
-    invalidate_perm_cache(self, player.xuid)
+    perms_util.invalidate_perm_cache(self, player.xuid)
 
     if enabled:
         sender.send_message(f"§e{player.name} §6is now exempt from global mutes")

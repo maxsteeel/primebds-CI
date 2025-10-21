@@ -6,7 +6,7 @@ try:
 except ImportError:
     BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.internal_permissions_util import MANAGED_PERMISSIONS_LIST
+import endstone_primebds.utils.internal_permissions_util as perms_util
 
 from endstone_primebds.utils.form_wrapper_util import (
     ActionFormData,
@@ -45,7 +45,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if len(args) == 0:
         grouped_perms = defaultdict(list)
-        for perm in MANAGED_PERMISSIONS_LIST:
+        for perm in perms_util.MANAGED_PERMISSIONS_LIST:
             prefix = perm.split(".", 1)[0].lower()
             grouped_perms[prefix].append(perm)
 
@@ -79,7 +79,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     grouped_perms = defaultdict(list)
 
-    for perm in MANAGED_PERMISSIONS_LIST:
+    for perm in perms_util.MANAGED_PERMISSIONS_LIST:
         if player.has_permission(perm):
             prefix = perm.split(".", 1)[0].lower()
             grouped_perms[prefix].append(perm)
