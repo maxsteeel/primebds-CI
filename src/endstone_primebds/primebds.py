@@ -82,6 +82,7 @@ class PrimeBDS(Plugin):
         # Combat Handler
         self.entity_damage_cooldowns = {}
         self.entity_last_hit = {}
+        self.entity_enchant_hit = {}
 
         # DB
         self.db = UserDB("users.db")

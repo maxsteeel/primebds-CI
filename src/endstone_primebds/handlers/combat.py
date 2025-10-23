@@ -49,15 +49,12 @@ def handle_damage_event(self: "PrimeBDS", ev: ActorDamageEvent):
     if modifier != 1:
         ev.damage += modifier
 
-    if current_time - last_hit_time >= kb_cooldown and damage_type == "entity_attack":
-        self.entity_last_hit[entity_key] = damage_type
-    elif current_time - last_hit_time < kb_cooldown and damage_type == "entity_attack":
+    self.entity_last_hit[entity_key] = damage_type
+    if current_time - last_hit_time < kb_cooldown and damage_type == "entity_attack":
         ev.is_cancelled = True
 
 def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
-    if ev is None or ev.source is None or ev.knockback is None:
-        return
-    
+
     config = load_config()
     source = ev.source
     source_player = self.server.get_player(source.name) if hasattr(source, "name") and source.name else None
@@ -69,13 +66,20 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
     kb_cooldown = get_custom_tag(config, source_actor_tags, "hit_cooldown_in_seconds")
     current_time = time()
     last_hit_time = self.entity_damage_cooldowns.get(entity_key, 0)
+    last_enchant_hit_time = self.entity_enchant_hit.get(entity_key, 0)
 
     if current_time - last_hit_time >= kb_cooldown and last_hit_type == "entity_attack":
         self.entity_damage_cooldowns[entity_key] = current_time
     elif current_time - last_hit_time < kb_cooldown and last_hit_type == "entity_attack":
+        held_item = source_player.inventory.item_in_main_hand
+        if held_item:
+            kb_lvl = held_item.item_meta.get_enchant_level("knockback") 
+            if kb_lvl > 0 and current_time - last_enchant_hit_time >= kb_cooldown:
+                self.entity_enchant_hit[entity_key] = last_hit_time
+                return
         ev.is_cancelled = True
         return
-
+    
     if last_hit_type == "projectile":
         horizontal_proj_kb = get_custom_tag(config, tags, "projectiles.horizontal_knockback_modifier")
         vertical_proj_kb = get_custom_tag(config, tags, "projectiles.vertical_knockback_modifier")
@@ -144,7 +148,7 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
         newx *= kb_sprint_h_modifier
         newz *= kb_sprint_h_modifier
 
-    if ev.knockback.y < 0:
+    if is_player_sprinting and ev.knockback.y < 0:
         newy = (newy * kb_sprint_v_modifier) / 2
 
     ev.knockback = Vector(newx, abs(newy), newz)
