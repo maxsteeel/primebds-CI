@@ -76,7 +76,10 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
             kb_lvl = held_item.item_meta.get_enchant_level("knockback") 
             if kb_lvl > 0 and current_time - last_enchant_hit_time >= kb_cooldown:
                 self.entity_enchant_hit[entity_key] = last_hit_time
+                self.entity_last_hit[entity_key] = None
                 return
+            else:
+                self.entity_last_hit[entity_key] = None
         ev.is_cancelled = True
         return
     
