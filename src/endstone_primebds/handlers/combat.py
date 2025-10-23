@@ -52,7 +52,7 @@ def handle_damage_event(self: "PrimeBDS", ev: ActorDamageEvent):
     if current_time - last_hit_time >= kb_cooldown and damage_type == "entity_attack":
         self.entity_damage_cooldowns[entity_key] = current_time
         self.entity_last_hit[entity_key] = damage_type
-    else:
+    elif damage_type == "entity_attack":
         ev.is_cancelled = True
 
 def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
