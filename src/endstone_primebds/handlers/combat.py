@@ -50,9 +50,8 @@ def handle_damage_event(self: "PrimeBDS", ev: ActorDamageEvent):
         ev.damage += modifier
 
     if current_time - last_hit_time >= kb_cooldown and damage_type == "entity_attack":
-        self.entity_damage_cooldowns[entity_key] = current_time
         self.entity_last_hit[entity_key] = damage_type
-    elif damage_type == "entity_attack":
+    elif current_time - last_hit_time < kb_cooldown and damage_type == "entity_attack":
         ev.is_cancelled = True
 
 def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
@@ -65,6 +64,17 @@ def handle_kb_event(self: "PrimeBDS", ev: ActorKnockbackEvent):
     entity_key = f"{ev.actor.type}:{ev.actor.id}"
     last_hit_type = self.entity_last_hit.get(entity_key)
     tags = getattr(source_player, "scoreboard_tags", [])
+
+    source_actor_tags = getattr(getattr(source, "actor", None), "scoreboard_tags", []) or []
+    kb_cooldown = get_custom_tag(config, source_actor_tags, "hit_cooldown_in_seconds")
+    current_time = time()
+    last_hit_time = self.entity_damage_cooldowns.get(entity_key, 0)
+
+    if current_time - last_hit_time >= kb_cooldown and last_hit_type == "entity_attack":
+        self.entity_damage_cooldowns[entity_key] = current_time
+    elif current_time - last_hit_time < kb_cooldown and last_hit_type == "entity_attack":
+        ev.is_cancelled = True
+        return
 
     if last_hit_type == "projectile":
         horizontal_proj_kb = get_custom_tag(config, tags, "projectiles.horizontal_knockback_modifier")
