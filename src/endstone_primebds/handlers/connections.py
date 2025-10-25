@@ -156,7 +156,8 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
             self.db.update_user_data(ev.player.name, 'last_logout_pos', rounded_coords)
             self.db.update_user_data(ev.player.name, 'last_logout_dim', ev.player.dimension.name)
 
-    if self.db.get_online_user(ev.player.xuid).is_vanish:
+    online_user = self.db.get_online_user(ev.player.xuid)
+    if online_user and getattr(online_user, "is_vanish", False):
         ev.quit_message = ""
 
     return
