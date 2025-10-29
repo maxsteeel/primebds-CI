@@ -17,6 +17,10 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
         ev.player.send_message(f"§cGlobal chat is currently muted by an admin")
         ev.is_cancelled = True
         return False
+    elif ev.player.xuid in self.silentmutes:
+        ev.is_cancelled = True
+        ev.player.send_message(f"§cYour chats are currently disabled")
+        return False
 
     if user_muted or ip_muted:
         if user_muted:
