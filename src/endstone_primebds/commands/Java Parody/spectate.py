@@ -1,3 +1,4 @@
+import random
 from endstone import Player, GameMode
 from endstone_primebds.utils.command_util import create_command
 from endstone.command import CommandSender
@@ -30,6 +31,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     config = load_config()
     check_gamemode = config["modules"]["spectator_check"].get("check_gamemode", True)
+    force_gamemode = config["modules"]["spectator_check"].get("force_gamemode", True)
     check_tags = config["modules"]["spectator_check"].get("check_tags", False)
     dead_tags = config["modules"]["spectator_check"].get("allow_tags", [])
     ignore_tags = config["modules"]["spectator_check"].get("ignore_tags", [])
@@ -71,7 +73,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                     try:
                         selected_index = int(result.selection)
                         if 0 <= selected_index < len(players_to_spectate):
-                            warp_player(player, players_to_spectate[selected_index])
+                            warp_player(player, players_to_spectate[selected_index], force_gamemode)
                         else:
                             player.send_message(f"Invalid selection.")
                     except ValueError:
@@ -82,19 +84,27 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             sender.send_message(f"No players available to spectate.")
         return True
     else:
-        targets = get_matching_actors(self, args[0], sender)
-        if len(targets) == 1:
-            target = targets[0]
-            if target is None or not is_valid_spectate_target(target):
-                sender.send_message(f"Player {target.name} is not available to spectate.")
-                return False
-            warp_player(sender, target)
-        else:
-            sender.send_message(f"Unable to find target player")
-        return True
+        targets = get_matching_actors(sender, args[0], sender)
+        if not targets:
+            sender.send_message("Unable to find target player")
+            return False
 
-def warp_player(sender: Player, target: Player):
+        tried = set()
+        random.shuffle(targets)
+        for target in targets:
+            if target is None or not is_valid_spectate_target(target) or target.name in tried:
+                tried.add(target.name)
+                continue
+
+            warp_player(sender, target, force_gamemode)
+            return True
+
+        sender.send_message("No valid players available to spectate.")
+        return False
+
+def warp_player(sender: Player, target: Player, force_gamemode):
     """Warp the sender to the target player."""
-    sender.game_mode = GameMode.SPECTATOR
+    if force_gamemode:
+        sender.game_mode = GameMode.SPECTATOR
     sender.teleport(target.location)
     sender.send_message(f"Now spectating {target.name_tag}")
