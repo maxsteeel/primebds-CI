@@ -3,7 +3,7 @@ from endstone import Player
 from endstone.command import CommandSender
 
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.config_util import load_config, save_config
+from endstone_primebds.utils.config_util import load_config, save_config, reload_config, save_cmd_config, load_cmd_config
 from endstone_primebds.utils.form_wrapper_util import ModalFormData, ModalFormResponse, ActionFormData, ActionFormResponse
 
 from typing import TYPE_CHECKING
@@ -13,26 +13,34 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "primebds",
     "An all-in-one primebds manager!",
-    ["/primebds (config|command|info)[primebds_subaction: primebds_subaction]"],
+    ["/primebds (config|command|info|reloadconfig)[primebds_subaction: primebds_subaction]"],
     ["primebds.command.primebds"]
 )
 
 # PRIMEBDS FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    if not isinstance(sender, Player):
-        sender.send_error_message("§cThis command can only be executed by a player")
-        return True
-    
     if len(args) == 0:
         sender.send_message(f"§dPrimeBDS\n§d{self.description}\n\n§dIf this plugin has helped you at all, consider leaving a star:\n§e@ https://github.com/PrimeStrat/primebds\n\n§dConfused on how something works?\nVisit the wiki:\n§e@ https://github.com/PrimeStrat/primebds/wiki")
         return True
 
     if args[0].lower() == "config" and sender.is_op:
+        if not isinstance(sender, Player):
+            sender.send_error_message("§cThis command can only be executed by a player")
+            return True
         open_config_categories(sender)
     elif args[0].lower() == "config" and not sender.is_op:
+        if not isinstance(sender, Player):
+            sender.send_error_message("§cThis command can only be executed by a player")
+            return True
         sender.send_error_message("§cOnly operators can modify the server config")
     elif args[0].lower() == "command":
+        if not isinstance(sender, Player):
+            sender.send_error_message("§cThis command can only be executed by a player")
+            return True
         command_form(self, sender)
+    elif args[0].lower() == "reloadconfig":
+        reload_config()
+        sender.send_message(f"§dPrimeBDS config reloaded!")
     elif args[0].lower() == "info":
         sender.send_message(f"§dPrimeBDS\n§d{self.description}\n\n§dIf this plugin has helped you at all, consider leaving a star:\n§e@ https://github.com/PrimeStrat/primebds\n\n§dConfused on how something works?\nVisit the wiki:\n§e@ https://github.com/PrimeStrat/primebds/wiki")
 
@@ -181,22 +189,33 @@ def parse_usage(usage: str):
     return args
 
 def open_config_categories(player: Player):
-    config = load_config()
-
     form = ActionFormData()
     form.title("PrimeBDS Config")
     form.body("Select a category to edit:")
 
-    keys = config.keys()
-    for category in keys:
+    base_config = load_config()
+    categories = list(base_config.keys())
+    categories.append("commands")
+
+    for category in categories:
         form.button(f"§4{category.capitalize()}")
 
     form.button("Close")
 
     def submit(player: Player, result: ActionFormResponse):
-        if not result.canceled and 0 <= result.selection < len(keys):
-            category = list(keys)[result.selection]
-            open_category_editor(player, category, config)
+        if result.canceled or result.selection is None:
+            return
+
+        if result.selection == len(categories):
+            return
+
+        category = categories[result.selection]
+        if category == "commands":
+            selected_config = load_cmd_config()
+        else:
+            selected_config = load_config()
+
+        open_category_editor(player, category, selected_config)
 
     form.show(player).then(lambda player=player, result=ActionFormResponse: submit(player, result))
 
@@ -233,7 +252,7 @@ def open_category_editor(player: Player, category: str, config: dict):
                 updated[cmd] = new_enabled
 
             config[category] = settings
-            save_config(config, True)
+            save_cmd_config(config, True)
 
             player.send_message("§aCommands updated!")
             player.send_message("§aRun §e/reload §ato apply changes!")
