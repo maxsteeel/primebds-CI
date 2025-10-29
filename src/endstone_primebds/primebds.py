@@ -72,6 +72,7 @@ class PrimeBDS(Plugin):
             "counts": {}
         }
         self.globalmute = 0
+        self.silentmutes = set()
         self.crasher_patch_applied = set()
 
         # Multiworld Handler

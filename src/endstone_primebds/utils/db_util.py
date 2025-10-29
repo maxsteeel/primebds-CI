@@ -1734,8 +1734,7 @@ class sessionDB(DatabaseManager):
         user_toggle_columns = {
             'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
             'xuid': 'TEXT',
-            'name': 'TEXT',
-            'inspect_mode': 'BOOLEAN'
+            'name': 'TEXT'
         }
         self.create_table('sessions_log', session_log_columns)
         self.create_table('user_toggles', user_toggle_columns)

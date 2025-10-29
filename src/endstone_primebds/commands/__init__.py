@@ -5,7 +5,7 @@ import os
 
 import endstone_primebds
 
-from endstone_primebds.utils.config_util import load_config, save_config, load_permissions, load_rules, PERMISSIONS_DEFAULT
+from endstone_primebds.utils.config_util import load_config, save_config, load_permissions, load_rules, load_cmd_config, save_cmd_config, PERMISSIONS_DEFAULT
 from collections import defaultdict, OrderedDict
 
 # Global storage for preloaded commands
@@ -79,10 +79,15 @@ def preload_settings():
             "chat": OrderedDict({
                 "enabled": False,
                 "webhook": ""
+            }),
+            "connections": OrderedDict({
+                "enabled": False,
+                "webhook": ""
             })
         }),
         "spectator_check": OrderedDict({
             "check_gamemode": True,
+            "force_gamemode": True,
             "check_tags": False,
             "allow_tags": [],
             "ignore_tags": []
@@ -106,6 +111,7 @@ def preload_settings():
             "enhanced_whispers": True,
             "enhanced_chat": True,
             "rank_meta_data": True,
+            "rank_meta_nametags": False,
             "chat_prefix": "§r: ",
             "whisper_prefix": "§8[§bWhisper§8]§r ",
             "social_spy_prefix": "§8[§bSocial Spy§8]§r ",
@@ -189,7 +195,9 @@ def preload_commands():
     global preloaded_commands, preloaded_permissions, preloaded_handlers
 
     commands_base_path = os.path.join(os.path.dirname(endstone_primebds.__file__), 'commands')
-    config = load_config()
+    config = load_cmd_config()
+
+    config.setdefault("commands", {})
 
     grouped_commands = defaultdict(list)
     found_commands = set()
@@ -244,7 +252,7 @@ def preload_commands():
             print(f"✗ {cmd}")
 
     print("\n")
-    save_config(config)
+    save_cmd_config(config)
 
 def preload_permissions():
     """Preload permissions.json with defaults if missing, preserving key order and removing unknown keys."""

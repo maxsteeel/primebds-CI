@@ -8,6 +8,7 @@ while not (os.path.exists(os.path.join(current_dir, 'plugins')) and os.path.exis
 
 CONFIG_FOLDER = os.path.join(current_dir, 'plugins', 'primebds_data')
 CONFIG_PATH = os.path.join(CONFIG_FOLDER, 'config.json')
+CMD_CONFIG_PATH = os.path.join(CONFIG_FOLDER, 'commands.json')
 PERMISSIONS_PATH = os.path.join(CONFIG_FOLDER, 'permissions.json')
 RULES_PATH = os.path.join(CONFIG_FOLDER, 'rules.txt')
 
@@ -41,8 +42,45 @@ PERMISSIONS_DEFAULT = {
 }
 
 cache = None 
+cmd_cache = None
 permissions_cache = None
 rules_cache = None
+
+def load_cmd_config():
+    """Load or create a configuration file in primebds_info/commands.json, cached in memory."""
+    global cmd_cache
+    if cmd_cache is not None:
+        return cmd_cache
+
+    default_cmd_config = {}
+
+    if not os.path.exists(CMD_CONFIG_PATH):
+        os.makedirs(os.path.dirname(CMD_CONFIG_PATH), exist_ok=True)
+        cmd_cache = default_cmd_config
+        save_cmd_config(cmd_cache)
+        return cmd_cache
+
+    try:
+        content = open_text_file(CMD_CONFIG_PATH, "r")
+        if content:
+            cmd_cache = json.loads(content)
+        else:
+            cmd_cache = default_cmd_config
+            save_cmd_config(cmd_cache)
+    except (OSError, json.JSONDecodeError):
+        cmd_cache = default_cmd_config
+        save_cmd_config(cmd_cache)
+
+    return cmd_cache
+
+def save_cmd_config(config: dict, update_cache: bool = False) -> None:
+    """Save to commands.json."""
+    global cmd_cache
+    if update_cache:
+        cmd_cache = config
+
+    text = json.dumps(config, indent=4)
+    open_text_file(CMD_CONFIG_PATH, "w", text=text)
 
 def load_config():
     """Load or create a configuration file in primebds_info/config.json, cached in memory."""
@@ -70,6 +108,19 @@ def load_config():
         save_config(cache)
 
     return cache
+
+def reload_config():
+    """Reload all configuration caches."""
+    global cache, cmd_cache, permissions_cache, rules_cache
+    cache = None
+    cmd_cache = None
+    permissions_cache = None
+    rules_cache = None
+
+    load_config()
+    load_cmd_config()
+    load_rules()
+    load_permissions()
 
 def save_config(config: dict, update_cache: bool = False) -> None:
     global cache
