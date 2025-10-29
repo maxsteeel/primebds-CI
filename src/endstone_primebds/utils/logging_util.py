@@ -82,6 +82,8 @@ def get_webhook_url(type, discord_logging):
         return discord_logging["moderation"]["webhook"]
     elif type == "chat" and discord_logging["chat"]["enabled"]:
         return discord_logging["chat"]["webhook"]
+    elif type == "connections" and discord_logging["connections"]["enabled"]:
+        return discord_logging["connections"]["webhook"]
     return None
 
 MAX_RETRIES = 15  # Max retries in case of rate limits

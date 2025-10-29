@@ -9,16 +9,19 @@ from datetime import datetime
 from endstone_primebds.handlers.intervals import start_jail_check_if_needed, stop_jail_check_if_not_needed
 from endstone_primebds.utils.config_util import load_config
 from endstone_primebds.utils.mod_util import format_time_remaining, ban_message
-from endstone_primebds.utils.logging_util import log
+from endstone_primebds.utils.logging_util import log, discordRelay
 from endstone.inventory import ItemStack
+
+import endstone_primebds.utils.internal_permissions_util as perms_util
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
 config = load_config()
-send_on_connect = join_message = config["modules"]["join_leave_messages"]["send_on_connection"]
-join_message = join_message = config["modules"]["join_leave_messages"]["join_message"]
+send_on_connect = config["modules"]["join_leave_messages"]["send_on_connection"]
+join_message = config["modules"]["join_leave_messages"]["join_message"]
 leave_message = config["modules"]["join_leave_messages"]["leave_message"] 
+rank_meta_nametags = config["modules"]["server_messages"]["rank_meta_nametags"] 
 
 def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
 
@@ -113,6 +116,12 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
         reason = warning.get("warn_reason", "Negative Behavior")
         ev.player.send_message(f"§6Reminder: You were recently warned for §e{reason}")
 
+    if rank_meta_nametags:
+        prefix = perms_util.get_prefix(user.internal_rank, perms_util.PERMISSIONS)
+        suffix = perms_util.get_suffix(user.internal_rank, perms_util.PERMISSIONS)
+        ev.player.name_tag = prefix+ev.player.name+suffix
+
+    discordRelay(f"**{ev.player.name}** has joined the server ***({len(self.server.online_players)}/{self.server.max_players})***", "connections")
     check_unset_scoreboards(self)
     return
 
@@ -160,6 +169,7 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
     if online_user and getattr(online_user, "is_vanish", False):
         ev.quit_message = ""
 
+    discordRelay(f"**{ev.player.name}** has left the server ***({len(self.server.online_players)-1}/{self.server.max_players})***", "connections")
     return
 
 def handle_kick_event(self: "PrimeBDS", ev: PlayerKickEvent):
