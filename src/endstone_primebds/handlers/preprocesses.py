@@ -95,6 +95,15 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         self.server.dispatch_command(self.server.command_sender, f"execute as \"{player.name}\" at \"{player.name}\" run {command}")
         event.is_cancelled = True
         return False
+    elif cmd == "kick" and args[1] == "@a":
+        for pl in self.server.online_players:
+            target = self.db.get_offline_user(pl)
+            if not perms_util.check_perms(self, target, "primebds.exempt.kick"):
+                pl.kick(args[2])
+                player.send_message(f"§6Player §e{target.name} §6was kicked for §e\"{args[2]}\"")
+            else:
+                player.send_message(f"§6Player §e{target.name} §6is exempt from §e{cmd}")
+        return False
     elif cmd == "stop":
         for player in self.server.online_players:
             player.kick(config["modules"]["join_leave_messages"]["shutdown"])
