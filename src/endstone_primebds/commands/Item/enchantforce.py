@@ -10,7 +10,13 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "enchantforce",
     "Forces a given enchantment onto an item!",
-    ["/enchantforce <player: player> <enchantmentName: str> [level: int]"],
+    ["/enchantforce <player: player> "
+    "(aqua_affinity|bane_of_arthropods|binding|blast_protection|breach"
+    "|channeling|density|depth_strider|efficiency|feather_falling|fire_aspect|"
+    "fire_protection|flame|fortune|frost_walker|impaling|infinity|knockback|"
+    "looting|loyalty|luck_of_the_sea|lure|mending|multishot|piercing|power|"
+    "projectile_protection|protection|punch|quick_charge|respiration|riptide|"
+    "sharpness|silk_touch|smite|soul_speed|swift_sneak|thorns|unbreaking|vanishing)[enchantment: enchantment][level: int]"],
     ["primebds.command.enchantforce"],
     "op",
     ["enchantf", "forceenchant"]
