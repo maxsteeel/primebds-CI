@@ -73,6 +73,7 @@ class PrimeBDS(Plugin):
         }
         self.globalmute = 0
         self.silentmutes = set()
+        self.isgod = set()
         self.crasher_patch_applied = set()
 
         # Multiworld Handler
