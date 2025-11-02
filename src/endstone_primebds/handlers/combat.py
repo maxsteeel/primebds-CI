@@ -22,9 +22,10 @@ def handle_damage_event(self: "PrimeBDS", ev: ActorDamageEvent):
     source_actor_tags = getattr(getattr(damage_source, "actor", None), "scoreboard_tags", []) or []
 
     if entity.type == "minecraft:player":
-        online_user = self.db.get_online_user(entity.xuid)
-        mod_log = self.db.get_mod_log(entity.xuid)
-        if online_user.is_vanish or mod_log.is_jailed:
+        if entity.id in self.isgod:
+            ev.is_cancelled = True
+            return
+        if self.vanish_state.get(entity.unique_id, False):
             ev.is_cancelled = True
             return
 
