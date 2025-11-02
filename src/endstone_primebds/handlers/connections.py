@@ -22,6 +22,8 @@ send_on_connect = config["modules"]["join_leave_messages"]["send_on_connection"]
 join_message = config["modules"]["join_leave_messages"]["join_message"]
 leave_message = config["modules"]["join_leave_messages"]["leave_message"] 
 rank_meta_nametags = config["modules"]["server_messages"]["rank_meta_nametags"] 
+motd_on_connect = config["modules"]["join_leave_messages"]["send_message_of_the_day_on_connect"] 
+motd = config["modules"]["server_messages"]["message_of_the_day_command"]
 
 def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
 
@@ -77,6 +79,9 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
 
     if send_on_connect:
         ev.join_message = f"{join_message.replace('{player}', ev.player.name)}"
+
+    if motd_on_connect:
+        ev.player.send_message(motd)
 
     # Update Saved Data
     self.db.save_user(ev.player)
