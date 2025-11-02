@@ -64,6 +64,9 @@ def check_jailed(self: "PrimeBDS"):
                 refresh_jail_cache(player)
                 cached = self.jail_cache[player.xuid]
 
+            if cached["is_jailed"] and player.id is not self.isgod:
+                self.isgod.add(player.id)
+
             if cached["is_jailed"] and cached["is_expired"]:
                 mod_user = cached["data"]
 

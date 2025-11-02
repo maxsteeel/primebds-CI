@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from endstone_primebds.utils.config_util import load_config
 import endstone_primebds.utils.internal_permissions_util as perms_util
 from endstone_primebds.utils.logging_util import log, discordRelay
+from endstone_primebds.utils.target_selector_util import get_matching_actors
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
@@ -95,14 +96,28 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         self.server.dispatch_command(self.server.command_sender, f"execute as \"{player.name}\" at \"{player.name}\" run {command}")
         event.is_cancelled = True
         return False
-    elif cmd == "kick" and args[1] == "@a":
-        for pl in self.server.online_players:
-            target = self.db.get_offline_user(pl)
-            if not perms_util.check_perms(self, target, "primebds.exempt.kick"):
-                pl.kick(args[2])
-                player.send_message(f"§6Player §e{target.name} §6was kicked for §e\"{args[2]}\"")
-            else:
+    elif cmd == "kick":
+        selector = args[1].strip('"')
+        reason = " ".join(args[2:]) 
+        matched = get_matching_actors(self, selector, player)
+
+        if not matched:
+            return True
+
+        for pl in matched:
+            target = self.db.get_online_user(pl.xuid)
+
+            if perms_util.check_perms(self, target, "primebds.exempt.kick"):
                 player.send_message(f"§6Player §e{target.name} §6is exempt from §e{cmd}")
+                continue
+
+            try:
+                pl.kick(reason)
+                player.send_message(f"§6Player §e{target.name} §6was kicked for §e\"{reason}\"")
+            except Exception as e:
+                player.send_error_message(f"Failed to kick {target.name}: {e}")
+
+        event.is_cancelled = True
         return False
     elif cmd == "stop":
         for player in self.server.online_players:

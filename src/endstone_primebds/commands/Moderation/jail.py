@@ -120,6 +120,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         jail_pos = target.location
         jail_dim = target.dimension.name
         gamemode = target.game_mode.value
+        self.isgod.add(target.id)
     else:  
         offline_log = self.db.get_offline_mod_log(player_name)
         offline_data = self.db.get_offline_user(player_name)

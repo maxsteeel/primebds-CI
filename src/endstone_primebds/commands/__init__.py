@@ -100,6 +100,7 @@ def preload_settings():
             "send_on_nick": False,
             "send_on_vanish": False,
             "send_on_connection": False,
+            "send_message_of_the_day_on_connect": False,
             "join_message": "§e{player} joined the game",
             "leave_message": "§e{player} left the game",
             "shutdown": "Server has shutdown!"
@@ -116,6 +117,8 @@ def preload_settings():
             "whisper_prefix": "§8[§bWhisper§8]§r ",
             "social_spy_prefix": "§8[§bSocial Spy§8]§r ",
             "staff_chat_prefix": "§8[§bStaff Chat§8]§r ",
+            "discord_command": "§cUnset",
+            "message_of_the_day_command": "§cUnset"
         }),
         "combat": OrderedDict({
             "hit_cooldown_in_seconds": 0.0,
@@ -266,8 +269,8 @@ print(f"\n[PrimeBDS] Loaded {len(preloaded_commands)} commands")
 
 # ADDITIONAL DEFAULTS
 RULES_DEFAULT = [
-    "§6Rules:"
-    "§7-------------------------"
+    "§6Rules:",
+    "§7-------------------------",
     "§b1. §fBe respectful to others.",
     "§b2. §fNo griefing or stealing.",
     "§b3. §fNo cheating or exploiting bugs.",
