@@ -72,8 +72,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         target.inventory.add_item(block)
 
     if len(targets) == 1:
-        sender.send_message(f"§e{targets[0].name} §rwas given §7x{amount} §e{block.type}")
+        sender.send_message(f"§e{targets[0].name} §rwas given §7x{amount} §e{block.type.key}")
     else:
-        sender.send_message(f"§e{len(targets)} §rplayers were given §7x{amount} §e{block.type}")
+        sender.send_message(f"§e{len(targets)} §rplayers were given §7x{amount} §e{block.type.key}")
 
     return True
