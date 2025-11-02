@@ -102,7 +102,9 @@ EXTRA_PERMS = [
     "primebds.exempt.jail",
     "primebds.command.heal.other",
     "primebds.command.feed.other",
-    "primebds.command.repair.other"
+    "primebds.command.repair.other",
+    "primebds.command.god.other",
+    "primebds.command.hat.other"
 ]
 
 def reload_rank_list():
