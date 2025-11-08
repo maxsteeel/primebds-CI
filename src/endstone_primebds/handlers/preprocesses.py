@@ -202,15 +202,15 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
 
         if config["modules"]["server_messages"]["enhanced_whispers"]:
             online_target = self.server.get_player(target)
-            player.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7To {online_target.name}: §o{message}")
-            online_target.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7From {player.name}: §o{message}")
+            player.send_message(f"{config['modules']['server_messages']['whisper_prefix']}§7To {online_target.name}: §o{message}")
+            online_target.send_message(f"{config['modules']['server_messages']['whisper_prefix']}§7From {player.name}: §o{message}")
             event.is_cancelled = True
 
         for pl in self.server.online_players:  
             user = self.db.get_online_user(pl.xuid)
             if user:
                 if user.enabled_ss == 1 and pl.has_permission("primebds.command.socialspy"):
-                    pl.send_message(f"{config["modules"]["server_messages"]["social_spy_prefix"]}§8[§r{player.name} §7-> §r{target}§8] §7{message}")
+                    pl.send_message(f"{config['modules']['server_messages']['social_spy_prefix']}§8[§r{player.name} §7-> §r{target}§8] §7{message}")
 
 def handle_server_command_preprocess(self: "PrimeBDS", event: ServerCommandEvent):
     args = event.command.split()
