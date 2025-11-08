@@ -33,8 +33,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         if target:
             config = load_config()
             if config["modules"]["server_messages"]["enhanced_whispers"]:
-                sender.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7To {target.name}: §o{args[0]}")
-                target.send_message(f"{config["modules"]["server_messages"]["whisper_prefix"]}§7From {sender.name}: §o{args[0]}")
+                sender.send_message(f"{config['modules']['server_messages']['whisper_prefix']}§7To {target.name}: §o{args[0]}")
+                target.send_message(f"{config['modules']['server_messages']['whisper_prefix']}§7From {sender.name}: §o{args[0]}")
             else:
                 sender.send_message(f"You whisper to {target.name}: {args[0]}")
                 target.send_message(f"{player.name_tag} §7§o{player.name} whispers to you: {args[0]}")
@@ -43,7 +43,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 otheruser = self.db.get_online_user(pl.xuid)
                 if otheruser:
                     if otheruser.enabled_ss == 1 and pl.has_permission("primebds.command.socialspy"):
-                        pl.send_message(f"{config["modules"]["server_messages"]["social_spy_prefix"]}§8[§r{player.name} §7-> §r{target.name}§8] §7{args[0]}")
+                        pl.send_message(f"{config['modules']['server_messages']['social_spy_prefix']}§8[§r{player.name} §7-> §r{target.name}§8] §7{args[0]}")
 
         else:
             sender.send_message(f"§c{last_messaged} is not online")
