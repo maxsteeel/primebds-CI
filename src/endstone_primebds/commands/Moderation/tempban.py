@@ -28,8 +28,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
        sender.send_message("§cThis command cannot be automated")
        return False
 
-
-
     if len(args) < 3:
         sender.send_message(f"Usage: /tempban <player> <duration_number> (second|minute|hour|day|week|month|year) [reason]")
         return False

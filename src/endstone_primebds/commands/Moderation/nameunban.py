@@ -26,8 +26,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
        sender.send_message("§cThis command cannot be automated")
        return False
 
-
-
     if len(args) < 1:
         sender.send_message(f"Usage: /removeban <player>")
         return False
