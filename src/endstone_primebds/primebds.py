@@ -233,16 +233,33 @@ class PrimeBDS(Plugin):
         if not user:
             self.db.save_user(player)
             user = self.db.get_online_user(player.xuid)
-            
-        if user:
-            self.vanish_state[player.unique_id] = bool(user.is_vanish)
-        else:
-            self.vanish_state[player.unique_id] = False
+
+        self.vanish_state[player.unique_id] = bool(user.is_vanish) if user else False
 
         internal_rank = perms_util.check_rank_exists(self, player, user.internal_rank)
         permissions = perms_util.get_rank_permissions(internal_rank)
         user_permissions = self.db.get_permissions(player.xuid)
         managed_perms = perms_util.MANAGED_PERMISSIONS_LIST[:]
+
+        linked_groups = [
+            [
+                "primebds.command.permban",
+                "endstone.command.ban",
+            ],
+            [
+                "primebds.command.ipban",
+                "endstone.command.banip"
+            ],
+            [
+                "primebds.command.removeban",
+                "endstone.command.unban",
+                "endstone.command.unbanip",
+            ],
+            [
+                "primebds.command.filterlist",
+                "endstone.command.banlist"
+            ]
+        ]
 
         final_permissions = {rperm.lower(): False for rperm in managed_perms}
         for perm, allowed in permissions.items():
@@ -250,11 +267,41 @@ class PrimeBDS(Plugin):
         for perm, allowed in user_permissions.items():
             final_permissions[perm.lower()] = allowed
 
+        linked_permissions = {}
+        for group in linked_groups:
+            seen_true = False
+            seen_false = False
+
+            # Check all permissions in the group for any that already exist
+            for perm in group:
+                if perm in final_permissions:
+                    if final_permissions[perm]:
+                        seen_true = True
+                    else:
+                        seen_false = True
+
+            # Determine what to assign
+            if seen_true:
+                group_value = True
+            elif seen_false:
+                group_value = False
+            else:
+                continue  # none of the group's perms exist yet, skip
+
+            # Apply the decided value to all permissions in the group
+            for perm in group:
+                final_permissions[perm] = group_value
+
+        for base_perm, linked_list in linked_permissions.items():
+            if base_perm in final_permissions:
+                base_value = final_permissions[base_perm]
+                for linked_perm in linked_list:
+                    final_permissions[linked_perm] = base_value
+
         to_remove = [
             attinfo.attachment for attinfo in player.effective_permissions
             if attinfo.permission == "primebdsoverride"
         ]
-        
         for attachment in to_remove:
             attachment.remove()
 
@@ -274,8 +321,10 @@ class PrimeBDS(Plugin):
                         cmd = f"{prefix}.command"
                         if prefix == perm or cmd == perm:
                             plugin_stars[prefix] = value
-        except Exception as e:
-            server_registered = {str(p.name).lower() for p in self.server.plugin_manager.permissions}
+        except Exception:
+            server_registered = {
+                str(p.name).lower() for p in self.server.plugin_manager.permissions
+            }
             for perm in server_registered:
                 if perm in internal:
                     continue
@@ -283,7 +332,7 @@ class PrimeBDS(Plugin):
                 cmd = f"{prefix}.command"
                 if prefix == perm or cmd == perm:
                     plugin_stars[prefix] = value
-                        
+
         for perm, value in perms_to_apply:
             if perm in internal:
                 continue
@@ -294,10 +343,18 @@ class PrimeBDS(Plugin):
             else:
                 attachment.set_permission(perm, value)
 
-        if user.internal_rank.lower() == "operator" and player.is_op == False and player.is_valid:
-            self.server.dispatch_command(self.server.command_sender, f"op \"{user.name}\"")
-        elif user.internal_rank.lower() != "operator" and player.is_op == True and player.is_valid:
-            self.server.dispatch_command(self.server.command_sender, f"deop \"{user.name}\"")
+        if (
+            user.internal_rank.lower() == "operator"
+            and not player.is_op
+            and player.is_valid
+        ):
+            self.server.dispatch_command(self.server.command_sender, f'op "{user.name}"')
+        elif (
+            user.internal_rank.lower() != "operator"
+            and player.is_op
+            and player.is_valid
+        ):
+            self.server.dispatch_command(self.server.command_sender, f'deop "{user.name}"')
 
         player.update_commands()
         player.recalculate_permissions()

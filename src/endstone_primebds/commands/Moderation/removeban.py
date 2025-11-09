@@ -4,7 +4,6 @@ try:
 except ImportError:
     BlockCommandSender = None 
 from endstone_primebds.utils.command_util import create_command
-from endstone_primebds.utils.address_util import is_valid_ip
 from endstone_primebds.utils.logging_util import log
 
 from typing import TYPE_CHECKING
@@ -35,10 +34,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return False
 
     player_name = args[0].strip('"')
-
-    if is_valid_ip(player_name):
-        sender.send_message(f"§cThis override only supports known player targets")
-        return False
     
     # Get the mod log to check if the player is banned
     mod_log = self.db.get_offline_mod_log(player_name)

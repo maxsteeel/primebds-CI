@@ -8,7 +8,6 @@ from endstone_primebds.utils.command_util import create_command
 
 from endstone_primebds.utils.logging_util import log
 from endstone_primebds.utils.mod_util import format_time_remaining, ban_message
-from endstone_primebds.utils.address_util import is_valid_ip
 from datetime import timedelta, datetime
 
 from typing import TYPE_CHECKING
@@ -32,10 +31,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if any("@" in arg for arg in args):
         sender.send_message(f"§cTarget selectors are invalid for this command")
-        return False
-    
-    if is_valid_ip(args[0].strip('"')):
-        sender.send_message(f"§cThis override only supports known player targets")
         return False
 
     player_name = args[0].strip('"')

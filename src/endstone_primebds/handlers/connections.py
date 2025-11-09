@@ -17,14 +17,6 @@ import endstone_primebds.utils.internal_permissions_util as perms_util
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
-config = load_config()
-send_on_connect = config["modules"]["join_leave_messages"]["send_on_connection"]
-join_message = config["modules"]["join_leave_messages"]["join_message"]
-leave_message = config["modules"]["join_leave_messages"]["leave_message"] 
-rank_meta_nametags = config["modules"]["server_messages"]["rank_meta_nametags"] 
-motd_on_connect = config["modules"]["join_leave_messages"]["send_message_of_the_day_on_connect"] 
-motd = config["modules"]["server_messages"]["message_of_the_day_command"]
-
 def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
 
     self.crasher_patch_applied.discard(ev.player.xuid)
@@ -76,6 +68,13 @@ def handle_login_event(self: "PrimeBDS", ev: PlayerLoginEvent):
     return
 
 def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
+
+    config = load_config()
+    send_on_connect = config["modules"]["join_leave_messages"]["send_on_connection"]
+    join_message = config["modules"]["join_leave_messages"]["join_message"]
+    rank_meta_nametags = config["modules"]["server_messages"]["rank_meta_nametags"] 
+    motd_on_connect = config["modules"]["message_of_the_day"]["send_message_of_the_day_on_connect"] 
+    motd = config["modules"]["message_of_the_day"]["message_of_the_day_command"]
 
     if send_on_connect:
         ev.join_message = f"{join_message.replace('{player}', ev.player.name)}"
@@ -131,6 +130,10 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
     return
 
 def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
+
+    config = load_config()
+    send_on_connect = config["modules"]["join_leave_messages"]["send_on_connection"]
+    leave_message = config["modules"]["join_leave_messages"]["leave_message"] 
 
     if send_on_connect:
         ev.quit_message = f"{leave_message.replace('{player}', ev.player.name)}"
