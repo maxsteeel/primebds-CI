@@ -9,8 +9,15 @@ except Exception as e:
     print(e)
     PACKET_SUPPORT = False
 
+from cmath import sqrt
 from endstone.event import PacketSendEvent
 from endstone_primebds.utils.config_util import load_config
+from collections import defaultdict
+from time import time
+from copy import copy
+
+CACHED_PACKETS = defaultdict(dict)
+CACHE_METADATA = {} 
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -18,11 +25,14 @@ if TYPE_CHECKING:
 
 config = load_config()
 mute = config["modules"]["server_optimizer"]["mute_laggy_sounds"]
+
 def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
     if not PACKET_SUPPORT:
-        return 
+        return
 
-    if ev.packet_id == MinecraftPacketIds.AddPlayer:
+    pid = ev.packet_id
+
+    if pid == MinecraftPacketIds.AddPlayer:
         player_name = extract_player_name_from_addplayer(ev.payload)
         target_player = self.server.get_player(player_name)
         if not target_player:
@@ -39,11 +49,12 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
             ev.is_cancelled = True
         return
 
-    elif ev.packet_id == MinecraftPacketIds.LevelSoundEvent:
+    elif pid == MinecraftPacketIds.LevelSoundEvent:
         packet = minecraft_packets.LevelSoundEventPacket()
         packet.deserialize(ev.payload)
         sound = packet.sound_type
-        if mute and (sound == 259 or sound == 42):
+
+        if mute and sound in (259, 42):
             ev.is_cancelled = True
             return
 
@@ -51,7 +62,31 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
             if self.vanish_state.get(packet.actor_unique_id, False):
                 ev.is_cancelled = True
                 return
-            
+
+    elif pid == MinecraftPacketIds.BiomeDefinitionList:
+        if cached := get_cached_packet(pid, "biomes"):
+            ev.payload = cached
+            return
+
+        cache_packet(pid, "biomes", ev.payload, source="biomes")
+    
     if self.monitor_intervals:
-        pid = ev.packet_id
         self.packets_sent_count[pid] = self.packets_sent_count.get(pid, 0) + 1
+
+def cache_packet(packet_id: int, key: str, payload: bytes, source: str = ""):
+    CACHED_PACKETS[packet_id][key] = payload
+    CACHE_METADATA[(packet_id, key)] = {
+        "timestamp": time(),
+        "source": source,
+    }
+
+def get_cached_packet(packet_id: int, key: str):
+    packet_map = CACHED_PACKETS.get(packet_id)
+    if not packet_map:
+        return None
+    return packet_map.get(key)
+
+def invalidate_cached_packet(packet_id: int, key: str):
+    if packet_id in CACHED_PACKETS and key in CACHED_PACKETS[packet_id]:
+        del CACHED_PACKETS[packet_id][key]
+        CACHE_METADATA.pop((packet_id, key), None)
