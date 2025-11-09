@@ -17,5 +17,5 @@ command, permission = create_command(
 
 config = load_config()
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    sender.send_message(f"{config['modules']['server_messages']['discord_command']}")
+    sender.send_message(f"{config['modules']['discord']['discord_command']}")
     return True

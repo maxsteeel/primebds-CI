@@ -4,18 +4,12 @@ from typing import TYPE_CHECKING
 import requests
 import re
 
-from endstone import ColorFormat
-
-
-from endstone_primebds.utils.form_wrapper_util import ActionFormData, ActionFormResponse
 from endstone_primebds.utils.config_util import load_config
-from endstone_primebds.utils.time_util import TimezoneUtils
 
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
 import threading
-config = load_config()
 
 TOGGLE_PERMISSIONS = {
     "enabled_ms": "primebds.command.modspy",
@@ -50,25 +44,31 @@ def discordRelay(message, type):
     """Send message to Discord asynchronously without blocking."""
     message = re.sub(r'§.', '', message)  # Clean up formatting
 
-    discord_logging = config["modules"]["discord_logging"]
+    config = load_config()
+    discord_logging = config["modules"]["discord_webhook"]
 
     webhook_url = get_webhook_url(type, discord_logging)
     if not webhook_url:
         return False  # No valid webhook found or enabled
 
     # Prepare the payload for Discord
-    payload = {
-        "embeds": [
-            {
-                "title": discord_logging["embed"]["title"],
-                "description": message,
-                "color": discord_logging["embed"]["color"],
-                "footer": {
-                    "text": f"Logged at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+    if discord_logging["embed_for_log"]["enabled"]:
+        payload = {
+            "embeds": [
+                {
+                    "title": discord_logging["embed_for_log"]["title"],
+                    "description": message,
+                    "color": discord_logging["embed_for_log"]["color"],
+                    "footer": {
+                        "text": f"Logged at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                    }
                 }
-            }
-        ]
-    }
+            ]
+        }
+    else:
+        payload = {
+            "content": f"{message}"
+        }
 
     # Send Discord message asynchronously
     threading.Thread(target=send_discord_message, args=(webhook_url, payload)).start()
@@ -76,14 +76,14 @@ def discordRelay(message, type):
 
 def get_webhook_url(type, discord_logging):
     """Helper function to get the appropriate webhook URL based on the message type."""
-    if type == "cmd" and discord_logging["commands"]["enabled"]:
-        return discord_logging["commands"]["webhook"]
-    elif type == "mod" and discord_logging["moderation"]["enabled"]:
-        return discord_logging["moderation"]["webhook"]
-    elif type == "chat" and discord_logging["chat"]["enabled"]:
-        return discord_logging["chat"]["webhook"]
-    elif type == "connections" and discord_logging["connections"]["enabled"]:
-        return discord_logging["connections"]["webhook"]
+    if type == "cmd" and discord_logging["command_logs"]["enabled"]:
+        return discord_logging["command_logs"]["webhook"]
+    elif type == "mod" and discord_logging["moderation_logs"]["enabled"]:
+        return discord_logging["moderation_logs"]["webhook"]
+    elif type == "chat" and discord_logging["chat_logs"]["enabled"]:
+        return discord_logging["chat_logs"]["webhook"]
+    elif type == "connections" and discord_logging["connection_logs"]["enabled"]:
+        return discord_logging["connection_logs"]["webhook"]
     return None
 
 MAX_RETRIES = 15  # Max retries in case of rate limits

@@ -63,24 +63,28 @@ def preload_settings():
             "minecraft": True,
             "*": True
         }),
-        "discord_logging": OrderedDict({
-            "embed": OrderedDict({
+        "discord": OrderedDict({
+            "command": "§cUnset",
+        }),
+        "discord_webhook": OrderedDict({
+            "embed_for_log": OrderedDict({
+                "enabled": False,
                 "color": 781919,
                 "title": "Logger"
             }),
-            "commands": OrderedDict({
+            "command_logs": OrderedDict({
                 "enabled": False,
                 "webhook": ""
             }),
-            "moderation": OrderedDict({
+            "moderation_logs": OrderedDict({
                 "enabled": False,
                 "webhook": ""
             }),
-            "chat": OrderedDict({
+            "chat_logs": OrderedDict({
                 "enabled": False,
                 "webhook": ""
             }),
-            "connections": OrderedDict({
+            "connection_logs": OrderedDict({
                 "enabled": False,
                 "webhook": ""
             })
@@ -100,7 +104,6 @@ def preload_settings():
             "send_on_nick": False,
             "send_on_vanish": False,
             "send_on_connection": False,
-            "send_message_of_the_day_on_connect": False,
             "join_message": "§e{player} joined the game",
             "leave_message": "§e{player} left the game",
             "shutdown": "Server has shutdown!"
@@ -117,8 +120,10 @@ def preload_settings():
             "whisper_prefix": "§8[§bWhisper§8]§r ",
             "social_spy_prefix": "§8[§bSocial Spy§8]§r ",
             "staff_chat_prefix": "§8[§bStaff Chat§8]§r ",
-            "discord_command": "§cUnset",
-            "message_of_the_day_command": "§cUnset"
+        }),
+        "message_of_the_day": OrderedDict({
+            "message_of_the_day_command": "§cUnset",
+            "send_message_of_the_day_on_connect": False,
         }),
         "combat": OrderedDict({
             "hit_cooldown_in_seconds": 0.0,
