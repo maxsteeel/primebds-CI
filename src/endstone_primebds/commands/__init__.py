@@ -109,8 +109,7 @@ def preload_settings():
             "shutdown": "Server has shutdown!"
         }),
         "server_optimizer": OrderedDict({
-            "mute_laggy_sounds": True,
-            "cache_simple_packets": True,
+            "mute_laggy_sounds": True
         }),
         "server_messages": OrderedDict({
             "enhanced_whispers": True,
