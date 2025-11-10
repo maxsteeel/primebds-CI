@@ -32,7 +32,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             enabled = True
 
     player.add_attachment(self, "primebds.globalmute.exempt", enabled)
-    perms_util.invalidate_perm_cache(self, player.xuid)
+    perms_util.invalidate_perm_cache(player.xuid)
 
     if enabled:
         sender.send_message(f"§e{player.name} §6is now exempt from global mutes")
