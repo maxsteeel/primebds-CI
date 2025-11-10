@@ -110,6 +110,7 @@ def preload_settings():
         }),
         "server_optimizer": OrderedDict({
             "mute_laggy_sounds": True,
+            "cache_simple_packets": True,
         }),
         "server_messages": OrderedDict({
             "enhanced_whispers": True,

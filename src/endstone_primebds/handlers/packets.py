@@ -9,12 +9,10 @@ except Exception as e:
     print(e)
     PACKET_SUPPORT = False
 
-from cmath import sqrt
 from endstone.event import PacketSendEvent
 from endstone_primebds.utils.config_util import load_config
 from collections import defaultdict
 from time import time
-from copy import copy
 
 CACHED_PACKETS = defaultdict(dict)
 CACHE_METADATA = {} 
@@ -25,6 +23,7 @@ if TYPE_CHECKING:
 
 config = load_config()
 mute = config["modules"]["server_optimizer"]["mute_laggy_sounds"]
+packet_cache = config["modules"]["server_optimizer"]["cache_simple_packets"]
 
 def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
     if not PACKET_SUPPORT:
@@ -63,12 +62,12 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
                 ev.is_cancelled = True
                 return
 
-    elif pid == MinecraftPacketIds.BiomeDefinitionList:
-        if cached := get_cached_packet(pid, "biomes"):
-            ev.payload = cached
-            return
-
-        cache_packet(pid, "biomes", ev.payload, source="biomes")
+    if packet_cache:
+        if pid == MinecraftPacketIds.BiomeDefinitionList:
+            if cached := get_cached_packet(pid, "biomes"):
+                ev.payload = cached
+            else:
+                cache_packet(pid, "biomes", ev.payload, source="biomes")
     
     if self.monitor_intervals:
         self.packets_sent_count[pid] = self.packets_sent_count.get(pid, 0) + 1
