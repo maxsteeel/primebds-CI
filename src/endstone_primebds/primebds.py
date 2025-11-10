@@ -359,7 +359,7 @@ class PrimeBDS(Plugin):
         player.update_commands()
         player.recalculate_permissions()
         perms_util.clear_prefix_suffix_cache()
-        perms_util.invalidate_perm_cache(self, player.xuid)
+        perms_util.invalidate_perm_cache(player.xuid)
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
         """Handle incoming commands dynamically"""

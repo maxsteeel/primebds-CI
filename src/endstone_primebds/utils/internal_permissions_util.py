@@ -379,7 +379,7 @@ def clear_prefix_suffix_cache():
     _prefix_cache.clear()
     _suffix_cache.clear()
 
-def invalidate_perm_cache(self, xuid: str):
+def invalidate_perm_cache(xuid: str):
     perm_cache.pop(xuid, None)
             
 def check_internal_rank(user1_rank: str, user2_rank: str) -> bool:
