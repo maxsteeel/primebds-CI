@@ -3,7 +3,12 @@ from endstone.inventory import ItemStack
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.target_selector_util import get_matching_actors
-from chest_form_api_endstone import ChestForm
+
+try:
+    from chest_form_api_endstone import ChestForm
+    PACKET_SUPPORT = True
+except Exception:
+    PACKET_SUPPORT = False
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -31,6 +36,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     display_type = "chest"
     if len(args) > 1 and args[1]:
         display_type = args[1].lower()
+
+    if not PACKET_SUPPORT:
+        display_type = "chat"
+        sender.send_message("§cVisual UI is disabled due to missing API.")
+    elif sender.location.y < 0:
+        display_type = "chat"
+        sender.send_message("§cUsing chat-mode as chest UI cannot be shown at negative y-levels")
 
     if not isinstance(sender, Player):
         display_type = "chat"

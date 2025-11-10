@@ -320,7 +320,7 @@ def check_perms(self: "PrimeBDS", player_or_user, perm: str, check_rank=False) -
     cached = perm_cache.get(xuid)
     if cached:
         perms, ts = cached
-        result = perm in perms
+        result = perms.get(perm, False)
         return result
 
     user_name = self.db.get_name_by_xuid(xuid)
@@ -338,6 +338,9 @@ def check_perms(self: "PrimeBDS", player_or_user, perm: str, check_rank=False) -
     perm_cache[xuid] = (final_perms, now)
     result = final_perms.get(perm.lower(), False)
     return result
+
+def invalidate_perm_cache(xuid: str):
+    perm_cache.pop(xuid, None)
 
 _prefix_cache = {}
 _suffix_cache = {}
@@ -378,9 +381,6 @@ def clear_prefix_suffix_cache():
     global _prefix_cache, _suffix_cache
     _prefix_cache.clear()
     _suffix_cache.clear()
-
-def invalidate_perm_cache(xuid: str):
-    perm_cache.pop(xuid, None)
             
 def check_internal_rank(user1_rank: str, user2_rank: str) -> bool:
     if user1_rank not in RANKS or user2_rank not in RANKS:
