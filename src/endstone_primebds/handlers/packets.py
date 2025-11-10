@@ -52,7 +52,6 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
         packet = minecraft_packets.LevelSoundEventPacket()
         packet.deserialize(ev.payload)
         sound = packet.sound_type
-
         if mute and sound in (259, 42):
             ev.is_cancelled = True
             return
