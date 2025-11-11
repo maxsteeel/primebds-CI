@@ -114,7 +114,7 @@ def open_profiles_menu(sender: Player):
         return
 
     form = ActionFormData()
-    form.title("§eScript Profiles")
+    form.title("Script Profiles")
     form.body("Select a profile to view:")
 
     for profile in profile_files:
