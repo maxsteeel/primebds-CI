@@ -654,6 +654,8 @@ class UserDB(DatabaseManager):
         self.jailed_cache = {}
         self.db_name = db_name
         self._cache = {}
+        self._name_to_xuid_cache = {}
+        self._xuid_to_name_cache = {}
         self._cache_ttl = 60
         self.create_tables()
 
@@ -905,8 +907,13 @@ class UserDB(DatabaseManager):
         """
         if xuid:
             self._cache.pop(xuid, None)
+            self._cache.pop("modlog:{xuid}", None)
+            self._name_to_xuid_cache.clear()
+            self._xuid_to_name_cache.clear()
         else:
             self._cache.clear()
+            self._name_to_xuid_cache.clear()
+            self._xuid_to_name_cache.clear()
     
     def get_online_user_by_unique_id(self, unique_id: str) -> Optional[User]:
         result = self.execute(
@@ -924,13 +931,14 @@ class UserDB(DatabaseManager):
         return None
 
     def get_offline_user(self, name: str) -> Optional[User]:
-        cached = self._cache.get(name)
+        xuid = self.get_xuid_by_name(name)
+        cached = self._cache.get(xuid)
         if cached:
             user, cached_time = cached
             if time.time() - cached_time < self._cache_ttl:
                 return user
             else:
-                self.invalidate_user_cache(name)
+                self.invalidate_user_cache(xuid)
 
         result = self.execute(
             "SELECT * FROM users WHERE name = ?",
@@ -1356,13 +1364,39 @@ class UserDB(DatabaseManager):
         row = self.execute("SELECT * FROM mod_logs WHERE name = ?", (name,), readonly=True).fetchone()
         return ModLog(*row) if row else None
 
-    def get_xuid_by_name(self, player_name: str) -> str:
-        row = self.execute("SELECT xuid FROM mod_logs WHERE name = ?", (player_name,), readonly=True).fetchone()
-        return row[0] if row else None
+    def get_xuid_by_name(self, player_name: str) -> str | None:
+        if player_name in self._name_to_xuid_cache:
+            return self._name_to_xuid_cache[player_name]
 
-    def get_name_by_xuid(self, xuid: str) -> str:
-        row = self.execute("SELECT name FROM mod_logs WHERE xuid = ?", (xuid,), readonly=True).fetchone()
-        return row[0] if row else None
+        row = self.execute(
+            "SELECT xuid FROM mod_logs WHERE name = ?",
+            (player_name,),
+            readonly=True
+        ).fetchone()
+
+        if row:
+            xuid = row[0]
+            self._name_to_xuid_cache[player_name] = xuid
+            self._xuid_to_name_cache[xuid] = player_name
+            return xuid
+        return None
+
+    def get_name_by_xuid(self, xuid: str) -> str | None:
+        if xuid in self._xuid_to_name_cache:
+            return self._xuid_to_name_cache[xuid]
+
+        row = self.execute(
+            "SELECT name FROM mod_logs WHERE xuid = ?",
+            (xuid,),
+            readonly=True
+        ).fetchone()
+
+        if row:
+            name = row[0]
+            self._xuid_to_name_cache[xuid] = name
+            self._name_to_xuid_cache[name] = xuid
+            return name
+        return None
 
     def add_note(self, note: str, added_by: str, xuid: Optional[str] = None, name: Optional[str] = None):
         if not xuid and not name:
@@ -1792,18 +1826,18 @@ class UserDB(DatabaseManager):
                 continue
 
     def update_user_data(self, name: str, column: str, value):
+        self.invalidate_user_cache(self.get_xuid_by_name(name))
         if isinstance(value, Vector):
             x, y, z = value.x, value.y, value.z
             value = f"{x},{y},{z}"
         self.update('users', {column: value}, 'name = ?', (name,))
-        self.invalidate_user_cache(self.get_xuid_by_name(name))
 
     def update_mod_data(self, name: str, column: str, value):
+        self.invalidate_user_cache(self.get_xuid_by_name(name))
         if isinstance(value, Vector):
             x, y, z = value.x, value.y, value.z
             value = f"{x},{y},{z}"
         self.update('mod_logs', {column: value}, 'name = ?', (name,))
-        self.invalidate_user_cache(self.get_xuid_by_name(name))
 
 class sessionDB(DatabaseManager):
     """Session tracking."""

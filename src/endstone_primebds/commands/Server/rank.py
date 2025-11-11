@@ -88,7 +88,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                     self.server.dispatch_command(self.server.command_sender, f"deop \"{target}\"")
                     
                 self.reload_custom_perms(player)
-
+                perms_util.invalidate_perm_cache(player.xuid)
+                
             sender.send_message(f"§bPlayer §e{target}'s §brank was updated to §e{proper_rank}")
             return True
 
