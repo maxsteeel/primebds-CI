@@ -31,8 +31,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
        sender.send_message("§cThis command cannot be automated")
        return False
 
-
-
     if any("@" in arg for arg in args):
         sender.send_message(f"§cTarget selectors are invalid for this command")
         return False
