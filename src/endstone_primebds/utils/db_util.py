@@ -315,7 +315,10 @@ class ServerDB(DatabaseManager):
                 if col_type == "TEXT":
                     default_val = ""
                 else:
-                    default_val = 0
+                    if f.name.startswith("can_"):
+                        default_val = 1
+                    else:
+                        default_val = 0
 
                 # Convert boolean defaults to 0/1 if needed
                 if isinstance(default_val, bool):
