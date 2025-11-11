@@ -26,6 +26,12 @@ os.makedirs(DB_FOLDER, exist_ok=True)
 class ServerData:
     last_shutdown_time: int
     allowlist_profile: str
+    can_interact: int
+    can_emote: int
+    can_decay_leaves: int
+    can_change_skin: int
+    can_pickup_items: int
+    can_sleep: int
 
 @dataclass
 class NameBans:
@@ -330,7 +336,13 @@ class ServerDB(DatabaseManager):
         server_info_columns = {
             'id': 'INTEGER PRIMARY KEY CHECK (id = 1)',
             'last_shutdown_time': 'INTEGER',
-            'allowlist_profile': 'TEXT'
+            'allowlist_profile': 'TEXT',
+            'can_interact': 'INTEGER DEFAULT 1',
+            'can_emote': 'INTEGER DEFAULT 1',
+            'can_decay_leaves': 'INTEGER DEFAULT 1',
+            'can_change_skin': 'INTEGER DEFAULT 1',
+            'can_pickup_items': 'INTEGER DEFAULT 1',
+            'can_sleep': 'INTEGER DEFAULT 1'
         }
         self.create_table('server_info', server_info_columns)
 
@@ -414,6 +426,18 @@ class ServerDB(DatabaseManager):
             pitch=data['pitch'],
             yaw=data['yaw']
         )
+
+    def get_gamerules(self) -> dict:
+        row = self.execute(
+            "SELECT can_interact, can_emote, can_decay_leaves, can_change_skin, can_pickup_items, can_sleep FROM server_info WHERE id = 1;",
+            readonly=True
+        ).fetchone()
+
+        if not row:
+            return {}
+
+        keys = ["can_interact", "can_emote", "can_decay_leaves", "can_change_skin", "can_pickup_items", "can_sleep"]
+        return dict(zip(keys, row))
 
     def add_name(self, name: str, ban_reason: str = "Negative Behavior", ban_duration: int = 100 * 31536000):
         """
@@ -626,6 +650,8 @@ class UserDB(DatabaseManager):
         super().__init__(db_name)
         self.jailed_cache = {}
         self.db_name = db_name
+        self._cache = {}
+        self._cache_ttl = 60
         self.create_tables()
 
     def create_tables(self):
@@ -755,6 +781,8 @@ class UserDB(DatabaseManager):
         ip = str(player.address)
         internal_rank = "Operator" if player.is_op else "Default"
 
+        self.invalidate_user_cache(xuid)
+
         # Check cache or database
         user = self.execute(
             "SELECT * FROM users WHERE xuid = ?", 
@@ -843,10 +871,19 @@ class UserDB(DatabaseManager):
         return patched_data
 
     def get_online_user(self, xuid: str) -> Optional[User]:
+        cached = self._cache.get(xuid)
+        if cached:
+            user, cached_time = cached
+            if time.time() - cached_time < self._cache_ttl:
+                return user
+            else:
+                self.invalidate_user_cache(xuid)
+
         result = self.execute(
-            "SELECT * FROM users WHERE xuid = ?", 
+            "SELECT * FROM users WHERE xuid = ?",
             (xuid,), readonly=True
         ).fetchone()
+
         if result:
             column_info = self.execute("PRAGMA table_info(users)").fetchall()
             column_names = [row[1] for row in column_info]
@@ -854,8 +891,19 @@ class UserDB(DatabaseManager):
             result_dict = self.patch_user_fields(raw_data)
             user = User(**result_dict)
 
+            self._cache[xuid] = (user, time.time())
             return user
+
         return None
+
+    def invalidate_user_cache(self, xuid: Optional[str] = None):
+        """
+        Removes a cached user entry, or clears the entire cache if xuid is None.
+        """
+        if xuid:
+            self._cache.pop(xuid, None)
+        else:
+            self._cache.clear()
     
     def get_online_user_by_unique_id(self, unique_id: str) -> Optional[User]:
         result = self.execute(
@@ -873,14 +921,24 @@ class UserDB(DatabaseManager):
         return None
 
     def get_offline_user(self, name: str) -> Optional[User]:
+        cached = self._cache.get(name)
+        if cached:
+            user, cached_time = cached
+            if time.time() - cached_time < self._cache_ttl:
+                return user
+            else:
+                self.invalidate_user_cache(name)
+
         result = self.execute(
-            "SELECT * FROM users WHERE name = ?", 
+            "SELECT * FROM users WHERE name = ?",
             (name,), readonly=True
         ).fetchone()
+
         if result:
             column_names = [row[1] for row in self.execute("PRAGMA table_info(users)").fetchall()]
             result_dict = self.patch_user_fields(dict(zip(column_names, result)))
             user = User(**result_dict)
+            self._cache[name] = (user, time.time())
             return user
         return None
     
@@ -895,6 +953,7 @@ class UserDB(DatabaseManager):
             is_muted, mute_time = mute_row
             if is_muted:
                 if mute_time < datetime.now().timestamp():
+                    self.invalidate_user_cache(xuid)
                     self.remove_mute(name)
                     return 0 
                 return 1 
@@ -902,12 +961,22 @@ class UserDB(DatabaseManager):
         return 0
 
     def get_mod_log(self, xuid: str) -> Optional[ModLog]:
+        cached = self._cache.get(f"modlog:{xuid}")
+        if cached:
+            log, cached_time = cached
+            if time.time() - cached_time < self._cache_ttl:
+                return log
+            else:
+                self.invalidate_user_cache(f"modlog:{xuid}")
+
         row = self.execute(
-            "SELECT * FROM mod_logs WHERE xuid = ?", 
+            "SELECT * FROM mod_logs WHERE xuid = ?",
             (xuid,), readonly=True
         ).fetchone()
+
         if row:
             mod_log = ModLog(*row)
+            self._cache[f"modlog:{xuid}"] = (mod_log, time.time())
             return mod_log
         return None
 
@@ -977,6 +1046,7 @@ class UserDB(DatabaseManager):
             'xuid': xuid, 'name': self.get_name_by_xuid(xuid), 'action_type': 'Ban',
             'reason': reason, 'timestamp': int(time.time()), 'duration': expiration
         })
+        self.invalidate_user_cache(xuid)
 
     def add_mute(self, xuid: str, expiration: int, reason: str, ip_mute: bool = False):
         self.update('mod_logs', {'is_muted': 1, 'mute_time': expiration, 'mute_reason': reason, 'is_ip_muted': ip_mute }, 'xuid = ?', (xuid,))
@@ -984,13 +1054,16 @@ class UserDB(DatabaseManager):
             'xuid': xuid, 'name': self.get_name_by_xuid(xuid), 'action_type': 'Mute',
             'reason': reason, 'timestamp': int(time.time()), 'duration': expiration
         })
+        self.invalidate_user_cache(xuid)
 
     def remove_ban(self, name: str):
+        xuid = self.get_xuid_by_name(name)
         self.update('mod_logs', {'is_banned': 0, 'banned_time': 0, 'ban_reason': "None", 'is_ip_banned': 0}, 'name = ?', (name,))
         self.insert('punishment_logs', {
-            'xuid': self.get_xuid_by_name(name), 'name': name, 'action_type': 'Unban',
+            'xuid': xuid, 'name': name, 'action_type': 'Unban',
             'reason': 'Ban Removed', 'timestamp': int(time.time()), 'duration': 0
         })
+        self.invalidate_user_cache(xuid)
 
     def check_ip_ban(self, ip: str) -> bool:
         ip_base = ip.split(':')[0]
@@ -1039,11 +1112,13 @@ class UserDB(DatabaseManager):
         return False, None, None
 
     def remove_mute(self, name: str):
+        xuid = self.get_xuid_by_name(name)
         self.update('mod_logs', {'is_muted': 0, 'mute_time': 0, 'mute_reason': "None", "is_ip_muted": 0}, 'name = ?', (name,))
         self.insert('punishment_logs', {
-            'xuid': self.get_xuid_by_name(name), 'name': name, 'action_type': 'Unmute',
+            'xuid': xuid, 'name': name, 'action_type': 'Unmute',
             'reason': 'Mute Expired', 'timestamp': int(time.time()), 'duration': 0
         })
+        self.invalidate_user_cache(xuid)
 
     def refresh_jail_cache(self):
         """Load all currently jailed players into the cache."""
@@ -1091,9 +1166,11 @@ class UserDB(DatabaseManager):
                 'duration': expiration
             }
         )
+        self.invalidate_user_cache(xuid)
 
     def remove_jail(self, name: str):
         """Unjail a player and log the action."""
+        xuid = self.get_xuid_by_name(name)
         self.update(
             'mod_logs',
             {
@@ -1110,7 +1187,7 @@ class UserDB(DatabaseManager):
         self.insert(
             'punishment_logs',
             {
-                'xuid': self.get_xuid_by_name(name),
+                'xuid': xuid,
                 'name': name,
                 'action_type': 'Unjail',
                 'reason': 'Jail Removed',
@@ -1118,6 +1195,8 @@ class UserDB(DatabaseManager):
                 'duration': 0
             }
         )
+
+        self.invalidate_user_cache(xuid)
 
     def force_unjail(self, xuid: str):
         self.execute(
@@ -1128,6 +1207,7 @@ class UserDB(DatabaseManager):
         # Also invalidate the cache for immediate effect
         if xuid in self.jailed_cache:
             self.jailed_cache[xuid] = int(time.time()) - 1
+            self.invalidate_user_cache(xuid)
 
     def check_jailed(self, xuid: str) -> tuple[bool, bool]:
         """
@@ -1415,6 +1495,7 @@ class UserDB(DatabaseManager):
             "UPDATE users SET perms = ? WHERE xuid = ?",
             (perms_json, xuid)
         )
+        self.invalidate_user_cache(xuid)
 
     def get_permissions(self, xuid: str) -> dict:
         """Get all permissions for a player using execute."""
@@ -1429,6 +1510,7 @@ class UserDB(DatabaseManager):
         perms = self.get_permissions(xuid)
         perms[permission] = allowed
         self.set_permissions(xuid, perms)
+        self.invalidate_user_cache(xuid)
         
     def delete_permission(self, xuid: str, permission: str):
         """Delete a permission from the perms JSON."""
@@ -1513,6 +1595,8 @@ class UserDB(DatabaseManager):
                 """, values)
                 self.conn.commit()
 
+        self.invalidate_user_cache(player.xuid)
+
     def get_inventory(self, xuid: str) -> list[dict]:
         """Fetch inventory rows as flat dicts ready for load_inventory."""
         self.cursor.execute("SELECT * FROM inventories WHERE xuid = ?", (xuid,))
@@ -1591,6 +1675,8 @@ class UserDB(DatabaseManager):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, values)
             self.conn.commit()
+
+        self.invalidate_user_cache(player.xuid)
 
     def get_enderchest(self, xuid: str) -> list[dict]:
         self.cursor.execute("SELECT * FROM ender_chests WHERE xuid = ?", (xuid,))
@@ -1707,12 +1793,14 @@ class UserDB(DatabaseManager):
             x, y, z = value.x, value.y, value.z
             value = f"{x},{y},{z}"
         self.update('users', {column: value}, 'name = ?', (name,))
+        self.invalidate_user_cache(self.get_xuid_by_name(name))
 
     def update_mod_data(self, name: str, column: str, value):
         if isinstance(value, Vector):
             x, y, z = value.x, value.y, value.z
             value = f"{x},{y},{z}"
         self.update('mod_logs', {column: value}, 'name = ?', (name,))
+        self.invalidate_user_cache(self.get_xuid_by_name(name))
 
 class sessionDB(DatabaseManager):
     """Session tracking."""

@@ -11,8 +11,6 @@ except Exception as e:
 
 from endstone.event import PacketSendEvent
 from endstone_primebds.utils.config_util import load_config
-from collections import defaultdict
-from time import time
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
