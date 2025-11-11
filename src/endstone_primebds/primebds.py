@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 import threading
 import time
@@ -36,7 +37,7 @@ Prime BDS Loaded!
 from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent,
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
                             PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent,
-                            ServerLoadEvent, PlayerKickEvent)
+                            ServerLoadEvent, PlayerKickEvent, PlayerBedEnterEvent, PlayerEmoteEvent, LeavesDecayEvent, PlayerSkinChangeEvent)
 from endstone_primebds.handlers.chat import handle_chat_event
 from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
 from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event, handle_kick_event
@@ -46,6 +47,7 @@ from endstone_primebds.handlers.intervals import stop_intervals, init_jail_inter
 from endstone_primebds.handlers.packets import handle_packetsend_event
 from endstone_primebds.handlers.actions import handle_gamemode_event, handle_interact_event
 from endstone_primebds.handlers.items import handle_item_pickup_event, handle_item_use, handle_item_drop_event
+from endstone_primebds.handlers.gamerules import handle_bed_enter_event, handle_emote_event, handle_leaves_decay_event, handle_skin_change_event
 
 class PrimeBDS(Plugin):
     api_version = "0.9"
@@ -62,7 +64,8 @@ class PrimeBDS(Plugin):
         super().__init__()
         # Command Controls
         self.monitor_intervals = {}
-        self.packets_sent_count = {} 
+        self.packets_sent_count = defaultdict(int)
+        self.gamerules = {}
         self.cached_players = set()
         self.vanish_state = {}
         self.jail_cache = {}
@@ -91,6 +94,22 @@ class PrimeBDS(Plugin):
         self.serverdb = ServerDB("server.db")
 
     # EVENT HANDLER
+    @event_handler
+    def on_player_bed_enter(self, ev: PlayerBedEnterEvent):
+        handle_bed_enter_event(self, ev)
+
+    @event_handler
+    def on_player_emote(self, ev: PlayerEmoteEvent):
+        handle_emote_event(self, ev)
+
+    @event_handler
+    def on_player_skin_change(self, ev: PlayerSkinChangeEvent):
+        handle_skin_change_event(self, ev)
+
+    @event_handler
+    def on_player_leaf_decay(self, ev: LeavesDecayEvent):
+        handle_leaves_decay_event(self, ev)
+
     @event_handler
     def on_player_gamemode(self, ev: PlayerGameModeChangeEvent):
         handle_gamemode_event(self, ev)
@@ -175,6 +194,7 @@ class PrimeBDS(Plugin):
         if not self.serverdb.get_server_info().allowlist_profile:
             self.serverdb.update_server_info("allowlist_profile", "default")
 
+        self.gamerules = self.serverdb.get_gamerules()
         self.server.scheduler.run_task(self, start_additional_servers(self), 1)
         self.check_for_inactive_sessions()
 
