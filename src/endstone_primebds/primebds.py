@@ -50,7 +50,7 @@ from endstone_primebds.handlers.items import handle_item_pickup_event, handle_it
 from endstone_primebds.handlers.gamerules import handle_bed_enter_event, handle_emote_event, handle_leaves_decay_event, handle_skin_change_event
 
 class PrimeBDS(Plugin):
-    api_version = "0.9"
+    api_version = "0.10"
     authors = ["PrimeStrat"]
     name = "primebds"
     description = "An essentials plugin for diagnostics, stability, and quality of life on Minecraft Bedrock Edition."
