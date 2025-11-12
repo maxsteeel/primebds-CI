@@ -37,9 +37,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not PACKET_SUPPORT:
         sender.send_message("§cVisual UI is disabled due to missing API.")
         display_type = "chat"
-    elif sender.location.y < 0:
-        display_type = "chat"
-        sender.send_message("§cUsing chat-mode as chest UI cannot be shown at negative y-levels")
 
     targets = get_matching_actors(self, args[0], sender)
 
@@ -183,11 +180,14 @@ def show_chest(self, sender, title: str, items: list[dict], allow_armor: bool):
         chest_slot = slot_mapping(entry)
         if chest_slot is None:
             continue
-
+        
         item_type = entry.get("type") or "minecraft:barrier"
         item_amount = entry.get("amount") or 1
         item_data = entry.get("data") or 0
-        display_name = entry.get("display_name") or ("§cInvalid Item" if item_type == "minecraft:barrier" else None)
+        display_name = (
+            entry.get("display_name")
+            or ("§cInvalid Item" if item_type == "minecraft:barrier" else "")
+        )
 
         chest.set_slot(
             chest_slot,
