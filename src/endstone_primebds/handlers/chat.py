@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from time import time
 
 from endstone.event import PlayerChatEvent
 import endstone_primebds.utils.internal_permissions_util as perms_util
@@ -44,12 +45,27 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
         ev.is_cancelled = True
         return False
     
-    if config["modules"]["server_messages"]["enhanced_chat"]:
+    enhanced_chat = config["modules"]["server_messages"]["enhanced_chat"]
+    chat_cooldown = config["modules"]["server_messages"]["chat_cooldown"]
+
+    current_time = time()
+    last_chat_time = self.chat_cooldown.get(ev.player.id, 0)
+    time_since_last = current_time - last_chat_time
+    time_remaining = chat_cooldown - time_since_last
+
+    if time_since_last >= chat_cooldown:
+        self.chat_cooldown[ev.player.id] = current_time
+    else:
+        ev.player.send_message(f"§cYou must wait {time_remaining:.2f}s before chatting again!")
+        ev.is_cancelled = True
+
+    if enhanced_chat :
         safe_message = ev.message.replace("{", "{{").replace("}", "}}")
         prefix = perms_util.get_prefix(user.internal_rank, perms_util.PERMISSIONS)
         suffix = perms_util.get_suffix(user.internal_rank, perms_util.PERMISSIONS)
         message = f"{prefix}{ev.player.name_tag}{suffix}{config['modules']['server_messages']['chat_prefix']}§r{safe_message}"
         ev.format = message
+
 
     discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")
     return True

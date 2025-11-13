@@ -112,14 +112,16 @@ def preload_settings():
             "mute_laggy_sounds": True
         }),
         "server_messages": OrderedDict({
+            "skin_change_messages": True,
             "enhanced_whispers": True,
             "enhanced_chat": True,
             "rank_meta_data": True,
             "rank_meta_nametags": False,
+            "chat_cooldown": 0,
             "chat_prefix": "§r: ",
             "whisper_prefix": "§8[§bWhisper§8]§r ",
             "social_spy_prefix": "§8[§bSocial Spy§8]§r ",
-            "staff_chat_prefix": "§8[§bStaff Chat§8]§r ",
+            "staff_chat_prefix": "§8[§bStaff Chat§8]§r "
         }),
         "message_of_the_day": OrderedDict({
             "message_of_the_day_command": "§cUnset",
