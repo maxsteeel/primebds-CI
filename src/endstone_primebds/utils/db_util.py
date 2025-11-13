@@ -138,6 +138,35 @@ class Warps:
     category: str
     description: str
     cost: int
+    cooldown: int
+    delay: int
+
+@dataclass
+class Homes:
+    xuid: str
+    username: str
+    name: str
+    pos: str
+    cost: int
+    cooldown: int
+    delay: int
+    
+@dataclass
+class Spawn:
+    pos: str
+    cost: int
+    cooldown: int
+    delay: int
+
+@dataclass
+class LastWarp:
+    xuid: str
+    username: str
+    name: str
+    pos: str
+    cost: int
+    cooldown: int
+    delay: int
 
 @dataclass
 class Inventory:
@@ -336,6 +365,8 @@ class ServerDB(DatabaseManager):
                     print(f"Warning: Could not add column '{f.name}' to {table_name}: {e}")
 
     def create_tables(self):
+        """Creates all necessary tables for the server database."""
+
         server_info_columns = {
             'id': 'INTEGER PRIMARY KEY CHECK (id = 1)',
             'last_shutdown_time': 'INTEGER',
@@ -369,11 +400,59 @@ class ServerDB(DatabaseManager):
             'displayname': 'TEXT',
             'category': 'TEXT',
             'description': 'TEXT',
-            'cost': 'REAL DEFAULT 0'
+            'cost': 'REAL DEFAULT 0',
+            'cooldown': 'REAL DEFAULT 0',
+            'delay': 'REAL DEFAULT 0'
         }
         self.create_table('warps', warps_columns)
-        self.execute("INSERT OR IGNORE INTO server_info (id, last_shutdown_time) VALUES (1, 0)")
+
+        homes_columns = {
+            'xuid': 'TEXT',
+            'username': 'TEXT',
+            'name': 'TEXT',
+            'pos': 'TEXT',
+            'cooldown': 'REAL DEFAULT 0',
+            'delay': 'REAL DEFAULT 0',
+            'cost': 'REAL DEFAULT 0',
+            'UNIQUE (xuid, name)': '',
+            'UNIQUE (username, name)': ''
+        }
+        self.create_table('homes', homes_columns)
+
+        spawns_columns = {
+            'id': 'INTEGER PRIMARY KEY CHECK (id = 1)',
+            'pos': 'TEXT',
+            'cost': 'REAL DEFAULT 0',
+            'cooldown': 'REAL DEFAULT 0',
+            'delay': 'REAL DEFAULT 0'
+        }
+        self.create_table('spawns', spawns_columns)
+
+        last_warp_columns = {
+            'xuid': 'TEXT',
+            'username': 'TEXT',
+            'name': 'TEXT',
+            'pos': 'TEXT',
+            'cooldown': 'REAL DEFAULT 0',
+            'delay': 'REAL DEFAULT 0',
+            'cost': 'REAL DEFAULT 0',
+            'UNIQUE (xuid)': '',
+            'UNIQUE (username)': ''
+        }
+        self.create_table('last_warp', last_warp_columns)
+
+        self.execute(
+            "INSERT OR IGNORE INTO server_info (id, last_shutdown_time) VALUES (1, 0)"
+        )
         self.conn.commit()
+
+        self.migrate_table("server_info", ServerData) 
+        self.migrate_table("name_bans", NameBans) 
+        self.migrate_table("jails", Jails)
+        self.migrate_table("warps", Warps)
+        self.migrate_table("homes", Homes)       
+        self.migrate_table("spawns", Spawn)       
+        self.migrate_table("last_warp", LastWarp)
 
     def update_server_info(self, column: str, value):
         """
@@ -555,90 +634,84 @@ class ServerDB(DatabaseManager):
         cur = self.execute("DELETE FROM jails WHERE name = ?", (name,))
         self.conn.commit()
         return cur.rowcount > 0
-
-    def create_warp(self, name: str, location: Location, displayname: str = None, category: str = None, description: str = None, cost: float = 0.0) -> bool:
-        # Check if warp name exists
+    
+    def create_warp(self, name: str, location: Location, displayname: str = None, category: str = None,
+                    description: str = None, cost: float = 0.0, cooldown: int = 0, delay: int = 0) -> bool:
+        """Create a new warp."""
         if self.execute("SELECT 1 FROM warps WHERE name = ?", (name,)).fetchone():
             return False
 
         pos_str = self.encode_location(location)
         self.execute(
             '''
-            INSERT INTO warps (name, pos, displayname, category, description, cost)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO warps (name, pos, displayname, category, description, cost, cooldown, delay)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''',
-            (name, pos_str, displayname, category, description, cost)
+            (name, pos_str, displayname, category, description, cost, cooldown, delay)
         )
         self.conn.commit()
         return True
-    
-    def update_warp_pos(self, name: str, location: Location) -> bool:
-        if not self.execute("SELECT 1 FROM warps WHERE name = ?", (name,)).fetchone():
-            return False  # Warp does not exist
-        pos_str = self.encode_location(location)
-        self.execute("UPDATE warps SET pos = ? WHERE name = ?", (pos_str, name))
-        self.conn.commit()
-        return True
 
-    def update_warp_displayname(self, name: str, displayname: str) -> bool:
+    def update_warp_property(self, name: str, field: str, value) -> bool:
+        """Generic helper to update a single warp field.
+        Automatically encodes Location if updating 'pos'."""
+        allowed_fields = ("pos", "displayname", "category", "description", "cost", "cooldown", "delay")
+        if field not in allowed_fields:
+            raise ValueError(f"Invalid warp field: {field}")
+
         if not self.execute("SELECT 1 FROM warps WHERE name = ?", (name,)).fetchone():
             return False
-        self.execute("UPDATE warps SET displayname = ? WHERE name = ?", (displayname, name))
-        self.conn.commit()
-        return True
 
-    def update_warp_category(self, name: str, category: str) -> bool:
-        if not self.execute("SELECT 1 FROM warps WHERE name = ?", (name,)).fetchone():
-            return False
-        self.execute("UPDATE warps SET category = ? WHERE name = ?", (category, name))
-        self.conn.commit()
-        return True
+        # Handle Location encoding for 'pos'
+        if field == "pos":
+            if not hasattr(value, "x") or not hasattr(value, "dimension"):
+                raise TypeError("Expected a Location object for 'pos'")
+            value = self.encode_location(value)
 
-    def update_warp_description(self, name: str, description: str) -> bool:
-        if not self.execute("SELECT 1 FROM warps WHERE name = ?", (name,)).fetchone():
-            return False
-        self.execute("UPDATE warps SET description = ? WHERE name = ?", (description, name))
-        self.conn.commit()
-        return True
-
-    def update_warp_cost(self, name: str, cost: float) -> bool:
-        if not self.execute("SELECT 1 FROM warps WHERE name = ?", (name,)).fetchone():
-            return False
-        self.execute("UPDATE warps SET cost = ? WHERE name = ?", (cost, name))
+        self.execute(f"UPDATE warps SET {field} = ? WHERE name = ?", (value, name))
         self.conn.commit()
         return True
 
     def get_warp(self, name: str, server) -> dict | None:
         row = self.execute(
-            "SELECT name, pos, displayname, category, description, cost FROM warps WHERE name = ?",
+            """
+            SELECT name, pos, displayname, category, description, cost, cooldown, delay
+            FROM warps
+            WHERE name = ? COLLATE NOCASE
+            """,
             (name,)
         ).fetchone()
-        if row is None:
+        if not row:
             return None
 
-        name, pos_str, displayname, category, description, cost = row
+        name, pos_str, displayname, category, description, cost, cooldown, delay = row
         pos = self.decode_location(pos_str, server) if pos_str else None
-
         return {
             'name': name,
             'pos': pos,
             'displayname': displayname,
             'category': category,
             'description': description,
-            'cost': cost
+            'cost': cost,
+            'cooldown': cooldown,
+            'delay': delay
         }
 
     def get_all_warps(self, server) -> dict[str, dict]:
         warps = {}
-        rows = self.execute("SELECT name, pos, displayname, category, description, cost FROM warps").fetchall()
-        for name, pos_str, displayname, category, description, cost in rows:
+        rows = self.execute(
+            "SELECT name, pos, displayname, category, description, cost, cooldown, delay FROM warps"
+        ).fetchall()
+        for name, pos_str, displayname, category, description, cost, cooldown, delay in rows:
             pos = self.decode_location(pos_str, server) if pos_str else None
             warps[name] = {
                 'pos': pos,
                 'displayname': displayname,
                 'category': category,
                 'description': description,
-                'cost': cost
+                'cost': cost,
+                'cooldown': cooldown,
+                'delay': delay
             }
         return warps
 
@@ -646,6 +719,226 @@ class ServerDB(DatabaseManager):
         cur = self.execute("DELETE FROM warps WHERE name = ?", (name,))
         self.conn.commit()
         return cur.rowcount > 0
+
+    def create_spawn(self, location: Location, cost: float = 0.0, cooldown: int = 0, delay: int = 0) -> bool:
+        """Creates or replaces the single global spawn."""
+        pos_str = self.encode_location(location)
+        existing = self.execute("SELECT 1 FROM spawns LIMIT 1").fetchone()
+
+        if existing:
+            self.execute(
+                "UPDATE spawns SET pos = ?, cost = ?, cooldown = ?, delay = ?",
+                (pos_str, cost, cooldown, delay)
+            )
+        else:
+            self.execute(
+                "INSERT INTO spawns (pos, cost, cooldown, delay) VALUES (?, ?, ?, ?)",
+                (pos_str, cost, cooldown, delay)
+            )
+
+        self.conn.commit()
+        return True
+
+    def update_spawn_property(self, field: str, value) -> bool:
+        """Generic helper to update a single spawn field.
+        Automatically encodes location data when updating 'pos'."""
+        if field not in ("pos", "cost", "cooldown", "delay"):
+            raise ValueError(f"Invalid spawn field: {field}")
+
+        if not self.execute("SELECT 1 FROM spawns LIMIT 1").fetchone():
+            return False
+
+        # Handle location encoding
+        if field == "pos":
+            if not hasattr(value, "x") or not hasattr(value, "dimension"):
+                raise TypeError("Expected a Location object for 'pos'")
+            value = self.encode_location(value)
+
+        self.execute(f"UPDATE spawns SET {field} = ?", (value,))
+        self.conn.commit()
+        return True
+
+    def get_spawn(self, server) -> dict | None:
+        """Gets the single global spawn."""
+        row = self.execute("SELECT pos, cost, cooldown, delay FROM spawns LIMIT 1").fetchone()
+        if not row:
+            return None
+        pos_str, cost, cooldown, delay = row
+        pos = self.decode_location(pos_str, server) if pos_str else None
+        return {'pos': pos, 'cost': cost, 'cooldown': cooldown, 'delay': delay}
+
+    def delete_spawn(self) -> bool:
+        cur = self.execute("DELETE FROM spawns")
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def create_home(self, xuid: str, username: str, name: str, location: Location) -> bool:
+        if not xuid and not username:
+            raise ValueError("Either xuid or username must be provided.")
+        
+        where_clause, params = self.user_selector(xuid, username)
+        if self.execute(f"SELECT 1 FROM homes WHERE {where_clause} AND name = ?", (*params, name)).fetchone():
+            return False
+
+        pos_str = self.encode_location(location)
+        self.execute(
+            "INSERT INTO homes (xuid, username, name, pos) VALUES (?, ?, ?, ?)",
+            (xuid, username, name, pos_str)
+        )
+        self.conn.commit()
+        return True
+
+    def set_home_settings(self, delay: float = 0, cooldown: float = 0, cost: float = 0) -> bool:
+        """Set the global cooldown, delay, and cost for /home warps."""
+        existing = self.execute("SELECT 1 FROM homes WHERE xuid IS NULL AND username IS NULL AND name = 'home_settings'").fetchone()
+
+        if existing:
+            self.execute(
+                "UPDATE homes SET delay = ?, cooldown = ?, cost = ? WHERE xuid IS NULL AND username IS NULL AND name = 'home_settings'",
+                (delay, cooldown, cost)
+            )
+        else:
+            self.execute(
+                "INSERT INTO homes (xuid, username, name, pos, cooldown, delay) VALUES (?, ?, ?, ?, ?, ?)",
+                (None, None, "home_settings", "", cooldown, delay)
+            )
+
+        self.conn.commit()
+        return True
+
+    def get_home_settings(self) -> dict:
+        """Retrieve the global cooldown, delay, and cost for /home warps."""
+        row = self.execute(
+            "SELECT delay, cooldown, cost FROM homes WHERE xuid IS NULL AND username IS NULL AND name = 'home_settings'"
+        ).fetchone()
+
+        if row:
+            delay, cooldown, cost = row
+            return {"delay": delay, "cooldown": cooldown, "cost": cost}
+        return {"delay": 0, "cooldown": 0, "cost": 0}
+    
+    def delete_home(self, name: str, xuid: str = None, username: str = None) -> bool:
+        """Delete a specific home by name for a player (identified by xuid or username)."""
+        if not xuid and not username:
+            raise ValueError("Either xuid or username must be provided.")
+
+        where_clause, params = self.user_selector(xuid, username)
+        cur = self.execute(f"DELETE FROM homes WHERE {where_clause} AND name = ?", (*params, name))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def get_home(self, name: str, server, xuid: str = None, username: str = None) -> dict | None:
+        where_clause, params = self.user_selector(xuid, username)
+        row = self.execute(
+            f"""
+            SELECT xuid, username, name, pos, cooldown, delay
+            FROM homes
+            WHERE {where_clause} AND name = ? COLLATE NOCASE
+            """,
+            (*params, name)
+        ).fetchone()
+
+        if not row:
+            return None
+
+        xuid, username, name, pos_str, cooldown, delay = row
+        pos = self.decode_location(pos_str, server) if pos_str else None
+
+        return {
+            'xuid': xuid,
+            'username': username,
+            'name': name,
+            'pos': pos,
+            'cooldown': cooldown,
+            'delay': delay
+        }
+
+    def get_all_homes(self, server, xuid: str = None, username: str = None) -> dict[str, dict]:
+        where_clause, params = self.user_selector(xuid, username)
+        homes = {}
+        rows = self.execute(f"SELECT name, pos, cooldown, delay FROM homes WHERE {where_clause}", params).fetchall()
+        for name, pos_str, cooldown, delay in rows:
+            pos = self.decode_location(pos_str, server) if pos_str else None
+            homes[name] = {'pos': pos, 'cooldown': cooldown, 'delay': delay}
+        return homes
+    
+    def set_last_warp(self, location: Location, xuid: str = None, username: str = None,
+                    name: str = "lastwarp") -> bool:
+        if not xuid and not username:
+            raise ValueError("Either xuid or username must be provided.")
+
+        pos_str = self.encode_location(location)
+        where_clause, params = self.user_selector(xuid, username)
+        existing = self.execute(f"SELECT 1 FROM last_warp WHERE {where_clause}", params).fetchone()
+
+        if existing:
+            self.execute(
+                f"UPDATE last_warp SET pos = ?, name = ? WHERE {where_clause}",
+                (pos_str, name, *params)
+            )
+        else:
+            self.execute(
+                "INSERT INTO last_warp (xuid, username, name, pos) VALUES (?, ?, ?, ?)",
+                (xuid, username, name, pos_str)
+            )
+
+        self.conn.commit()
+        return True
+
+    def set_last_warp_settings(self, cooldown: int = 0, delay: int = 0) -> bool:
+        """Set the global cooldown and delay for /back warps."""
+        # Check if there is any row in last_warp table, we only need one row for settings
+        existing = self.execute("SELECT 1 FROM last_warp LIMIT 1").fetchone()
+
+        if existing:
+            self.execute("UPDATE last_warp SET cooldown = ?, delay = ?",
+                        (cooldown, delay))
+        else:
+            # Insert a dummy row to hold settings (xuid and username can be NULL)
+            self.execute(
+                "INSERT INTO last_warp (xuid, username, name, pos, cooldown, delay) VALUES (?, ?, ?, ?, ?, ?)",
+                (None, None, "lastwarp_settings", "", cooldown, delay)
+            )
+
+        self.conn.commit()
+        return True
+
+    def get_last_warp(self, server, xuid: str = None, username: str = None) -> dict | None:
+        if not xuid and not username:
+            raise ValueError("Either xuid or username must be provided.")
+
+        where_clause, params = self.user_selector(xuid, username)
+        row = self.execute(
+            f"SELECT xuid, username, name, pos, cooldown, delay FROM last_warp WHERE {where_clause}",
+            params
+        ).fetchone()
+        if not row:
+            return None
+
+        xuid, username, name, pos_str, cooldown, delay = row
+        pos = self.decode_location(pos_str, server) if pos_str else None
+        return {'xuid': xuid, 'username': username, 'name': name, 'pos': pos, 'cooldown': cooldown, 'delay': delay}
+
+    def delete_last_warp(self, xuid: str = None, username: str = None) -> bool:
+        if not xuid and not username:
+            raise ValueError("Either xuid or username must be provided.")
+
+        where_clause, params = self.user_selector(xuid, username)
+        cur = self.execute(f"DELETE FROM last_warp WHERE {where_clause}", params)
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def user_selector(self, xuid: str = None, username: str = None) -> tuple[str, tuple]:
+        """
+        Returns a SQL WHERE clause and its parameters for identifying the user.
+        Priority: xuid > username.
+        """
+        if xuid:
+            return "xuid = ?", (xuid,)
+        elif username:
+            return "username = ?", (username,)
+        else:
+            raise ValueError("Either xuid or username must be provided.")
 
 class UserDB(DatabaseManager):
     def __init__(self, db_name: str):

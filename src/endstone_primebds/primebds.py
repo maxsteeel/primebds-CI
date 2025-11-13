@@ -44,7 +44,7 @@ from endstone_primebds.handlers.preprocesses import handle_command_preprocess, h
 from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event, handle_kick_event
 from endstone_primebds.handlers.combat import handle_kb_event, handle_damage_event
 from endstone_primebds.handlers.multiworld import start_additional_servers, stop_additional_servers, is_nested_multiworld_instance
-from endstone_primebds.handlers.intervals import stop_intervals, init_jail_intervals
+from endstone_primebds.handlers.intervals import stop_intervals, init_jail_intervals, init_afk_intervals
 from endstone_primebds.handlers.packets import handle_packetsend_event, handle_packetrecieve_event
 from endstone_primebds.handlers.actions import handle_gamemode_event, handle_interact_event, handle_teleport_event
 from endstone_primebds.handlers.items import handle_item_pickup_event, handle_item_use, handle_item_drop_event
@@ -70,6 +70,7 @@ class PrimeBDS(Plugin):
         self.cached_players = set()
         self.vanish_state = {}
         self.jail_cache = {}
+        self.afk_cache = {}
         self.packet_last_sample = {
             "time": time.time(),
             "counts": {}
@@ -198,6 +199,7 @@ class PrimeBDS(Plugin):
         load_config()
 
         init_jail_intervals(self)
+        init_afk_intervals(self)
         last_shutdown_time = self.serverdb.get_server_info().last_shutdown_time
         self.last_shutdown_time = last_shutdown_time 
 
