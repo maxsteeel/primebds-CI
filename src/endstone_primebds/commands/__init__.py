@@ -58,6 +58,10 @@ def preload_settings():
             "constantly_check_afk_status": False,
             "idle_threshold": 300
         }),
+        "back": OrderedDict({
+            "save_unnatural_teleports": True,
+            "save_death_locations": True
+        }),
         "broadcast": OrderedDict({
             "prefix": "§l§8[§c!§8] §r§e",
             "playsound": "random.toast"

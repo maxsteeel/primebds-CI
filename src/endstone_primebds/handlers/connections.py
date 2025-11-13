@@ -84,6 +84,7 @@ def handle_join_event(self: "PrimeBDS", ev: PlayerJoinEvent):
 
     # Update Saved Data
     self.db.save_user(ev.player)
+    self.db.update_user_data(ev.player.name, "is_afk", 0)
     self.db.update_user_data(ev.player.name, 'last_join', int(time.time()))
     self.db.check_alts(ev.player.xuid, ev.player.name, str(ev.player.address), ev.player.device_id)
     self.server.scheduler.run_task(self, self.reload_custom_perms(ev.player), 1)
@@ -141,6 +142,7 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
     # Update Data On Leave
     self.db.update_user_data(ev.player.name, 'xp', ev.player.total_exp)
     self.db.update_user_data(ev.player.name, 'last_leave', int(time.time()))
+    self.db.update_user_data(ev.player.name, "is_afk", 0)
     self.db.save_inventory(ev.player)
     self.db.save_enderchest(ev.player)
     stop_jail_check_if_not_needed(self)
