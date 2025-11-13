@@ -53,6 +53,15 @@ def preload_settings():
         actual.update(reordered)
 
     default_modules = OrderedDict({
+        "afk": OrderedDict({
+            "broadcast_afk_status": True,
+            "constantly_check_afk_status": False,
+            "idle_threshold": 300
+        }),
+        "back": OrderedDict({
+            "save_unnatural_teleports": True,
+            "save_death_locations": True
+        }),
         "broadcast": OrderedDict({
             "prefix": "§l§8[§c!§8] §r§e",
             "playsound": "random.toast"
