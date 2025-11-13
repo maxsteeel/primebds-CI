@@ -36,16 +36,17 @@ Prime BDS Loaded!
 # EVENT & HANDLER IMPORTS
 from endstone.event import (EventPriority, event_handler, PlayerLoginEvent, PlayerJoinEvent, PlayerQuitEvent,
                             ServerCommandEvent, PlayerCommandEvent, PlayerChatEvent, ActorDamageEvent, ActorKnockbackEvent, PacketSendEvent, PlayerPickupItemEvent, 
-                            PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent,
-                            ServerLoadEvent, PlayerKickEvent, PlayerBedEnterEvent, PlayerEmoteEvent, LeavesDecayEvent, PlayerSkinChangeEvent)
+                            PlayerGameModeChangeEvent, PlayerInteractActorEvent, PlayerDropItemEvent, PlayerItemConsumeEvent, PacketReceiveEvent,
+                            ServerLoadEvent, PlayerKickEvent, PlayerBedEnterEvent, PlayerEmoteEvent, 
+                            LeavesDecayEvent, PlayerSkinChangeEvent, PlayerTeleportEvent)
 from endstone_primebds.handlers.chat import handle_chat_event
 from endstone_primebds.handlers.preprocesses import handle_command_preprocess, handle_server_command_preprocess
 from endstone_primebds.handlers.connections import handle_login_event, handle_join_event, handle_leave_event, handle_kick_event
 from endstone_primebds.handlers.combat import handle_kb_event, handle_damage_event
 from endstone_primebds.handlers.multiworld import start_additional_servers, stop_additional_servers, is_nested_multiworld_instance
 from endstone_primebds.handlers.intervals import stop_intervals, init_jail_intervals
-from endstone_primebds.handlers.packets import handle_packetsend_event
-from endstone_primebds.handlers.actions import handle_gamemode_event, handle_interact_event
+from endstone_primebds.handlers.packets import handle_packetsend_event, handle_packetrecieve_event
+from endstone_primebds.handlers.actions import handle_gamemode_event, handle_interact_event, handle_teleport_event
 from endstone_primebds.handlers.items import handle_item_pickup_event, handle_item_use, handle_item_drop_event
 from endstone_primebds.handlers.gamerules import handle_bed_enter_event, handle_emote_event, handle_leaves_decay_event, handle_skin_change_event
 
@@ -74,6 +75,7 @@ class PrimeBDS(Plugin):
             "counts": {}
         }
         self.globalmute = 0
+        self.chat_cooldown = {}
         self.silentmutes = set()
         self.isgod = set()
         self.crasher_patch_applied = set()
@@ -94,6 +96,10 @@ class PrimeBDS(Plugin):
         self.serverdb = ServerDB("server.db")
 
     # EVENT HANDLER
+    @event_handler
+    def on_player_teleport(self, ev: PlayerTeleportEvent):
+        handle_teleport_event(self, ev)
+
     @event_handler
     def on_player_bed_enter(self, ev: PlayerBedEnterEvent):
         handle_bed_enter_event(self, ev)
@@ -121,6 +127,10 @@ class PrimeBDS(Plugin):
     @event_handler()
     def on_packet_send(self, ev: PacketSendEvent):
         handle_packetsend_event(self, ev)
+
+    @event_handler()
+    def on_packet_receive(self, ev: PacketReceiveEvent):
+        handle_packetrecieve_event(self, ev)
 
     @event_handler()
     def on_item_use(self, ev: PlayerItemConsumeEvent):

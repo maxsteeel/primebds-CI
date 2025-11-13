@@ -75,3 +75,6 @@ def handle_packetrecieve_event(self: "PrimeBDS", ev: PacketReceiveEvent):
             if self.vanish_state.get(packet.actor_unique_id, False):
                 ev.is_cancelled = True
                 return
+            
+    if self.monitor_intervals:
+        self.packets_sent_count[pid] = self.packets_sent_count.get(pid, 0) + 1
