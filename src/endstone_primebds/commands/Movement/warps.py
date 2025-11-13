@@ -11,13 +11,13 @@ command, permission = create_command(
     "Manage server warps!",
     [
         "/warps (list)[warps_list: warps_list]",
-        "/warps (create)[warp_create: warp_create] <name: str>",
-        "/warps (delete)[warp_delete: warp_delete] <name: str>",
+        "/warps (create)[warp_create: warp_create] <name: message>",
+        "/warps (delete)[warp_delete: warp_delete] <name: message>",
         "/warps (setcost)[warp_setcost: warp_setcost] <name: str> <cost: float>",
-        "/warps (setdescription)[warp_setdescription: warp_setdescription] <name: str> <description: str>",
-        "/warps (setcategory)[warp_setcategory: warp_setcategory] <name: str> <category: str>",
-        "/warps (setdisplayname)[warp_setdisplayname: warp_setdisplayname] <name: str> <displayname: str>",
-        "/warps (setname)[warp_setname: warp_setname] <old_name: str> <new_name: str>",
+        "/warps (setdescription)[warp_setdescription: warp_setdescription] <name: str> <description: message>",
+        "/warps (setcategory)[warp_setcategory: warp_setcategory] <name: str> <category: message>",
+        "/warps (setdisplayname)[warp_setdisplayname: warp_setdisplayname] <name: str> <displayname: message>",
+        "/warps (setname)[warp_setname: warp_setname] <old_name: str> <new_name: message>",
         "/warps (setdelay)[warp_setdelay: warp_setdelay] <name: str> <delay: float>",
         "/warps (setcooldown)[warp_setcooldown: warp_setcooldown] <name: str> <cooldown: float>"
     ],
@@ -50,22 +50,28 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         for name, warp in warps.items():
             cat = warp.get("category")
             display = warp.get("displayname") or name
+            desc = warp.get("description")
+
+            if desc:
+                full_display = f"§b{display} §7- {desc}"
+            else:
+                full_display = f"§b{display}"
 
             if cat:
-                categories.setdefault(cat, []).append(display)
+                categories.setdefault(cat, []).append(full_display)
             else:
-                uncategorized.append(display)
+                uncategorized.append(full_display)
 
         msg_lines: list[str] = []
-        for cat, names in categories.items():
+        for cat, entries in categories.items():
             msg_lines.append(f"§6{cat}:")
-            for display in names:
-                msg_lines.append(f"§7- §b{display}")
+            for line in entries:
+                msg_lines.append(f"§7- {line}")
 
         if uncategorized:
             msg_lines.append("§6Uncategorized:")
-            for display in uncategorized:
-                msg_lines.append(f"§7- §b{display}")
+            for line in uncategorized:
+                msg_lines.append(f"§7- {line}")
 
         sender.send_message("§aWarps:\n" + "\n".join(msg_lines))
         return True
@@ -89,7 +95,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if sub.startswith("set") and len(args) >= 3:
         name = args[1]
-        warp = self.serverdb.get_warp(name)
+        warp = self.serverdb.get_warp(name, self.server)
         if not warp:
             sender.send_message(f"§cWarp §e{name} §cdoes not exist")
             return True
@@ -97,7 +103,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         if sub == "setcost":
             try:
                 cost = float(args[2])
-                self.serverdb.update_warp_property(name, cost=cost)
+                self.serverdb.update_warp_property(name, "cost", cost)
                 sender.send_message(f"§aWarp §e{name} §acost updated to §e{cost}")
             except ValueError:
                 sender.send_message("§cInvalid cost value")
@@ -105,32 +111,32 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
         if sub == "setdescription":
             description = " ".join(args[2:])
-            self.serverdb.update_warp_property(name, description=description)
+            self.serverdb.update_warp_property(name, "description", description)
             sender.send_message(f"§aWarp §e{name} §adescription updated")
             return True
 
         if sub == "setcategory":
             category = args[2]
-            self.serverdb.update_warp_property(name, category=category)
+            self.serverdb.update_warp_property(name, "category", category)
             sender.send_message(f"§aWarp §e{name} §acategory updated to §e{category}")
             return True
 
         if sub == "setdisplayname":
             displayname = " ".join(args[2:])
-            self.serverdb.update_warp_property(name, displayname=displayname)
+            self.serverdb.update_warp_property(name, "displayname", displayname)
             sender.send_message(f"§aWarp §e{name} §adisplay name updated")
             return True
 
         if sub == "setname" and len(args) >= 3:
             new_name = args[2]
-            self.serverdb.update_warp_property(name, new_name)
+            self.serverdb.update_warp_property(name, "name", new_name)
             sender.send_message(f"§aWarp §e{name} §arenamed to §e{new_name}")
             return True
 
         if sub == "setdelay":
             try:
                 delay = float(args[2])
-                self.serverdb.update_warp_property(name, delay=delay)
+                self.serverdb.update_warp_property(name, "delay", delay)
                 sender.send_message(f"§aWarp §e{name} §adelay updated to §e{delay}s")
             except ValueError:
                 sender.send_message("§cInvalid delay value")
@@ -139,7 +145,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         if sub == "setcooldown":
             try:
                 cooldown = float(args[2])
-                self.serverdb.update_warp_property(name, cooldown=cooldown)
+                self.serverdb.update_warp_property(name, "cooldown", cooldown)
                 sender.send_message(f"§aWarp §e{name} §acooldown updated to §e{cooldown}s")
             except ValueError:
                 sender.send_message("§cInvalid cooldown value")

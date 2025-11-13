@@ -635,10 +635,29 @@ class ServerDB(DatabaseManager):
         self.conn.commit()
         return cur.rowcount > 0
     
+    def update_warp_property(self, name: str, field: str, value) -> bool:
+        """Update a single warp property, ignoring case for the warp name."""
+        allowed_fields = ("pos", "displayname", "category", "description", "cost", "cooldown", "delay")
+        if field not in allowed_fields:
+            raise ValueError(f"Invalid warp field: {field}")
+
+        if not self.execute("SELECT 1 FROM warps WHERE name = ? COLLATE NOCASE", (name,)).fetchone():
+            return False
+
+        if field == "pos":
+            if not hasattr(value, "x") or not hasattr(value, "dimension"):
+                raise TypeError("Expected a Location object for 'pos'")
+            value = self.encode_location(value)
+
+        self.execute(f"UPDATE warps SET {field} = ? WHERE name = ? COLLATE NOCASE", (value, name))
+        self.conn.commit()
+        return True
+
     def create_warp(self, name: str, location: Location, displayname: str = None, category: str = None,
                     description: str = None, cost: float = 0.0, cooldown: int = 0, delay: int = 0) -> bool:
-        """Create a new warp."""
-        if self.execute("SELECT 1 FROM warps WHERE name = ?", (name,)).fetchone():
+        """Create a new warp, preventing duplicates regardless of capitalization."""
+
+        if self.execute("SELECT 1 FROM warps WHERE name = ? COLLATE NOCASE", (name,)).fetchone():
             return False
 
         pos_str = self.encode_location(location)
@@ -649,26 +668,6 @@ class ServerDB(DatabaseManager):
             ''',
             (name, pos_str, displayname, category, description, cost, cooldown, delay)
         )
-        self.conn.commit()
-        return True
-
-    def update_warp_property(self, name: str, field: str, value) -> bool:
-        """Generic helper to update a single warp field.
-        Automatically encodes Location if updating 'pos'."""
-        allowed_fields = ("pos", "displayname", "category", "description", "cost", "cooldown", "delay")
-        if field not in allowed_fields:
-            raise ValueError(f"Invalid warp field: {field}")
-
-        if not self.execute("SELECT 1 FROM warps WHERE name = ?", (name,)).fetchone():
-            return False
-
-        # Handle Location encoding for 'pos'
-        if field == "pos":
-            if not hasattr(value, "x") or not hasattr(value, "dimension"):
-                raise TypeError("Expected a Location object for 'pos'")
-            value = self.encode_location(value)
-
-        self.execute(f"UPDATE warps SET {field} = ? WHERE name = ?", (value, name))
         self.conn.commit()
         return True
 
@@ -716,7 +715,8 @@ class ServerDB(DatabaseManager):
         return warps
 
     def delete_warp(self, name: str) -> bool:
-        cur = self.execute("DELETE FROM warps WHERE name = ?", (name,))
+        """Delete a warp by name, ignoring capitalization."""
+        cur = self.execute("DELETE FROM warps WHERE name = ? COLLATE NOCASE", (name,))
         self.conn.commit()
         return cur.rowcount > 0
 

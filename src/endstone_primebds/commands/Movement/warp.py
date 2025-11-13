@@ -43,6 +43,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         return True
 
     sub = args[0].lower()
+    warp_name = ""
 
     if sub == "list":
         warps = self.serverdb.get_all_warps(self.server)
@@ -56,30 +57,39 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         for name, warp in warps.items():
             cat = warp.get("category")
             display = warp.get("displayname") or name
+            desc = warp.get("description")
+
+            if desc:
+                full_display = f"§b{display} §7- {desc}"
+            else:
+                full_display = f"§b{display}"
 
             if cat:
-                categories.setdefault(cat, []).append(display)
+                categories.setdefault(cat, []).append(full_display)
             else:
-                uncategorized.append(display)
+                uncategorized.append(full_display)
 
         msg_lines: list[str] = []
-        for cat, names in categories.items():
+        for cat, entries in categories.items():
             msg_lines.append(f"§6{cat}:")
-            for display in names:
-                msg_lines.append(f"§7- §b{display}")
+            for line in entries:
+                msg_lines.append(f"§7- {line}")
 
         if uncategorized:
             msg_lines.append("§6Uncategorized:")
-            for display in uncategorized:
-                msg_lines.append(f"§7- §b{display}")
+            for line in uncategorized:
+                msg_lines.append(f"§7- {line}")
 
         sender.send_message("§aWarps:\n" + "\n".join(msg_lines))
         return True
 
     warp = self.serverdb.get_warp(sub, self.server)
     if not warp or not warp.get("pos"):
-        sender.send_message(f"§cWarp §e{sub} §cdoes not exist")
+        warp_name = sub if not warp else warp.get("displayname") or sub
+        sender.send_message(f"§cWarp §e{warp_name} §cdoes not exist")
         return True
+
+    warp_name = warp.get("displayname") or warp["name"]
 
     warp_delay = 0 if exempt_delay else warp.get("delay", 0)
     warp_cooldown = 0 if exempt_cooldown else warp.get("cooldown", 0)
@@ -94,7 +104,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if warp_delay > 0:
         warp_delays[sender.id] = True
-        sender.send_popup(f"§aWarping to §e{sub} §ain {warp_delay:.1f}s")
+        sender.send_popup(f"§aWarping to §e{warp_name} §ain {warp_delay:.1f}s")
 
         def repeated_check():
             if sender.location.distance(start_pos) > 0.25:
@@ -103,18 +113,18 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 return True
             if time() - start_time >= warp_delay:
                 sender.teleport(warp["pos"])
-                sender.send_message(f"§aWarped to §e{sub}")
+                sender.send_message(f"§aWarped to §e{warp_name}")
                 warp_cooldowns[sender.id] = time()
                 warp_delays[sender.id] = False
                 return True
             remaining = max(0, warp_delay - (time() - start_time))
-            sender.send_popup(f"§aWarping to §e{sub} §ain {remaining:.1f}s")
+            sender.send_popup(f"§aWarping to §e{warp_name} §ain {remaining:.1f}s")
             return False
 
         self.server.scheduler.run_task(self, repeated_check, delay=0, period=20)
     else:
         sender.teleport(warp["pos"])
-        sender.send_message(f"§aWarped to §e{sub}")
+        sender.send_message(f"§aWarped to §e{warp_name}")
         warp_cooldowns[sender.id] = current_time
 
     return True
@@ -165,6 +175,7 @@ def open_warp_menu(self: "PrimeBDS", player: Player):
 
             selected_warp_name = warp_names[warp_result.selection]
             warp_data = self.serverdb.get_warp(selected_warp_name, self.server)
+            warp_name = warp_data.get("displayname") or warp_data.get("name")
             if not warp_data or not warp_data.get("pos"):
                 player.send_message(f"§cWarp §e{selected_warp_name} §cdoes not exist")
                 open_warp_menu(self, player)
@@ -186,7 +197,7 @@ def open_warp_menu(self: "PrimeBDS", player: Player):
             start_pos = player.location
             if warp_delay > 0 and not exempt_delay:
                 warp_delays[player.id] = True
-                player.send_popup(f"§7Warping to §e{selected_warp_name} §7in {warp_delay:.1f}s... Don't move!")
+                player.send_popup(f"§7Warping to §e{warp_name} §7in {warp_delay:.1f}s... Don't move!")
 
                 def repeated_check():
                     if player.location.distance(start_pos) > 0.25:
@@ -195,18 +206,18 @@ def open_warp_menu(self: "PrimeBDS", player: Player):
                         return True
                     if time() - now >= warp_delay:
                         player.teleport(warp_data["pos"])
-                        player.send_message(f"§aWarped to §e{selected_warp_name}")
+                        player.send_message(f"§aWarped to §e{warp_name}")
                         warp_cooldowns[player.id] = time()
                         warp_delays[player.id] = False
                         return True
                     remaining = max(0, warp_delay - (time() - now))
-                    player.send_popup(f"§7Warping to §e{selected_warp_name} §7in {remaining:.1f}s")
+                    player.send_popup(f"§7Warping to §e{warp_name} §7in {remaining:.1f}s")
                     return False
 
                 self.server.scheduler.run_task(self, repeated_check, delay=0, period=20)
             else:
                 player.teleport(warp_data["pos"])
-                player.send_message(f"§aWarped to §e{selected_warp_name}")
+                player.send_message(f"§aWarped to §e{warp_name}")
                 warp_cooldowns[player.id] = now
 
         warp_form.show(player).then(lambda player=player, result=ActionFormResponse: warp_submit(player, result))
