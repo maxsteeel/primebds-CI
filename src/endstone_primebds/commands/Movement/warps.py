@@ -235,7 +235,7 @@ def open_warps_menu(self: "PrimeBDS", player):
     warps = self.serverdb.get_all_warps(self.server)
 
     if not warps:
-        player.send_message("§cNo warps exist.")
+        player.send_message("§cNo warps exist")
         return
 
     warp_list = sorted(warps.keys(), key=lambda x: x.lower())
@@ -279,7 +279,7 @@ def open_warp_edit_menu(self: "PrimeBDS", player, warp: dict):
         if not res or res.canceled:
             return True
 
-        displayname, category, description, alias_text, cost_str, cooldown_str, delay_str = res.form_values
+        displayname, category, description, alias_text, cost_str, cooldown_str, delay_str = res.formValues
         aliases = [a.strip() for a in alias_text.split(",") if a.strip()]
 
         try:
@@ -293,7 +293,7 @@ def open_warp_edit_menu(self: "PrimeBDS", player, warp: dict):
         self.serverdb.update_warp_property(warp["name"], "displayname", displayname)
         self.serverdb.update_warp_property(warp["name"], "category", category)
         self.serverdb.update_warp_property(warp["name"], "description", description)
-        self.serverdb.update_warp_property(warp["name"], "aliases", self.serverdb.encode_aliases(aliases))
+        self.serverdb.update_warp_property(warp["name"], "aliases", aliases)
         self.serverdb.update_warp_property(warp["name"], "cost", cost)
         self.serverdb.update_warp_property(warp["name"], "cooldown", cooldown)
         self.serverdb.update_warp_property(warp["name"], "delay", delay)

@@ -1,6 +1,8 @@
 from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
+from endstone_primebds.utils.internal_permissions_util import get_permission_header
+from endstone_primebds.utils.economy_utils import get_eco_link
 from time import time
 
 from endstone_primebds.utils.form_wrapper_util import (
@@ -38,7 +40,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     current_time = time()
     last_used = warp_cooldowns.get(sender.id, 0)
 
-    if not args:
+    if not args or not args[0]:
         open_warp_menu(self, sender)
         return True
 
@@ -101,6 +103,29 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     start_pos = sender.location
     start_time = time()
 
+    eco = get_eco_link(self)
+    warp_cost = warp.get("cost", 0)
+    if eco and warp_cost > 0:
+        cost_form = ActionFormData()
+        cost_form.title(f"Warp to {warp_name}")
+        cost_form.body(f"This warp costs §e{warp_cost} coins.§r\n\nDo you want to continue?")
+        cost_form.button("§aYes")
+        cost_form.button("§cNo")
+
+        def cost_submit(player: Player, cost_result: ActionFormResponse):
+            if not cost_result or cost_result.selection != 0:
+                player.send_message("§cWarp cancelled")
+                return True
+
+            bal = eco.api_get_player_money(player.name)
+            if bal >= warp_cost:
+                proceed_with_warp(self, player, warp, warp_name, warp_cost)
+            else:
+                player.send_message("§cWarp cancelled due to lack of funds")
+
+        cost_form.show(sender).then(lambda player=sender, result=ActionFormResponse: cost_submit(player, result))
+        return True 
+
     if warp_delay > 0:
         warp_delays[sender.id] = True
         sender.send_popup(f"§aWarping to §e{warp_name} §ain {warp_delay:.1f}s")
@@ -134,11 +159,12 @@ def open_warp_menu(self: "PrimeBDS", player: Player):
     uncategorized: list[str] = []
 
     for name, warp in warps.items():
+        display = warp.get("displayname") or name 
         cat = warp.get("category")
         if cat:
-            categories.setdefault(cat, []).append(name)
+            categories.setdefault(cat, []).append(display)
         else:
-            uncategorized.append(name)
+            uncategorized.append(display)
 
     buttons = list(categories.keys())
 
@@ -175,15 +201,17 @@ def open_warp_menu(self: "PrimeBDS", player: Player):
                 return True
 
             selected_warp_name = warp_names[warp_result.selection]
-            warp_data = self.serverdb.get_warp(selected_warp_name, self.server)
-            warp_name = warp_data.get("displayname") or warp_data.get("name")
+            warp_data = self.serverdb.get_warp_fuzzy(selected_warp_name, self.server)
             if not warp_data or not warp_data.get("pos"):
                 player.send_message(f"§cWarp §e{selected_warp_name} §cdoes not exist")
                 open_warp_menu(self, player)
                 return True
             
+            warp_name = warp_data.get("displayname") or warp_data.get("name")
+            
+            eco = get_eco_link(self)
             warp_cost = warp_data.get("cost", 0)
-            if warp_cost > 0:
+            if eco and warp_cost > 0:
                 cost_form = ActionFormData()
                 cost_form.title(f"Warp to {warp_name}")
                 cost_form.body(f"This warp costs §e{warp_cost} coins.§r\n\nDo you want to continue?")
@@ -195,9 +223,11 @@ def open_warp_menu(self: "PrimeBDS", player: Player):
                         player.send_message("§cWarp cancelled")
                         return True
 
-                    # TODO: deduct currency here
-
-                    proceed_with_warp(player, warp_data, warp_name)
+                    bal = eco.api_get_player_money(player.name)
+                    if bal >= warp_cost:
+                        proceed_with_warp(self, player, warp_data, warp_name, warp_cost)
+                    else:
+                        player.send_message("§cWarp cancelled due to lack of funds")
 
                 cost_form.show(player).then(lambda player=player, result=ActionFormResponse: cost_submit(player, result))
                 return True 
@@ -208,13 +238,18 @@ def open_warp_menu(self: "PrimeBDS", player: Player):
 
     form.show(player).then(lambda player=player, result=ActionFormResponse: submit(player, result))
 
-def proceed_with_warp(self: "PrimeBDS", player: Player, warp_data: dict, warp_name: str):
+def proceed_with_warp(self: "PrimeBDS", player: Player, warp_data: dict, warp_name: str, warp_cost: int = 0):
+    if not isinstance(warp_data, dict):
+        player.send_message(f"§cWarp data invalid for {warp_name}")
+        return True
+    
     warp_delay = warp_data.get("delay", 0)
     warp_cooldown = warp_data.get("cooldown", 0)
     now = time()
 
     exempt_delay = player.has_permission("primebds.exempt.warp.delays")
     exempt_cooldown = player.has_permission("primebds.exempt.warp.cooldowns")
+    eco = get_eco_link(self)
 
     last_used = warp_cooldowns.get(player.id, 0)
     if not exempt_cooldown and now - last_used < warp_cooldown:
@@ -231,14 +266,17 @@ def proceed_with_warp(self: "PrimeBDS", player: Player, warp_data: dict, warp_na
             if player.location.distance(start_pos) > 0.25:
                 player.send_message("§cWarp cancelled because you moved!")
                 warp_delays[player.id] = False
-                # TODO: refund currency if needed
                 return True
             if time() - now >= warp_delay:
                 player.teleport(warp_data["pos"])
                 player.send_message(f"§aWarped to §e{warp_name}")
                 warp_cooldowns[player.id] = time()
                 warp_delays[player.id] = False
-                # TODO: finalize currency deduction
+                if eco:
+                    name = get_permission_header(eco)
+                    if warp_cost > 0:
+                        if name == "umoney":
+                            eco.api_change_player_money(player.name, -warp_cost)
                 return True
             remaining = max(0, warp_delay - (time() - now))
             player.send_popup(f"§7Warping to §e{warp_name} §7in {remaining:.1f}s")
@@ -249,4 +287,9 @@ def proceed_with_warp(self: "PrimeBDS", player: Player, warp_data: dict, warp_na
         player.teleport(warp_data["pos"])
         player.send_message(f"§aWarped to §e{warp_name}")
         warp_cooldowns[player.id] = now
-        # TODO: finalize currency deduction if needed
+        if eco:
+            name = get_permission_header(eco)
+            if warp_cost > 0:
+                if name == "umoney":
+                    eco.api_change_player_money(player.name, -warp_cost)
+        
