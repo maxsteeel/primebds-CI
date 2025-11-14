@@ -18,7 +18,7 @@ command, permission = create_command(
     "Warp to a warp location or browse warps!",
     [
         "/warp",
-        "/warp [name: str]",
+        "/warp [name: message]",
         "/warp (list)[warp_list: warp_list]"
     ],
     ["primebds.command.warp"]
@@ -76,14 +76,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 msg_lines.append(f"§7- {line}")
 
         if uncategorized:
-            msg_lines.append("§6Uncategorized:")
             for line in uncategorized:
                 msg_lines.append(f"§7- {line}")
 
         sender.send_message("§aWarps:\n" + "\n".join(msg_lines))
         return True
 
-    warp = self.serverdb.get_warp(sub, self.server)
+    warp = self.serverdb.get_warp_fuzzy(sub, self.server)
     if not warp or not warp.get("pos"):
         warp_name = sub if not warp else warp.get("displayname") or sub
         sender.send_message(f"§cWarp §e{warp_name} §cdoes not exist")
@@ -142,6 +141,7 @@ def open_warp_menu(self: "PrimeBDS", player: Player):
             uncategorized.append(name)
 
     buttons = list(categories.keys())
+
     if uncategorized:
         buttons.append("Uncategorized")
 
@@ -156,14 +156,15 @@ def open_warp_menu(self: "PrimeBDS", player: Player):
             return True
 
         selected_cat = buttons[result.selection]
-        warp_names = categories.get(selected_cat, []) if selected_cat != "Uncategorized" else uncategorized
+        warp_names = categories.get(selected_cat, []) + uncategorized
+
         if not warp_names:
-            player.send_message("§cNo warps in this category")
+            player.send_message("§cNo warps available")
             open_warp_menu(self, player)
             return True
 
         warp_form = ActionFormData()
-        warp_form.title(f"Warps!")
+        warp_form.title(f"Warps: {selected_cat}")
         for w in warp_names:
             warp_form.button(f"§r{w}")
         warp_form.button("Back")
@@ -180,46 +181,72 @@ def open_warp_menu(self: "PrimeBDS", player: Player):
                 player.send_message(f"§cWarp §e{selected_warp_name} §cdoes not exist")
                 open_warp_menu(self, player)
                 return True
+            
+            warp_cost = warp_data.get("cost", 0)
+            if warp_cost > 0:
+                cost_form = ActionFormData()
+                cost_form.title(f"Warp to {warp_name}")
+                cost_form.body(f"This warp costs §e{warp_cost} coins.§r\n\nDo you want to continue?")
+                cost_form.button("§aYes")
+                cost_form.button("§cNo")
 
-            warp_delay = warp_data.get("delay", 0)
-            warp_cooldown = warp_data.get("cooldown", 0)
-            now = time()
-
-            exempt_delay = player.has_permission("primebds.exempt.warp.delays")
-            exempt_cooldown = player.has_permission("primebds.exempt.warp.cooldowns")
-
-            last_used = warp_cooldowns.get(player.id, 0)
-            if not exempt_cooldown and now - last_used < warp_cooldown:
-                remaining = warp_cooldown - (now - last_used)
-                player.send_message(f"§cYou must wait {remaining:.1f}s before using this warp again")
-                return True
-
-            start_pos = player.location
-            if warp_delay > 0 and not exempt_delay:
-                warp_delays[player.id] = True
-                player.send_popup(f"§7Warping to §e{warp_name} §7in {warp_delay:.1f}s... Don't move!")
-
-                def repeated_check():
-                    if player.location.distance(start_pos) > 0.25:
-                        player.send_message("§cWarp cancelled because you moved!")
-                        warp_delays[player.id] = False
+                def cost_submit(player: Player, cost_result: ActionFormResponse):
+                    if not cost_result or cost_result.selection != 0:
+                        player.send_message("§cWarp cancelled")
                         return True
-                    if time() - now >= warp_delay:
-                        player.teleport(warp_data["pos"])
-                        player.send_message(f"§aWarped to §e{warp_name}")
-                        warp_cooldowns[player.id] = time()
-                        warp_delays[player.id] = False
-                        return True
-                    remaining = max(0, warp_delay - (time() - now))
-                    player.send_popup(f"§7Warping to §e{warp_name} §7in {remaining:.1f}s")
-                    return False
 
-                self.server.scheduler.run_task(self, repeated_check, delay=0, period=20)
-            else:
-                player.teleport(warp_data["pos"])
-                player.send_message(f"§aWarped to §e{warp_name}")
-                warp_cooldowns[player.id] = now
+                    # TODO: deduct currency here
+
+                    proceed_with_warp(player, warp_data, warp_name)
+
+                cost_form.show(player).then(lambda player=player, result=ActionFormResponse: cost_submit(player, result))
+                return True 
+
+            proceed_with_warp(self, player, warp_data, warp_name)
 
         warp_form.show(player).then(lambda player=player, result=ActionFormResponse: warp_submit(player, result))
 
     form.show(player).then(lambda player=player, result=ActionFormResponse: submit(player, result))
+
+def proceed_with_warp(self: "PrimeBDS", player: Player, warp_data: dict, warp_name: str):
+    warp_delay = warp_data.get("delay", 0)
+    warp_cooldown = warp_data.get("cooldown", 0)
+    now = time()
+
+    exempt_delay = player.has_permission("primebds.exempt.warp.delays")
+    exempt_cooldown = player.has_permission("primebds.exempt.warp.cooldowns")
+
+    last_used = warp_cooldowns.get(player.id, 0)
+    if not exempt_cooldown and now - last_used < warp_cooldown:
+        remaining = warp_cooldown - (now - last_used)
+        player.send_message(f"§cYou must wait {remaining:.1f}s before using this warp again")
+        return True
+
+    start_pos = player.location
+    if warp_delay > 0 and not exempt_delay:
+        warp_delays[player.id] = True
+        player.send_popup(f"§7Warping to §e{warp_name} §7in {warp_delay:.1f}s")
+
+        def repeated_check():
+            if player.location.distance(start_pos) > 0.25:
+                player.send_message("§cWarp cancelled because you moved!")
+                warp_delays[player.id] = False
+                # TODO: refund currency if needed
+                return True
+            if time() - now >= warp_delay:
+                player.teleport(warp_data["pos"])
+                player.send_message(f"§aWarped to §e{warp_name}")
+                warp_cooldowns[player.id] = time()
+                warp_delays[player.id] = False
+                # TODO: finalize currency deduction
+                return True
+            remaining = max(0, warp_delay - (time() - now))
+            player.send_popup(f"§7Warping to §e{warp_name} §7in {remaining:.1f}s")
+            return False
+
+        self.server.scheduler.run_task(self, repeated_check, delay=0, period=20)
+    else:
+        player.teleport(warp_data["pos"])
+        player.send_message(f"§aWarped to §e{warp_name}")
+        warp_cooldowns[player.id] = now
+        # TODO: finalize currency deduction if needed

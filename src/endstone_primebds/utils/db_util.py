@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sqlite3
 import threading
 from dataclasses import dataclass, fields
@@ -140,6 +141,7 @@ class Warps:
     cost: int
     cooldown: int
     delay: int
+    aliases: list[str]
 
 @dataclass
 class Homes:
@@ -402,7 +404,8 @@ class ServerDB(DatabaseManager):
             'description': 'TEXT',
             'cost': 'REAL DEFAULT 0',
             'cooldown': 'REAL DEFAULT 0',
-            'delay': 'REAL DEFAULT 0'
+            'delay': 'REAL DEFAULT 0',
+            'aliases': 'TEXT'
         }
         self.create_table('warps', warps_columns)
 
@@ -635,6 +638,69 @@ class ServerDB(DatabaseManager):
         self.conn.commit()
         return cur.rowcount > 0
     
+    def encode_aliases(self, aliases: list[str]) -> str:
+        return json.dumps(aliases)
+
+    def decode_aliases(self, alias_str: str | None) -> list[str]:
+        if not alias_str:
+            return []
+        try:
+            return json.loads(alias_str)
+        except:
+            return []
+
+    def add_alias(self, warp_name: str, alias: str) -> bool:
+        """Add a single alias to a warp."""
+        row = self.execute(
+            "SELECT aliases FROM warps WHERE name = ? COLLATE NOCASE",
+            (warp_name,)
+        ).fetchone()
+
+        if not row:
+            return False
+
+        aliases = json.loads(row[0]) if row[0] else []
+
+        alias = alias.strip().lower()
+        if not alias:
+            return False
+
+        if alias not in aliases:
+            aliases.append(alias)
+
+        self.execute(
+            "UPDATE warps SET aliases = ? WHERE name = ? COLLATE NOCASE",
+            (json.dumps(aliases), warp_name)
+        )
+        self.conn.commit()
+        return True
+
+
+    def remove_alias(self, warp_name: str, alias: str) -> bool:
+        """Remove a single alias from a warp."""
+        row = self.execute(
+            "SELECT aliases FROM warps WHERE name = ? COLLATE NOCASE",
+            (warp_name,)
+        ).fetchone()
+
+        if not row:
+            return False
+
+        aliases = json.loads(row[0]) if row[0] else []
+
+        alias = alias.strip().lower()
+        if alias not in aliases:
+            return False
+
+        aliases.remove(alias)
+
+        self.execute(
+            "UPDATE warps SET aliases = ? WHERE name = ? COLLATE NOCASE",
+            (json.dumps(aliases), warp_name)
+        )
+        self.conn.commit()
+        return True
+
     def update_warp_property(self, name: str, field: str, value) -> bool:
         """Update a single warp property, ignoring case for the warp name."""
         allowed_fields = ("pos", "displayname", "category", "description", "cost", "cooldown", "delay")
@@ -653,20 +719,23 @@ class ServerDB(DatabaseManager):
         self.conn.commit()
         return True
 
-    def create_warp(self, name: str, location: Location, displayname: str = None, category: str = None,
-                    description: str = None, cost: float = 0.0, cooldown: int = 0, delay: int = 0) -> bool:
-        """Create a new warp, preventing duplicates regardless of capitalization."""
+    def create_warp(self, name: str, location: Location, displayname: str = None,
+                category: str = None, description: str = None,
+                cost: float = 0.0, cooldown: int = 0, delay: int = 0,
+                aliases: list[str] = None) -> bool:
 
         if self.execute("SELECT 1 FROM warps WHERE name = ? COLLATE NOCASE", (name,)).fetchone():
             return False
 
         pos_str = self.encode_location(location)
+        aliases_json = json.dumps(aliases or [])
+
         self.execute(
             '''
-            INSERT INTO warps (name, pos, displayname, category, description, cost, cooldown, delay)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO warps (name, pos, displayname, category, description, cost, cooldown, delay, aliases)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''',
-            (name, pos_str, displayname, category, description, cost, cooldown, delay)
+            (name, pos_str, displayname, category, description, cost, cooldown, delay, aliases_json)
         )
         self.conn.commit()
         return True
@@ -674,17 +743,20 @@ class ServerDB(DatabaseManager):
     def get_warp(self, name: str, server) -> dict | None:
         row = self.execute(
             """
-            SELECT name, pos, displayname, category, description, cost, cooldown, delay
+            SELECT name, pos, displayname, category, description, cost, cooldown, delay, aliases
             FROM warps
             WHERE name = ? COLLATE NOCASE
             """,
             (name,)
         ).fetchone()
+
         if not row:
             return None
 
-        name, pos_str, displayname, category, description, cost, cooldown, delay = row
+        name, pos_str, displayname, category, description, cost, cooldown, delay, aliases = row
         pos = self.decode_location(pos_str, server) if pos_str else None
+        aliases = self.decode_aliases(aliases)
+
         return {
             'name': name,
             'pos': pos,
@@ -693,25 +765,69 @@ class ServerDB(DatabaseManager):
             'description': description,
             'cost': cost,
             'cooldown': cooldown,
-            'delay': delay
+            'delay': delay,
+            'aliases': aliases
         }
+    
+    def get_warp_fuzzy(self, query: str, server) -> dict | None:
+        query = query.lower()
+        warps = self.get_all_warps(server)
 
-    def get_all_warps(self, server) -> dict[str, dict]:
+        best_match = None
+        best_score = 0
+
+        for warp_name, warp in warps.items():
+            name = warp["name"].lower()
+            display = (warp.get("displayname") or "").lower()
+            category = (warp.get("category") or "").lower()
+            aliases = [a.lower() for a in warp.get("aliases", [])]
+
+            # Exact match first
+            if query == name or query in aliases:
+                return warp
+
+            # Score-based matching
+            score = 0
+            if query in name:
+                score += 3
+            if query in display:
+                score += 2
+            if query in category:
+                score += 1
+            if any(query in a for a in aliases):
+                score += 4  # aliases get priority
+
+            # Pick highest score
+            if score > best_score:
+                best_score = score
+                best_match = warp
+
+        return best_match
+
+    def get_all_warps(self, server):
+        rows = self.execute("""
+            SELECT name, pos, displayname, category, description, cost, cooldown, delay, aliases
+            FROM warps
+        """).fetchall()
+
         warps = {}
-        rows = self.execute(
-            "SELECT name, pos, displayname, category, description, cost, cooldown, delay FROM warps"
-        ).fetchall()
-        for name, pos_str, displayname, category, description, cost, cooldown, delay in rows:
-            pos = self.decode_location(pos_str, server) if pos_str else None
+
+        for row in rows:
+            (name, pos, displayname, category, description,
+            cost, cooldown, delay, alias_str) = row
+
             warps[name] = {
-                'pos': pos,
-                'displayname': displayname,
-                'category': category,
-                'description': description,
-                'cost': cost,
-                'cooldown': cooldown,
-                'delay': delay
+                "name": name,
+                "pos": self.decode_location(pos, server) if pos else None,
+                "displayname": displayname,
+                "category": category,
+                "description": description,
+                "cost": cost,
+                "cooldown": cooldown,
+                "delay": delay,
+                "aliases": self.decode_aliases(alias_str)
             }
+
         return warps
 
     def delete_warp(self, name: str) -> bool:
@@ -828,30 +944,52 @@ class ServerDB(DatabaseManager):
         return cur.rowcount > 0
 
     def get_home(self, name: str, server, xuid: str = None, username: str = None) -> dict | None:
+        COLOR_CODE_PATTERN = re.compile(r"(§[0-9A-FK-OR])|(&[0-9A-FK-OR])", re.IGNORECASE)
+
+        def normalize(s: str) -> list[str]:
+            """Strip color codes, trim, lowercase, split into words."""
+            if not s:
+                return []
+            s = COLOR_CODE_PATTERN.sub("", s)
+            s = s.strip().lower()
+            return s.split()
+
+        search_terms = normalize(name)
+        if not search_terms:
+            return None
+
         where_clause, params = self.user_selector(xuid, username)
-        row = self.execute(
+        rows = self.execute(
             f"""
             SELECT xuid, username, name, pos, cooldown, delay
             FROM homes
-            WHERE {where_clause} AND name = ? COLLATE NOCASE
+            WHERE {where_clause}
             """,
-            (*params, name)
-        ).fetchone()
+            (*params,)
+        ).fetchall()
 
-        if not row:
+        if not rows:
             return None
 
-        xuid, username, name, pos_str, cooldown, delay = row
-        pos = self.decode_location(pos_str, server) if pos_str else None
+        for row in rows:
+            xuid, username, home_name, pos_str, cooldown, delay = row
 
-        return {
-            'xuid': xuid,
-            'username': username,
-            'name': name,
-            'pos': pos,
-            'cooldown': cooldown,
-            'delay': delay
-        }
+            home_terms = normalize(home_name)
+            if not home_terms:
+                continue
+
+            if any(st == ht for st in search_terms for ht in home_terms):
+                pos = self.decode_location(pos_str, server) if pos_str else None
+                return {
+                    'xuid': xuid,
+                    'username': username,
+                    'name': home_name,
+                    'pos': pos,
+                    'cooldown': cooldown,
+                    'delay': delay
+                }
+
+        return None
 
     def get_all_homes(self, server, xuid: str = None, username: str = None) -> dict[str, dict]:
         where_clause, params = self.user_selector(xuid, username)
