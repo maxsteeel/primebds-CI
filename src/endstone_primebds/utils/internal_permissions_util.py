@@ -263,6 +263,25 @@ def check_rank_exists(self: "PrimeBDS", target: Player, rank: str) -> str:
         self.db.update_user_data(target.name, 'internal_rank', "Default")
         return "Default"
 
+def get_permission_header(plugin) -> str | None:
+    """
+    Returns the first segment of a permission if the plugin has a permissions header
+    """
+
+    data = getattr(plugin, "_get_description", lambda: None)()
+    if not data:
+        return None
+
+    perms = getattr(data, "permissions", [])
+    if not perms:
+        return None
+    
+    for attachment in perms:
+        perm_lower = attachment.name.lower()
+        break
+
+    return perm_lower.split(".")[0]
+
 def get_rank_permissions(rank: str) -> dict[str, bool]:
     """Return a dict of permissions (lowercased) -> bool for the given rank, including inheritance."""
     global PERMISSIONS

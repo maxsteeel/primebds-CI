@@ -675,7 +675,6 @@ class ServerDB(DatabaseManager):
         self.conn.commit()
         return True
 
-
     def remove_alias(self, warp_name: str, alias: str) -> bool:
         """Remove a single alias from a warp."""
         row = self.execute(
@@ -703,7 +702,7 @@ class ServerDB(DatabaseManager):
 
     def update_warp_property(self, name: str, field: str, value) -> bool:
         """Update a single warp property, ignoring case for the warp name."""
-        allowed_fields = ("pos", "displayname", "category", "description", "cost", "cooldown", "delay")
+        allowed_fields = ("pos", "displayname", "category", "description", "cost", "cooldown", "delay", "aliases")
         if field not in allowed_fields:
             raise ValueError(f"Invalid warp field: {field}")
 
@@ -714,6 +713,12 @@ class ServerDB(DatabaseManager):
             if not hasattr(value, "x") or not hasattr(value, "dimension"):
                 raise TypeError("Expected a Location object for 'pos'")
             value = self.encode_location(value)
+        
+        if field == "aliases":
+            if not isinstance(value, (list, tuple)):
+                raise TypeError("Expected a list of aliases for 'aliases'")
+            import json
+            value = json.dumps(value)
 
         self.execute(f"UPDATE warps SET {field} = ? WHERE name = ? COLLATE NOCASE", (value, name))
         self.conn.commit()
@@ -802,7 +807,7 @@ class ServerDB(DatabaseManager):
                 best_score = score
                 best_match = warp
 
-        return best_match
+        return best_match if best_score >= 1 else None
 
     def get_all_warps(self, server):
         rows = self.execute("""
