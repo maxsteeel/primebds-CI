@@ -75,7 +75,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         for cat, entries in categories.items():
             msg_lines.append(f"§6{cat}:")
             for line in entries:
-                msg_lines.append(f"§7- {line}")
+                msg_lines.append(f"  §7- {line}")
 
         if uncategorized:
             for line in uncategorized:
