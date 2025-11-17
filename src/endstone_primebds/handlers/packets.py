@@ -25,40 +25,45 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
 
     pid = ev.packet_id
 
-    if pid == MinecraftPacketIds.SubclientLogin:
-        if not self.gamerules.get("subclient"):
-            if ev.sub_client_id is not 0:
-                ev.is_cancelled = True
-        return
+    SEND_HANDLERS = {
+        MinecraftPacketIds.SubclientLogin: handle_subclient_login,
+        MinecraftPacketIds.AddPlayer: handle_add_player_cache,
+        MinecraftPacketIds.LevelSoundEvent: handle_laggy_sounds
+    }
 
-    elif pid == MinecraftPacketIds.AddPlayer:
-        handle_add_player_cache(self, ev)
+    handler = SEND_HANDLERS.get(pid)
+    if handler:
+        handler(self, ev)
 
-    elif pid == MinecraftPacketIds.LevelSoundEvent:
-        handle_laggy_sounds(self, ev)
-    
     if self.monitor_intervals:
         self.packets_sent_count[pid] = self.packets_sent_count.get(pid, 0) + 1
+
 
 def handle_packetrecieve_event(self: "PrimeBDS", ev: PacketReceiveEvent):
-
     pid = ev.packet_id
 
-    if pid == MinecraftPacketIds.Login:
-        handle_login_crasher(self, ev)
+    RECEIVE_HANDLERS = {
+        MinecraftPacketIds.Login: handle_login_crasher,
+        MinecraftPacketIds.LevelSoundEvent: handle_laggy_sounds,
+    }
 
-    if pid == MinecraftPacketIds.LevelSoundEvent:
-        handle_laggy_sounds(self, ev)
-            
+    handler = RECEIVE_HANDLERS.get(pid)
+    if handler:
+        handler(self, ev)
+
     if self.monitor_intervals:
         self.packets_sent_count[pid] = self.packets_sent_count.get(pid, 0) + 1
 
-# CREDIT TO John-Guard (Python Recreation by: PrimeStrat)
 def handle_login_crasher(self: "PrimeBDS", ev):
     if PACKET_SUPPORT == False:
         return
 
     return
+
+def handle_subclient_login(self: "PrimeBDS", ev: PacketSendEvent):
+    if not self.gamerules.get("subclient"):
+        if ev.sub_client_id is not 0:
+            ev.is_cancelled = True
 
 def handle_add_player_cache(self: "PrimeBDS", ev):
     player_name = extract_player_name_from_addplayer(ev.payload)
