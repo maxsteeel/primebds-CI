@@ -1,5 +1,4 @@
 try:
-    from binarystream import BinaryStream
     from bedrock_protocol.packets import minecraft_packets, MinecraftPacketIds
     from endstone_primebds.utils.packet_utils.add_player import (
         cache_add_player_packet,
