@@ -109,9 +109,6 @@ def preload_settings():
             "enabled": True,
             "ban": False
         }),
-        "login_crasher_patch": OrderedDict({
-            "enabled": True
-        }),
         "join_leave_messages": OrderedDict({
             "send_on_nick": False,
             "send_on_vanish": False,
@@ -121,7 +118,9 @@ def preload_settings():
             "shutdown": "Server has shutdown!"
         }),
         "server_optimizer": OrderedDict({
-            "mute_laggy_sounds": True
+            "mute_laggy_sounds": True,
+            "mute_laggy_block_events": True,
+            "mute_laggy_movement_updates": True
         }),
         "server_messages": OrderedDict({
             "skin_change_messages": True,
