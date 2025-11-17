@@ -83,7 +83,7 @@ def save_cmd_config(config: dict, update_cache: bool = False) -> None:
     open_text_file(CMD_CONFIG_PATH, "w", text=text)
 
 def load_config():
-    """Load or create a configuration file in primebds_info/config.json, cached in memory."""
+    """Load config.json safely, return defaults if missing, but don't overwrite immediately."""
     global cache
     if cache is not None:
         return cache
@@ -93,7 +93,8 @@ def load_config():
     if not os.path.exists(CONFIG_PATH):
         os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
         cache = default_config
-        save_config(cache)
+        # DON'T save immediately
+        print(f"[PrimeBDS] Config file not found, using defaults in memory.")
         return cache
 
     try:
@@ -103,14 +104,13 @@ def load_config():
             cache = json.loads(content)
         else:
             cache = default_config
-            save_config(cache)
+            # DON'T save immediately
+            print(f"[PrimeBDS] Config file empty, using defaults in memory.")
     except json.JSONDecodeError as e:
-        print(f"JSON error in config.json: {e}")
-        print("Please check line/column for invalid syntax.")
+        print(f"[PrimeBDS] JSON error in config.json: {e}. Using defaults in memory.")
         cache = default_config
     except OSError as e:
-        print(f"JSON error in config.json: {e}")
-        print("Please check line/column for invalid syntax.")
+        print(f"[PrimeBDS] Failed to read config.json: {e}. Using defaults in memory.")
         cache = default_config
 
     return cache
