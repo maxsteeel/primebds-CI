@@ -46,7 +46,7 @@ from endstone_primebds.handlers.connections import handle_login_event, handle_jo
 from endstone_primebds.handlers.combat import handle_kb_event, handle_damage_event
 from endstone_primebds.handlers.multiworld import start_additional_servers, stop_additional_servers, is_nested_multiworld_instance
 from endstone_primebds.handlers.intervals import stop_intervals, init_jail_intervals, init_afk_intervals
-from endstone_primebds.handlers.packets import handle_packetsend_event, handle_packetrecieve_event
+from endstone_primebds.handlers.packets import handle_packetsend_event, handle_packetreceive_event
 from endstone_primebds.handlers.actions import handle_gamemode_event, handle_interact_event, handle_teleport_event, handle_death_event
 from endstone_primebds.handlers.items import handle_item_pickup_event, handle_item_use, handle_item_drop_event
 from endstone_primebds.handlers.gamerules import handle_bed_enter_event, handle_emote_event, handle_leaves_decay_event, handle_skin_change_event
@@ -136,7 +136,7 @@ class PrimeBDS(Plugin):
 
     @event_handler()
     def on_packet_receive(self, ev: PacketReceiveEvent):
-        handle_packetrecieve_event(self, ev)
+        handle_packetreceive_event(self, ev)
 
     @event_handler()
     def on_item_use(self, ev: PlayerItemConsumeEvent):

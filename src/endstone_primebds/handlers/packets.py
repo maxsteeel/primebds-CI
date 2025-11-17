@@ -9,6 +9,9 @@ except Exception as e:
     print(e)
     PACKET_SUPPORT = False
 
+from collections import defaultdict
+from ctypes import c_int32
+from binarystream import BinaryStream
 from endstone.event import PacketSendEvent, PacketReceiveEvent
 from endstone_primebds.utils.config_util import load_config
 
@@ -17,7 +20,9 @@ if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
 config = load_config()
-mute = config["modules"]["server_optimizer"]["mute_laggy_sounds"]
+mute_sounds = config["modules"]["server_optimizer"]["mute_laggy_sounds"]
+mute_block_updates = config["modules"]["server_optimizer"]["mute_laggy_block_events"]
+mute_movement_updates = config["modules"]["server_optimizer"]["mute_laggy_movement_updates"]
 
 def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
     if not PACKET_SUPPORT:
@@ -25,35 +30,95 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
 
     pid = ev.packet_id
 
-    SEND_HANDLERS = {
-        MinecraftPacketIds.SubclientLogin: handle_subclient_login,
-        MinecraftPacketIds.AddPlayer: handle_add_player_cache,
-        MinecraftPacketIds.LevelSoundEvent: handle_laggy_sounds
-    }
+    if pid == MinecraftPacketIds.SubclientLogin:
+        handle_subclient_login(self, ev)
 
-    handler = SEND_HANDLERS.get(pid)
-    if handler:
-        handler(self, ev)
+    elif pid == MinecraftPacketIds.TileEvent and mute_block_updates:
+        mute_redundant_block_events(self, ev)
+
+    elif pid == MinecraftPacketIds.MovePlayer and mute_movement_updates:
+        mute_redundant_move_events(self, ev)
+
+    elif pid == MinecraftPacketIds.AddPlayer:
+        handle_add_player_cache(self, ev)
+
+    elif pid == MinecraftPacketIds.LevelSoundEvent and mute_sounds:
+        handle_laggy_sounds(self, ev)
 
     if self.monitor_intervals:
         self.packets_sent_count[pid] = self.packets_sent_count.get(pid, 0) + 1
 
-
-def handle_packetrecieve_event(self: "PrimeBDS", ev: PacketReceiveEvent):
+def handle_packetreceive_event(self: "PrimeBDS", ev: PacketReceiveEvent):
     pid = ev.packet_id
 
-    RECEIVE_HANDLERS = {
-        MinecraftPacketIds.Login: handle_login_crasher,
-        MinecraftPacketIds.LevelSoundEvent: handle_laggy_sounds,
-    }
+    if pid == MinecraftPacketIds.SubclientLogin:
+        handle_subclient_login(self, ev)
+        return
 
-    handler = RECEIVE_HANDLERS.get(pid)
-    if handler:
-        handler(self, ev)
+    elif pid == MinecraftPacketIds.Login:
+        handle_login_crasher(self, ev)
+
+    elif pid == MinecraftPacketIds.LevelSoundEvent and mute_sounds:
+        handle_laggy_sounds(self, ev)
 
     if self.monitor_intervals:
         self.packets_sent_count[pid] = self.packets_sent_count.get(pid, 0) + 1
 
+def mute_redundant_move_events(self: "PrimeBDS", ev):
+    stream = BinaryStream(ev.payload)
+
+    runtime_id = stream.get_varint()
+    x = stream.get_float()
+    y = stream.get_float()
+    z = stream.get_float()
+
+    pitch = stream.get_float()
+    yaw = stream.get_float()
+    head_yaw = stream.get_float()
+
+    mode = stream.get_unsigned_varint64()
+    if mode == 2:
+        ev.is_cancelled = True
+
+received_open = defaultdict(set)
+def make_key(x: int, y: int, z: int) -> str:
+    return f"{x},{y},{z}"
+
+def mute_redundant_block_events(self: "PrimeBDS", ev):
+    stream = BinaryStream(ev.payload)
+    x = stream.get_varint()
+    y = c_int32(stream.get_unsigned_varint()).value
+    z = stream.get_varint()
+    type = stream.get_varint()
+    data = stream.get_varint()
+
+    if type not in (0, 1):
+        return
+
+    uuid = str(ev.player.unique_id)
+    key = make_key(x, y, z)
+
+    if type == 1:
+        dx = ev.player.location.x - x
+        dy = ev.player.location.y - y
+        dz = ev.player.location.z - z
+        dist = (dx*dx + dy*dy + dz*dz) ** 0.5
+
+        if dist > 50.0:
+            ev.is_cancelled = True
+            return
+
+        received_open[key].add(uuid)
+        return
+
+    elif type == 0:
+        if key not in received_open or uuid not in received_open[key]:
+            ev.is_cancelled = True
+            return
+
+        received_open.pop(key, None)
+        return
+    
 def handle_login_crasher(self: "PrimeBDS", ev):
     if PACKET_SUPPORT == False:
         return
@@ -87,7 +152,7 @@ def handle_laggy_sounds(self: "PrimeBDS", ev):
     packet.deserialize(ev.payload)
     sound = packet.sound_type
 
-    if mute and (sound in (42, 259, 290, 291, 292) or sound >= 566 or sound <= 0):
+    if (sound in (42, 259, 290, 291, 292) or sound >= 566 or sound <= 0):
         ev.is_cancelled = True
         return
 
