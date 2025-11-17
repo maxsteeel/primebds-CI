@@ -13,45 +13,16 @@ preloaded_commands = {}
 preloaded_permissions = {}
 preloaded_handlers = {}
 
+from collections import OrderedDict
+import os
+import json
+
 def preload_settings():
-    """Preload all plugin settings with defaults if missing, preserving key order and removing unknown keys."""
-    config = load_config()
-
-    def merge_clean_ordered(default: dict, actual: dict, skip_keys: set = None):
-        """
-        Merge default into actual, preserving order, removing unknown keys,
-        but skips modifying inside 'worlds' and 'tag_overrides' subtrees.
-        """
-        if skip_keys is None:
-            skip_keys = set()
-
-        keys_to_remove = [key for key in actual if key not in default]
-        for key in keys_to_remove:
-            if key not in ('worlds', 'tag_overrides'):
-                del actual[key]
-
-        for key, value in default.items():
-            if key in skip_keys:
-                continue
-
-            if key in ('worlds', 'tag_overrides'):
-                if key not in actual:
-                    actual[key] = value
-                continue
-
-            if key not in actual:
-                actual[key] = value
-            elif isinstance(value, dict) and isinstance(actual[key], dict):
-                merge_clean_ordered(value, actual[key], skip_keys=set())
-
-        reordered = OrderedDict()
-        for key in default.keys():
-            if key in actual:
-                reordered[key] = actual[key]
-
-        actual.clear()
-        actual.update(reordered)
-
+    """Preload all plugin settings with defaults if missing, preserving key order and example structures,
+    but do NOT overwrite the config file immediately if something is wrong."""
+    
+    config = load_config()  # safe loading
+    
     default_modules = OrderedDict({
         "afk": OrderedDict({
             "broadcast_afk_status": True,
@@ -73,7 +44,7 @@ def preload_settings():
             "*": True
         }),
         "discord": OrderedDict({
-            "command": "§cUnset",
+            "command": "§cUnset"
         }),
         "discord_webhook": OrderedDict({
             "embed_for_log": OrderedDict({
@@ -136,7 +107,7 @@ def preload_settings():
         }),
         "message_of_the_day": OrderedDict({
             "message_of_the_day_command": "§cUnset",
-            "send_message_of_the_day_on_connect": False,
+            "send_message_of_the_day_on_connect": False
         }),
         "combat": OrderedDict({
             "hit_cooldown_in_seconds": 0.0,
@@ -148,7 +119,7 @@ def preload_settings():
             "fall_damage_height": 3.5,
             "projectiles": OrderedDict({
                 "horizontal_knockback_modifier": 0.0,
-                "vertical_knockback_modifier": 0.0,
+                "vertical_knockback_modifier": 0.0
             }),
             "disable_fire_damage": False,
             "disable_explosion_damage": False,
@@ -168,13 +139,13 @@ def preload_settings():
                     }),
                     "disable_fire_damage": True,
                     "disable_explosion_damage": True,
-                    "disable_sprint_hits": True,
+                    "disable_sprint_hits": True
                 })
             })
         }),
         "multiworld": OrderedDict({
-        "worlds": OrderedDict({
-            "example": OrderedDict({
+            "worlds": OrderedDict({
+                "example": OrderedDict({
                     "enabled": False,
                     "server-port": 19134,
                     "server-portv6": 19135,
@@ -197,19 +168,28 @@ def preload_settings():
         })
     })
 
+    # Ensure the modules section exists
     config.setdefault("modules", OrderedDict())
 
-    for module, default_settings in default_modules.items():
+    # Only add missing top-level modules, preserving existing ones completely
+    changed = False
+    for module, defaults in default_modules.items():
         if module not in config["modules"]:
-            config["modules"][module] = default_settings
-        else:
-            merge_clean_ordered(default_settings, config["modules"][module])
+            config["modules"][module] = defaults
+            changed = True
 
-    for module in list(config["modules"].keys()):
-        if module not in default_modules:
-            del config["modules"][module]
+    # Remove unknown top-level modules (optional; can be commented if you want full safety)
+    # for module in list(config["modules"].keys()):
+    #     if module not in default_modules:
+    #         del config["modules"][module]
+    #         changed = True
 
-    save_config(config)
+    # Save only if new modules were added, never overwrite existing ones unnecessarily
+    if changed:
+        try:
+            save_config(config)
+        except Exception as e:
+            print(f"Failed to save config.json: {e}. Existing file left untouched.")
 
 def preload_commands():
     """Preload all command modules before PrimeBDS is instantiated, respecting the config."""
