@@ -97,15 +97,21 @@ def load_config():
         return cache
 
     try:
-        content = open_text_file(CONFIG_PATH, "r")
-        if content:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+        if content.strip():  # non-empty file
             cache = json.loads(content)
         else:
             cache = default_config
             save_config(cache)
-    except (OSError, json.JSONDecodeError):
+    except json.JSONDecodeError as e:
+        print(f"JSON error in config.json: {e}")
+        print("Please check line/column for invalid syntax.")
         cache = default_config
-        save_config(cache)
+    except OSError as e:
+        print(f"JSON error in config.json: {e}")
+        print("Please check line/column for invalid syntax.")
+        cache = default_config
 
     return cache
 
