@@ -33,6 +33,7 @@ class ServerData:
     can_change_skin: int
     can_pickup_items: int
     can_sleep: int
+    can_split_screen: int
 
 @dataclass
 class NameBans:
@@ -378,7 +379,8 @@ class ServerDB(DatabaseManager):
             'can_decay_leaves': 'INTEGER DEFAULT 1',
             'can_change_skin': 'INTEGER DEFAULT 1',
             'can_pickup_items': 'INTEGER DEFAULT 1',
-            'can_sleep': 'INTEGER DEFAULT 1'
+            'can_sleep': 'INTEGER DEFAULT 1',
+            'can_split_screen': 'INTEGER DEFAULT 1',
         }
         self.create_table('server_info', server_info_columns)
 
@@ -514,14 +516,14 @@ class ServerDB(DatabaseManager):
 
     def get_gamerules(self) -> dict:
         row = self.execute(
-            "SELECT can_interact, can_emote, can_decay_leaves, can_change_skin, can_pickup_items, can_sleep FROM server_info WHERE id = 1;",
+            "SELECT can_interact, can_emote, can_decay_leaves, can_change_skin, can_pickup_items, can_sleep, can_split_screen FROM server_info WHERE id = 1;",
             readonly=True
         ).fetchone()
 
         if not row:
             return {}
 
-        keys = ["can_interact", "can_emote", "can_decay_leaves", "can_change_skin", "can_pickup_items", "can_sleep"]
+        keys = ["can_interact", "can_emote", "can_decay_leaves", "can_change_skin", "can_pickup_items", "can_sleep", "can_split_screen"]
         return dict(zip(keys, row))
 
     def add_name(self, name: str, ban_reason: str = "Negative Behavior", ban_duration: int = 100 * 31536000):

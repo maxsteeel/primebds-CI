@@ -109,6 +109,9 @@ def preload_settings():
             "enabled": True,
             "ban": False
         }),
+        "login_crasher_patch": OrderedDict({
+            "enabled": True
+        }),
         "join_leave_messages": OrderedDict({
             "send_on_nick": False,
             "send_on_vanish": False,

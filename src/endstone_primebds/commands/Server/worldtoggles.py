@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 command, permission = create_command(
     "worldtoggles",
     "Toggles internal gamerules handled by PrimeBDS through Endstone!",
-    ["/worldtoggles (can_interact|can_emote|can_decay_leaves|can_change_skin|can_pickup_items|can_sleep)[internal_gamerule: internal_gamerule] [toggle: bool]"],
+    ["/worldtoggles (can_interact|can_emote|can_decay_leaves|can_change_skin|can_pickup_items|can_sleep|can_split_screen)[internal_gamerule: internal_gamerule] [toggle: bool]"],
     ["primebds.command.worldtoggles"]
 )
 
