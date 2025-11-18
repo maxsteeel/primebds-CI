@@ -303,7 +303,7 @@ def open_module_editor(player: Player, module_name: str, settings: dict, config:
                         new_value = bool(new_value)
                     if value_type == int:
                         try:
-                            new_value = int(new_value)
+                            new_value = float(new_value)
                         except ValueError:
                             new_value = old_value
                     elif value_type == float:
@@ -311,8 +311,20 @@ def open_module_editor(player: Player, module_name: str, settings: dict, config:
                             new_value = float(new_value)
                         except ValueError:
                             new_value = old_value
-                    elif value_type == list:
-                        new_value = [x.strip() for x in str(new_value).split(",") if x.strip()]
+                    elif value_type is list:
+                        raw = str(new_values[i]).strip()
+
+                        if raw.startswith("[") and raw.endswith("]"):
+                            raw = raw[1:-1].strip()
+
+                        parts = raw.split(",")
+
+                        new_value = [
+                            p.strip().strip("'").strip('"')
+                            for p in parts
+                            if p.strip()
+                        ]
+
                     else:
                         if not isinstance(new_value, bool):
                             new_value = str(new_value)
@@ -490,7 +502,7 @@ def edit_tag_override(player: Player, tag: str):
             if isinstance(value, bool):
                 settings[key] = values[idx]
             elif isinstance(value, int):
-                settings[key] = int(values[idx]) if values[idx] else 0
+                settings[key] = float(values[idx]) if values[idx] else 0
             elif isinstance(value, float):
                 settings[key] = float(values[idx]) if values[idx] else 0.0
             else:
@@ -502,7 +514,7 @@ def edit_tag_override(player: Player, tag: str):
             if isinstance(value, bool):
                 projectiles[key] = values[idx]
             elif isinstance(value, int):
-                projectiles[key] = int(values[idx]) if values[idx] else 0
+                projectiles[key] = float(values[idx]) if values[idx] else 0
             elif isinstance(value, float):
                 projectiles[key] = float(values[idx]) if values[idx] else 0.0
             else:
