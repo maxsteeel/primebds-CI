@@ -1741,12 +1741,12 @@ class UserDB(DatabaseManager):
 
             result = (True, mute_time, mute_reason)
 
-            self._ip_mute_cache[ip_base] = (result, now + self.CACHE_TTL)
+            self._ip_mute_cache[ip_base] = (result, now + self._cache_ttl)
 
             return result
 
         result = (False, None, None)
-        self._ip_mute_cache[ip_base] = (result, now + self.CACHE_TTL)
+        self._ip_mute_cache[ip_base] = (result, now + self._cache_ttl)
 
         return result
 
