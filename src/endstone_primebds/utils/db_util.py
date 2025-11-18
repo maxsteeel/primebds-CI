@@ -1502,60 +1502,74 @@ class UserDB(DatabaseManager):
         self.invalidate_ip_ban_by_xuid(xuid)
 
     def add_ip_ban(self, ip: str, expiration: int, reason: str):
-        all_entries = self.fetch_by_condition('mod_logs', 'ip_address = ?', (ip,))
+        def get_host(ip_address: str) -> str:
+            return ip_address.split(':')[0].strip()
 
-        if all_entries:
-            for entry in all_entries:
-                self.update(
-                    'mod_logs',
-                    {
-                        'is_banned': 1,
-                        'banned_time': expiration,
-                        'ban_reason': reason,
-                        'is_ip_banned': 1
-                    },
-                    'id = ?',
-                    (entry['id'],)
+        ip_host = get_host(ip)
+        now = int(time.time())
+
+        query = "SELECT xuid, name, ip_address FROM mod_logs"
+        rows = self.execute(query, (), readonly=True).fetchall()
+        columns = ["xuid", "name", "ip_address"]
+        all_entries = [dict(zip(columns, row)) for row in rows]
+
+        matching_entries = [entry for entry in all_entries if get_host(entry["ip_address"]) == ip_host]
+
+        if matching_entries:
+            for entry in matching_entries:
+                self.execute(
+                    """
+                    UPDATE mod_logs
+                    SET is_banned = 1,
+                        banned_time = ?,
+                        ban_reason = ?,
+                        is_ip_banned = 1
+                    WHERE ip_address = ?
+                    """,
+                    (expiration, reason, entry["ip_address"])
                 )
 
-                self.insert('punishment_logs', {
-                    'xuid': entry['xuid'],
-                    'name': entry['name'] if entry['name'] else ip,
-                    'action_type': 'IP Ban',
-                    'reason': reason,
-                    'timestamp': int(time.time()),
-                    'duration': expiration
-                })
+                self.execute(
+                    """
+                    INSERT INTO punishment_logs (xuid, name, action_type, reason, timestamp, duration)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        entry["xuid"],
+                        entry["name"] if entry["name"] else ip_host,
+                        "IP Ban",
+                        reason,
+                        now,
+                        expiration
+                    )
+                )
         else:
-            mod_data = {
-                'xuid': None,
-                'name': None,
-                'is_muted': 0,
-                'mute_time': 0,
-                'mute_reason': "None",
-                'is_banned': 1,
-                'banned_time': expiration,
-                'ban_reason': reason,
-                'ip_address': ip,
-                'is_ip_banned': 1,
-                'is_ip_muted': 0,
-                'is_jailed': 0,
-                'jail_time': 0,
-                'jail_reason': "None",
-                'jail': 'None'
-            }
-            self.insert('mod_logs', mod_data)
+            self.execute(
+                """
+                INSERT INTO mod_logs (
+                    xuid, name, is_muted, mute_time, mute_reason,
+                    is_banned, banned_time, ban_reason,
+                    ip_address, is_ip_banned, is_ip_muted,
+                    is_jailed, jail_time, jail_reason, jail
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    None, None, 0, 0, "None",
+                    1, expiration, reason,
+                    ip, 1, 0,
+                    0, 0, "None", "None"
+                )
+            )
 
-            self.insert('punishment_logs', {
-                'xuid': None,
-                'name': ip,
-                'action_type': 'IP Ban',
-                'reason': reason,
-                'timestamp': int(time.time()),
-                'duration': expiration
-            })
+            self.execute(
+                """
+                INSERT INTO punishment_logs (xuid, name, action_type, reason, timestamp, duration)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (None, ip_host, "IP Ban", reason, now, expiration)
+            )
 
-        self.invalidate_ip_ban(ip)
+        self.invalidate_ip_ban(ip_host)
 
     def add_mute(self, xuid: str, expiration: int, reason: str, ip_mute: bool = False):
         self.update('mod_logs', {'is_muted': 1, 'mute_time': expiration, 'mute_reason': reason, 'is_ip_muted': ip_mute }, 'xuid = ?', (xuid,))
@@ -1576,64 +1590,95 @@ class UserDB(DatabaseManager):
         self.invalidate_ip_ban_by_xuid(xuid)
 
     def remove_ip_ban(self, ip: str):
-        all_entries = self.fetch_by_condition('mod_logs', 'ip_address = ?', (ip,))
+        def get_host(ip_address: str) -> str:
+            return ip_address.split(':')[0].strip()
 
-        if not all_entries:
+        ip_host = get_host(ip)
+        now = int(time.time())
+
+        # Fetch all rows and filter by host
+        query = "SELECT xuid, name, ip_address FROM mod_logs"
+        rows = self.execute(query, (), readonly=True).fetchall()
+        columns = ["xuid", "name", "ip_address"]
+        all_entries = [dict(zip(columns, row)) for row in rows]
+        matching_entries = [entry for entry in all_entries if get_host(entry["ip_address"]) == ip_host]
+
+        if not matching_entries:
             return
 
-        for entry in all_entries:
-            self.update(
-                'mod_logs',
-                {
-                    'is_banned': 0,
-                    'banned_time': 0,
-                    'ban_reason': "None",
-                    'is_ip_banned': 0
-                },
-                'id = ?',
-                (entry['id'],)
+        # Update all matching rows by full IP+port
+        for entry in matching_entries:
+            self.execute(
+                """
+                UPDATE mod_logs
+                SET is_banned = 0,
+                    banned_time = 0,
+                    ban_reason = "None",
+                    is_ip_banned = 0
+                WHERE ip_address = ?
+                """,
+                (entry["ip_address"],)
             )
 
-            self.insert('punishment_logs', {
-                'xuid': entry['xuid'],
-                'name': entry['name'] if entry['name'] else ip,
-                'action_type': 'Unban',
-                'reason': 'IP Ban Removed',
-                'timestamp': int(time.time()),
-                'duration': 0
-            })
+            # Insert punishment log
+            self.execute(
+                """
+                INSERT INTO punishment_logs (xuid, name, action_type, reason, timestamp, duration)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    entry.get("xuid", None),
+                    entry.get("name") if entry.get("name") else ip_host,
+                    "Unban",
+                    "IP Ban Removed",
+                    now,
+                    0
+                )
+            )
 
-        self.invalidate_ip_ban(ip)
+        # Invalidate cache by host
+        self.invalidate_ip_ban(ip_host)
 
     def check_ip_ban(self, ip: str) -> bool:
-        ip_base = ip.split(':')[0]
+        def get_host(ip_address: str) -> str:
+            return ip_address.split(':')[0].strip()
 
-        cached = self._ip_ban_cache.get(ip_base)
+        ip_host = get_host(ip)
+
+        if not hasattr(self, "_ip_ban_cache"):
+            self._ip_ban_cache = {}
+        if not hasattr(self, "_ip_ban_index"):
+            self._ip_ban_index = {}
+
+        # Check cache first
+        cached = self._ip_ban_cache.get(ip_host)
         if cached is not None:
             return cached
 
-        row = self.execute(
-            "SELECT xuid FROM mod_logs "
-            "WHERE ip_address LIKE ? AND is_ip_banned = 1 LIMIT 1",
-            (f"{ip_base}%",), readonly=True
-        ).fetchone()
+        # Fetch all rows and filter by host
+        query = "SELECT xuid, ip_address FROM mod_logs WHERE is_ip_banned = 1"
+        rows = self.execute(query, (), readonly=True).fetchall()
+        columns = ["xuid", "ip_address"]
+        matching_entries = [dict(zip(columns, row)) for row in rows if get_host(row[1]) == ip_host]
 
-        if row:
-            xuid, = row
+        if matching_entries:
+            xuid = matching_entries[0]["xuid"]
             result = True
         else:
             xuid = None
             result = False
 
-        self._ip_ban_cache[ip_base] = result
+        # Update cache
+        self._ip_ban_cache[ip_host] = result
 
+        # Update IP->XUID index
         if xuid:
             if xuid not in self._ip_ban_index:
                 self._ip_ban_index[xuid] = set()
-            self._ip_ban_index[xuid].add(ip_base)
+            self._ip_ban_index[xuid].add(ip_host)
 
         return result
-    
+        
     def invalidate_ip_ban(self, ip: str):
         if hasattr(self, "_ip_ban_cache"):
             self._ip_ban_cache.pop(ip, None)

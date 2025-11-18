@@ -34,10 +34,6 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
 
     pid = ev.packet_id
 
-    if pid != MinecraftPacketIds.Login:
-        if self.db.check_ip_ban(str(ev.address)):
-            ev.is_cancelled = True
-
     if pid == MinecraftPacketIds.SubclientLogin:
         handle_subclient_login(self, ev)
 
@@ -58,16 +54,15 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
             self.packet_entry.add(str(ev.address))
         else:
             ev.is_cancelled = True
+    
+    elif pid == MinecraftPacketIds.Disconnect:
+        self.packet_entry.discard(str(ev.address))
 
     if self.monitor_intervals:
         self.packets_sent_count[pid] = self.packets_sent_count.get(pid, 0) + 1
 
 def handle_packetreceive_event(self: "PrimeBDS", ev: PacketReceiveEvent):
     pid = ev.packet_id
-
-    if pid != MinecraftPacketIds.Login:
-        if self.db.check_ip_ban(str(ev.address)):
-            ev.is_cancelled = True
 
     if pid == MinecraftPacketIds.SubclientLogin:
         handle_subclient_login(self, ev)
