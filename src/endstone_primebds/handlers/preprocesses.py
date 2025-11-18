@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from endstone_primebds.utils.config_util import load_config
 from endstone_primebds.utils.logging_util import log, discordRelay
 from endstone_primebds.utils.target_selector_util import get_matching_actors
-from endstone_primebds.utils.address_util import is_valid_ip
 
 import endstone_primebds.utils.internal_permissions_util as perms_util
 
@@ -141,20 +140,16 @@ def handle_command_preprocess(self: "PrimeBDS", event: PlayerCommandEvent):
         event.is_cancelled = True
         return False
     elif cmd == "ban-ip" and len(args) > 1 and endstone_enabled:
-
-        if is_valid_ip(args[1].strip('"')):
-            player.send_message(f"§cThis override only supports known player targets")
-            return False
-
         if len(args) > 2:
-            player.perform_command(f'ipban \"{args[1]}\" forever \"{args[2]}\"')
+            player.perform_command(f'ipban \"{args[1]}\" ip \"{args[2]}\"')
         else:
-            player.perform_command(f'ipban \"{args[1]}\" forever')
+            player.perform_command(f'ipban \"{args[1]}\" ip')
         event.is_cancelled = True
         return False
     elif cmd in {"unban", "pardon", "unban-ip", "pardon-ip"} and len(args) > 1 and endstone_enabled:
-        if is_valid_ip(args[1].strip('"')) and cmd in {"unban-ip", "pardon-ip"}:
-            player.send_message(f"§cThis override only supports known player targets")
+        if cmd in {"unban-ip", "pardon-ip"}:
+            player.perform_command(f'removeban ip \"{args[1]}\"')
+            event.is_cancelled = True
             return False
         player.perform_command(f'removeban \"{args[1]}\"')
         event.is_cancelled = True
