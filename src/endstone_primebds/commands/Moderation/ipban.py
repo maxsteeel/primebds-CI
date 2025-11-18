@@ -22,7 +22,7 @@ command, permission = create_command(
     [
         "/ipban <player: player> <duration_number: int> (second|minute|hour|day|week|month|year)<duration_length: ip_ban_length> [reason: message]",
         "/ipban <player: player> (forever)<perm_ban: perm_ban> [reason: message]",
-        "/ipban (ip)<perm_ban: perm_ban> <ip_address: string> [reason: message]"
+        "/ipban <player: player> (ip)<perm_ipban: perm_ipban> [reason: message]"
     ],
     ["primebds.command.ipban"]
 )
@@ -37,8 +37,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"§cTarget selectors are invalid for this command")
         return False
 
-    if len(args) > 1 and args[0].lower() == "ip":
-        ip = args[1]
+    if len(args) > 1 and args[1].lower() == "ip":
+        ip = args[0]
 
         if not is_valid_ip(ip):
             sender.send_message(f"§6Not a valid IP address")
@@ -52,11 +52,13 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         formatted_expiration = "Never - Permanent Ban"
         message = ban_message(self.server.level.name, formatted_expiration, "IP Ban - " + reason)
 
-        self.db.add_ip_ban(ip, ban_expiration, reason)
-
+        full_ip = ip
         for player in self.server.online_players:
             if player.address.hostname == ip:
+                full_ip = str(player.address)
                 player.kick(message)
+
+        self.db.add_ip_ban(full_ip, ban_expiration, reason)
 
         sender.send_message(f"§6IP §e{ip} §6was permanently banned for §e'{reason}' §7§o(IP Banned)")
         log(self, f"§6IP §e{ip} §6was permanently IP banned by §e{sender.name} for §e\"{reason}\"", "mod")

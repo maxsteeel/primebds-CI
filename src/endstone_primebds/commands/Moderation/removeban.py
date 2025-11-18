@@ -18,7 +18,7 @@ command, permission = create_command(
     "Removes an active ban from a player!",
     [
         "/removeban <player: player>",
-        "/removeban (ip)<perm_ban: perm_ban> <ip_address: string>"
+        "/removeban <player: player> (ip)<perm_removeban: perm_removeban>"
     ],
     ["primebds.command.removeban", "primebds.command.pardon"]
 )
@@ -37,12 +37,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         sender.send_message(f"§cTarget selectors are invalid for this command")
         return False
 
-    if args[0].lower() == "ip":
+    if len(args) > 1 and args[1].lower() == "ip":
         if len(args) < 2:
             sender.send_message(f"Usage: /removeban ip <IP>")
             return False
 
-        ip = args[1]
+        ip = args[0]
         if not is_valid_ip(ip):
             sender.send_message(f"§6Not a valid IP address")
             return False
@@ -59,7 +59,11 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     player_name = args[0].strip('"')
     mod_log = self.db.get_offline_mod_log(player_name)
 
-    if not mod_log or not mod_log.is_banned:
+    if not mod_log:
+        sender.send_message(f"§6Player §e{player_name} §6has no mod log entry")
+        return False
+
+    if not (mod_log.is_banned or mod_log.is_ip_banned):
         sender.send_message(f"§6Player §e{player_name} §6is not banned")
         return False
 
