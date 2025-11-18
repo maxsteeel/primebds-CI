@@ -69,7 +69,6 @@ class PrimeBDS(Plugin):
         self.packets_sent_count = defaultdict(int)
         self.gamerules = {}
         self.cached_players = set()
-        self.packet_entry = set()
         self.vanish_state = {}
         self.jail_cache = {}
         self.afk_cache = {}
