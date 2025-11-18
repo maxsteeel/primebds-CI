@@ -20,15 +20,23 @@ if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
 config = load_config()
-mute_sounds = config["modules"]["server_optimizer"]["mute_laggy_sounds"]
-mute_block_updates = config["modules"]["server_optimizer"]["mute_laggy_block_events"]
-mute_movement_updates = config["modules"]["server_optimizer"]["mute_laggy_movement_updates"]
+modules = config.get("modules", {})
+optimizer = modules.get("server_optimizer", {})
+
+SKIN_MAX_SIZE = 2000 * 1024
+mute_sounds = optimizer.get("mute_laggy_sounds", False)
+mute_block_updates = optimizer.get("mute_laggy_block_events", False)
+mute_movement_updates = optimizer.get("mute_laggy_movement_updates", False)
 
 def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
     if not PACKET_SUPPORT:
         return
 
     pid = ev.packet_id
+
+    if pid != MinecraftPacketIds.Login:
+        if self.db.check_ip_ban(str(ev.address)):
+            ev.is_cancelled = True
 
     if pid == MinecraftPacketIds.SubclientLogin:
         handle_subclient_login(self, ev)
@@ -45,18 +53,25 @@ def handle_packetsend_event(self: "PrimeBDS", ev: PacketSendEvent):
     elif pid == MinecraftPacketIds.LevelSoundEvent and mute_sounds:
         handle_laggy_sounds(self, ev)
 
+    elif pid == MinecraftPacketIds.RequestNetworkSettings:
+        if str(ev.address) not in self.packet_entry:
+            self.packet_entry.add(str(ev.address))
+        else:
+            ev.is_cancelled = True
+
     if self.monitor_intervals:
         self.packets_sent_count[pid] = self.packets_sent_count.get(pid, 0) + 1
 
 def handle_packetreceive_event(self: "PrimeBDS", ev: PacketReceiveEvent):
     pid = ev.packet_id
 
+    if pid != MinecraftPacketIds.Login:
+        if self.db.check_ip_ban(str(ev.address)):
+            ev.is_cancelled = True
+
     if pid == MinecraftPacketIds.SubclientLogin:
         handle_subclient_login(self, ev)
         return
-
-    elif pid == MinecraftPacketIds.Login:
-        handle_login_crasher(self, ev)
 
     elif pid == MinecraftPacketIds.LevelSoundEvent and mute_sounds:
         handle_laggy_sounds(self, ev)
@@ -119,12 +134,6 @@ def mute_redundant_block_events(self: "PrimeBDS", ev):
         received_open.pop(key, None)
         return
     
-def handle_login_crasher(self: "PrimeBDS", ev):
-    if PACKET_SUPPORT == False:
-        return
-
-    return
-
 def handle_subclient_login(self: "PrimeBDS", ev: PacketSendEvent):
     if not self.gamerules.get("subclient"):
         if ev.sub_client_id is not 0:

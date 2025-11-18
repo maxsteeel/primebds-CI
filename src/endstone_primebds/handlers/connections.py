@@ -136,6 +136,8 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
     send_on_connect = config["modules"]["join_leave_messages"]["send_on_connection"]
     leave_message = config["modules"]["join_leave_messages"]["leave_message"] 
 
+    self.packet_entry.discard(str(ev.player.address))
+
     if send_on_connect:
         ev.quit_message = f"{leave_message.replace('{player}', ev.player.name)}"
 
@@ -183,6 +185,7 @@ def handle_leave_event(self: "PrimeBDS", ev: PlayerQuitEvent):
     return
 
 def handle_kick_event(self: "PrimeBDS", ev: PlayerKickEvent):
+    self.packet_entry.discard(str(ev.player.address))
     self.sldb.end_session(ev.player.xuid, int(time.time()))
 
 def check_unset_scoreboards(self):

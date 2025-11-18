@@ -1094,6 +1094,9 @@ class UserDB(DatabaseManager):
         self._cache = {}
         self._name_to_xuid_cache = {}
         self._xuid_to_name_cache = {}
+        self._ip_ban_cache = {}
+        self._ip_ban_index = {}
+        self._ip_mute_cache = {}
         self._cache_ttl = 60
         self.create_tables()
 
@@ -1513,17 +1516,60 @@ class UserDB(DatabaseManager):
             'reason': 'Ban Removed', 'timestamp': int(time.time()), 'duration': 0
         })
         self.invalidate_user_cache(xuid)
+        self.invalidate_ip_ban_by_xuid(xuid)
 
     def check_ip_ban(self, ip: str) -> bool:
         ip_base = ip.split(':')[0]
+
+        cached = self._ip_ban_cache.get(ip_base)
+        if cached is not None:
+            return cached
+
         row = self.execute(
-            "SELECT 1 FROM mod_logs WHERE ip_address LIKE ? AND is_ip_banned = 1 LIMIT 1",
+            "SELECT xuid FROM mod_logs "
+            "WHERE ip_address LIKE ? AND is_ip_banned = 1 LIMIT 1",
             (f"{ip_base}%",), readonly=True
         ).fetchone()
-        return bool(row)
+
+        if row:
+            xuid, = row
+            result = True
+        else:
+            xuid = None
+            result = False
+
+        self._ip_ban_cache[ip_base] = result
+
+        if xuid:
+            if xuid not in self._ip_ban_index:
+                self._ip_ban_index[xuid] = set()
+            self._ip_ban_index[xuid].add(ip_base)
+
+        return result
     
+    def invalidate_ip_ban_by_xuid(self, xuid: str):
+        ip_bases = self._ip_ban_index.pop(xuid, None)
+        if not ip_bases:
+            return
+
+        for ip_base in ip_bases:
+            self._ip_ban_cache.pop(ip_base, None)
+
     def check_ip_mute(self, ip: str) -> tuple[bool, Optional[int], Optional[str]]:
         ip_base = ip.split(':')[0]
+        now = time.time()
+
+        cached = self._ip_mute_cache.get(ip_base)
+        if cached:
+            (is_muted, mute_time, mute_reason), expiry = cached
+
+            if now < expiry:
+                if is_muted and mute_time is not None and mute_time < now:
+                    del self._ip_mute_cache[ip_base]
+                else:
+                    return is_muted, mute_time, mute_reason
+            else:
+                del self._ip_mute_cache[ip_base]
 
         row = self.execute(
             "SELECT name, mute_time, mute_reason FROM mod_logs "
@@ -1535,8 +1581,9 @@ class UserDB(DatabaseManager):
         if row:
             name, mute_time, mute_reason = row
 
-            if mute_time < datetime.now().timestamp():
-                # Expired — unmute the original player
+            if mute_time < now:
+                self._ip_mute_cache.pop(ip_base, None)
+
                 self.update(
                     'mod_logs',
                     {'is_muted': 0, 'mute_time': 0, 'mute_reason': "None", "is_ip_muted": 0},
@@ -1550,15 +1597,22 @@ class UserDB(DatabaseManager):
                         'name': name,
                         'action_type': 'Unmute',
                         'reason': 'Mute Expired',
-                        'timestamp': int(time.time()),
+                        'timestamp': int(now),
                         'duration': 0
                     }
                 )
                 return False, None, None
 
-            return True, mute_time, mute_reason
+            result = (True, mute_time, mute_reason)
 
-        return False, None, None
+            self._ip_mute_cache[ip_base] = (result, now + self.CACHE_TTL)
+
+            return result
+
+        result = (False, None, None)
+        self._ip_mute_cache[ip_base] = (result, now + self.CACHE_TTL)
+
+        return result
 
     def remove_mute(self, name: str):
         xuid = self.get_xuid_by_name(name)
