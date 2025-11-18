@@ -1499,6 +1499,63 @@ class UserDB(DatabaseManager):
             'reason': reason, 'timestamp': int(time.time()), 'duration': expiration
         })
         self.invalidate_user_cache(xuid)
+        self.invalidate_ip_ban_by_xuid(xuid)
+
+    def add_ip_ban(self, ip: str, expiration: int, reason: str):
+        all_entries = self.fetch_by_condition('mod_logs', 'ip_address = ?', (ip,))
+
+        if all_entries:
+            for entry in all_entries:
+                self.update(
+                    'mod_logs',
+                    {
+                        'is_banned': 1,
+                        'banned_time': expiration,
+                        'ban_reason': reason,
+                        'is_ip_banned': 1
+                    },
+                    'id = ?',
+                    (entry['id'],)
+                )
+
+                self.insert('punishment_logs', {
+                    'xuid': entry['xuid'],
+                    'name': entry['name'] if entry['name'] else ip,
+                    'action_type': 'IP Ban',
+                    'reason': reason,
+                    'timestamp': int(time.time()),
+                    'duration': expiration
+                })
+        else:
+            mod_data = {
+                'xuid': None,
+                'name': None,
+                'is_muted': 0,
+                'mute_time': 0,
+                'mute_reason': "None",
+                'is_banned': 1,
+                'banned_time': expiration,
+                'ban_reason': reason,
+                'ip_address': ip,
+                'is_ip_banned': 1,
+                'is_ip_muted': 0,
+                'is_jailed': 0,
+                'jail_time': 0,
+                'jail_reason': "None",
+                'jail': 'None'
+            }
+            self.insert('mod_logs', mod_data)
+
+            self.insert('punishment_logs', {
+                'xuid': None,
+                'name': ip,
+                'action_type': 'IP Ban',
+                'reason': reason,
+                'timestamp': int(time.time()),
+                'duration': expiration
+            })
+
+        self.invalidate_ip_ban(ip)
 
     def add_mute(self, xuid: str, expiration: int, reason: str, ip_mute: bool = False):
         self.update('mod_logs', {'is_muted': 1, 'mute_time': expiration, 'mute_reason': reason, 'is_ip_muted': ip_mute }, 'xuid = ?', (xuid,))
@@ -1517,6 +1574,36 @@ class UserDB(DatabaseManager):
         })
         self.invalidate_user_cache(xuid)
         self.invalidate_ip_ban_by_xuid(xuid)
+
+    def remove_ip_ban(self, ip: str):
+        all_entries = self.fetch_by_condition('mod_logs', 'ip_address = ?', (ip,))
+
+        if not all_entries:
+            return
+
+        for entry in all_entries:
+            self.update(
+                'mod_logs',
+                {
+                    'is_banned': 0,
+                    'banned_time': 0,
+                    'ban_reason': "None",
+                    'is_ip_banned': 0
+                },
+                'id = ?',
+                (entry['id'],)
+            )
+
+            self.insert('punishment_logs', {
+                'xuid': entry['xuid'],
+                'name': entry['name'] if entry['name'] else ip,
+                'action_type': 'Unban',
+                'reason': 'IP Ban Removed',
+                'timestamp': int(time.time()),
+                'duration': 0
+            })
+
+        self.invalidate_ip_ban(ip)
 
     def check_ip_ban(self, ip: str) -> bool:
         ip_base = ip.split(':')[0]
@@ -1547,6 +1634,10 @@ class UserDB(DatabaseManager):
 
         return result
     
+    def invalidate_ip_ban(self, ip: str):
+        if hasattr(self, "_ip_ban_cache"):
+            self._ip_ban_cache.pop(ip, None)
+
     def invalidate_ip_ban_by_xuid(self, xuid: str):
         ip_bases = self._ip_ban_index.pop(xuid, None)
         if not ip_bases:
