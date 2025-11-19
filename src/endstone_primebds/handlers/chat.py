@@ -66,7 +66,6 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
         message = f"{prefix}{ev.player.name_tag}{suffix}{config['modules']['server_messages']['chat_prefix']}§r{safe_message}"
         ev.format = message
 
-
     discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")
     return True
 
