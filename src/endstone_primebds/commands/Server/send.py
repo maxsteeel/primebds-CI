@@ -37,6 +37,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     targets = get_matching_actors(self, target, sender)
     for target in targets:
-        target.transfer(ip, port)
+        if target.is_valid:
+            target.transfer(ip, port)
+        else:
+            sender.send_message(f"Target player is invalid")
 
     return True
