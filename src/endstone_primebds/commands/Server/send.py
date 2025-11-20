@@ -1,3 +1,4 @@
+from endstone import Player
 from endstone.command import CommandSender
 from endstone_primebds.utils.command_util import create_command
 from endstone_primebds.utils.target_selector_util import get_matching_actors
@@ -17,10 +18,6 @@ command, permission = create_command(
 
 # CONNECT COMMAND FUNCTIONALITY
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
-    if len(args) < 3:
-        sender.send_message("Usage: /send <player> <ip> [port]")
-        return False
-
     target = args[0]
     ip = args[1]
     port_str = args[2] if len(args) >= 3 else "19132"
@@ -37,7 +34,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     targets = get_matching_actors(self, target, sender)
     for target in targets:
-        if target.is_valid:
+        if target.is_valid and isinstance(target, Player):
             target.transfer(ip, port)
         else:
             sender.send_message(f"Target player is invalid")

@@ -1,5 +1,6 @@
 import re
 import random
+import sys
 import numpy as np
 from collections import OrderedDict
 from typing import TYPE_CHECKING, List, Optional
@@ -10,17 +11,37 @@ from endstone.util import Vector
 if TYPE_CHECKING:
     from endstone_primebds.primebds import PrimeBDS
 
-MAX_CACHE_SIZE = 1000
+MAX_CACHE_BYTES = 2 * 1024 * 1024 
 selector_cache = OrderedDict()
-player_to_cache_keys = {}
+selector_cache_sizes = {} 
+current_cache_bytes = 0
 
-def invalidate_player_cache(player: Player):
-    for key in player_to_cache_keys.pop(player, ()):
-        selector_cache.pop(key, None)
+def estimate_size(obj, seen=None):
+    try:
+        return sys.getsizeof(obj)
+    except Exception:
+        return 128
 
-def register_cache_for_players(result: list, cache_key):
-    for p in result:
-        player_to_cache_keys.setdefault(p, set()).add(cache_key)
+def cache_set(key, value):
+    global current_cache_bytes
+
+    if key in selector_cache:
+        old_size = selector_cache_sizes.get(key, 0)
+        current_cache_bytes -= old_size
+        selector_cache.pop(key)
+        selector_cache_sizes.pop(key, None)
+
+    entry_size = estimate_size(key) + estimate_size(value)
+
+    selector_cache[key] = value
+    selector_cache_sizes[key] = entry_size
+    selector_cache.move_to_end(key)
+    current_cache_bytes += entry_size
+
+    while current_cache_bytes > MAX_CACHE_BYTES and selector_cache:
+        old_key, old_value = selector_cache.popitem(last=False)
+        removed = selector_cache_sizes.pop(old_key, 0)
+        current_cache_bytes -= removed
 
 def parse_coord(value, origin_coord):
     if isinstance(value, str) and value.startswith("~"):
@@ -223,55 +244,57 @@ def passes_filters(players: List[object], args: dict, origin: Optional[object] =
 
 def get_matching_actors(self: "PrimeBDS", selector: str, origin):
     all_actors = [a for a in self.server.online_players if isinstance(a, Player)]
-    origin_loc = getattr(origin, "location", getattr(getattr(origin, "block", None), "location", Vector(0,0,0)))
-    origin_key = (round(origin_loc.x, 1), round(origin_loc.y, 1), round(origin_loc.z, 1))
-    cache_key = (selector, origin_key)
-
-    if cache_key in selector_cache:
-        return selector_cache[cache_key]
 
     if not selector.startswith("@"):
-        lower_name = selector.lower()
-        for actor in all_actors:
-            if actor.name.lower() == lower_name:
-                selector_cache[cache_key] = [actor]
-                register_cache_for_players([actor], cache_key)
-                return [actor]
-        selector_cache[cache_key] = []
+        lower = selector.lower()
+        for a in all_actors:
+            if a.name.lower() == lower:
+                return [a]
         return []
+
+    base_loc = getattr(origin, "location",
+                getattr(getattr(origin, "block", None), "location",
+                        Vector(0, 0, 0)))
 
     parsed = parse_selector(selector)
+
     if not parsed:
-        selector_cache[cache_key] = []
         return []
 
-    selector_type, args = parsed["type"], parsed["args"]
+    selector_type = parsed["type"]
+    args = parsed["args"]
+
+    ox_t = args.get("x")
+    oy_t = args.get("y")
+    oz_t = args.get("z")
+
+    ox = ox_t[0] if ox_t else None
+    oy = oy_t[0] if oy_t else None
+    oz = oz_t[0] if oz_t else None
+
+    origin_loc = Vector(
+        float(ox) if ox is not None else base_loc.x,
+        float(oy) if oy is not None else base_loc.y,
+        float(oz) if oz is not None else base_loc.z,
+    )
 
     mask = passes_filters(all_actors, args, origin_loc)
     result = list(np.array(all_actors)[mask])
 
     if selector_type == "s":
         result = [origin] if passes_filters([origin], args, origin_loc)[0] else []
+
     elif selector_type == "p":
         if result:
-            positions = np.array([[a.location.x, a.location.y, a.location.z] for a in result], dtype=np.float32)
-            origin_arr = np.array([origin_loc.x, origin_loc.y, origin_loc.z], dtype=np.float32)
-            dist_sq = np.sum((positions - origin_arr)**2, axis=1)
-            closest_idx = np.argmin(dist_sq)
-            result = [result[closest_idx]]
+            pos = np.array([[a.location.x, a.location.y, a.location.z] for a in result], dtype=np.float32)
+            o = np.array([origin_loc.x, origin_loc.y, origin_loc.z], dtype=np.float32)
+            closest = np.argmin(np.sum((pos - o)**2, axis=1))
+            result = [result[closest]]
+
     elif selector_type == "r":
         result = [random.choice(result)] if result else []
 
-    cache_set(cache_key, result)
-    register_cache_for_players(result, cache_key)
     return result
-
-def cache_set(key, value):
-    if key in selector_cache:
-        selector_cache.move_to_end(key)
-    selector_cache[key] = value
-    if len(selector_cache) > MAX_CACHE_SIZE:
-        selector_cache.popitem(last=False)
 
 def get_target_entity(player: Player, max_distance: float = 10) -> Optional[Actor]:
     if not player or not hasattr(player, "location"):
