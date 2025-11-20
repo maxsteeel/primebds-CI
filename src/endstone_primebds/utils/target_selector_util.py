@@ -245,6 +245,13 @@ def passes_filters(players: List[object], args: dict, origin: Optional[object] =
 def get_matching_actors(self: "PrimeBDS", selector: str, origin):
     all_actors = [a for a in self.server.online_players if isinstance(a, Player)]
 
+    if not selector.startswith("@"):
+        lower = selector.lower()
+        for a in all_actors:
+            if a.name.lower() == lower:
+                return [a]
+        return []
+
     base_loc = getattr(origin, "location",
                 getattr(getattr(origin, "block", None), "location",
                         Vector(0, 0, 0)))
@@ -270,13 +277,6 @@ def get_matching_actors(self: "PrimeBDS", selector: str, origin):
         float(oy) if oy is not None else base_loc.y,
         float(oz) if oz is not None else base_loc.z,
     )
-
-    if not selector.startswith("@"):
-        lower = selector.lower()
-        for a in all_actors:
-            if a.name.lower() == lower:
-                return [a]
-        return []
 
     mask = passes_filters(all_actors, args, origin_loc)
     result = list(np.array(all_actors)[mask])
