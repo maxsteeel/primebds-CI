@@ -13,7 +13,7 @@ def handle_teleport_event(self: "PrimeBDS", ev: PlayerTeleportEvent):
     config = load_config()
     teleports = config["modules"]["back"]["save_unnatural_teleports"]
     if teleports:
-        self.serverdb.set_last_warp(ev.to_location, ev.player.xuid, ev.player.name)
+        self.serverdb.set_last_warp(ev.from_location, ev.player.xuid, ev.player.name)
     return
 
 def handle_death_event(self: "PrimeBDS", ev: PlayerDeathEvent):
