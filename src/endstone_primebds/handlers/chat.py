@@ -60,11 +60,15 @@ def handle_chat_event(self: "PrimeBDS", ev: PlayerChatEvent):
         ev.is_cancelled = True
 
     if enhanced_chat :
-        prefix = perms_util.get_prefix(user.internal_rank, perms_util.PERMISSIONS)
-        suffix = perms_util.get_suffix(user.internal_rank, perms_util.PERMISSIONS)
-        message = f"{prefix}{ev.player.name_tag}{suffix}{config['modules']['server_messages']['chat_prefix']}§r{ev.message}"
-        message = message.replace("{", "{{").replace("}", "}}")
-        ev.format = message
+        def escape_braces(s: str) -> str:
+            return s.replace("{", "{{").replace("}", "}}")
+
+        prefix = escape_braces(perms_util.get_prefix(user.internal_rank, perms_util.PERMISSIONS))
+        suffix = escape_braces(perms_util.get_suffix(user.internal_rank, perms_util.PERMISSIONS))
+        name_tag = escape_braces(ev.player.name_tag)
+        safe_msg = escape_braces(ev.message)
+        chat_prefix = escape_braces(config['modules']['server_messages']['chat_prefix'])
+        ev.format = f"{prefix}{name_tag}{suffix}{chat_prefix}§r{safe_msg}"
 
     discordRelay(f"**{ev.player.name}**: {ev.message}", "chat")
     return True
