@@ -184,7 +184,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
                 z = float(parts[2])
                 loc = jail["pos"]
                 jail_info = f"""
-§7  - §eJail: §f{jail["name"]}
+§7  - §eJail: §f{jail['name']}
 §7  - §eJail Location: §f{round(loc.x)} {round(loc.y)} {round(loc.z)} §8[§e{loc.dimension.name}§8]
 §7  - §eJail Reason: §f{jail_reason}
 §7  - §eJail Time: §f{format_time_remaining(jail_time)}

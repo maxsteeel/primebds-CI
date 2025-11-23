@@ -91,7 +91,7 @@ def preload_settings():
         "server_optimizer": OrderedDict({
             "mute_laggy_sounds": True,
             "mute_laggy_block_events": True,
-            "mute_laggy_movement_updates": True
+            "mute_laggy_movement_updates": False
         }),
         "server_messages": OrderedDict({
             "skin_change_messages": True,
