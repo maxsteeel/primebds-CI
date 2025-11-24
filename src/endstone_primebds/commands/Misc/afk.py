@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 # Register command
 command, permission = create_command(
     "afk",
-    "Toggles AFK mode for yourself.",
+    "Toggles AFK mode for yourself!",
     ["/afk"],
     ["primebds.command.afk"]
 )
