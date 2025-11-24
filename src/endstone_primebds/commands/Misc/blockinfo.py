@@ -24,7 +24,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     if len(args) >= 1:
         pos = args[0]
-        block = dim.get_block_at(pos.x, pos.y, pos.z)
+        block = dim.get_block_at(pos.block_x, pos.block_y, pos.block_z)
         b = block.location
 
         sender.send_message(f"""§bBlock Information:
@@ -58,9 +58,9 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         cx = eye_x + dir_x * distance
         cy = eye_y + dir_y * distance
         cz = eye_z + dir_z * distance
-        block = dim.get_block_at(cx, cy, cz)
+        block = dim.get_block_at(int(cx), int(cy), int(cz))
 
-        if not block.is_air:
+        if not block.type == "minecraft:air":
             hit_block = block
             break
 
