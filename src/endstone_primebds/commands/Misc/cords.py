@@ -35,6 +35,6 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
 def show_cords_form(player):
     form = ModalFormData()
-    form.title("World Gamerule Toggles")
+    form.title("Current Position")
     form.text_field(f"Current Block Position", f"{player.location.block_x} {player.location.block_y} {player.location.block_z}", f"{player.location.block_x} {player.location.block_y} {player.location.block_z}")
     form.show(player)
