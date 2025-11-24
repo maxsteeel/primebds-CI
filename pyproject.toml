@@ -8,7 +8,7 @@ version = "3.1.4"
 description = "An essentials plugin for diagnostics, stability, and quality of life on Minecraft Bedrock Edition."
 author = "PrimeStrat"
 dependencies = [
-    "bedrock-protocol-packets==0.0.6",
+    "bedrock-protocol-packets==0.0.7",
     "mcbe-binarystream==2.1.0",
     "RapidNBT==1.1.5",
     "chest_form_api_endstone >= 1.0.0"
