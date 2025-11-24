@@ -17,7 +17,7 @@ command, permission = create_command(
 
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not isinstance(sender, Player):
-        sender.send_message("§cOnly players can use this command.")
+        sender.send_message("§cOnly players can use this command")
         return True
 
     player_name = sender.name
@@ -25,20 +25,17 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not hasattr(self, "blockscan_intervals"):
         self.blockscan_intervals = {}
 
-    if args and args[0].lower() == "disable":
-        if player_name in self.blockscan_intervals:
-            self.server.scheduler.cancel_task(self.blockscan_intervals[player_name])
-            del self.blockscan_intervals[player_name]
-            sender.send_message("§cBlock scanning disabled")
-        else:
-            sender.send_message("§eNo active block scan")
-        return True
-
+    # ============================
+    # AUTO–TOGGLE LOGIC
+    # ============================
     if player_name in self.blockscan_intervals:
+        # Toggle OFF
         self.server.scheduler.cancel_task(self.blockscan_intervals[player_name])
         del self.blockscan_intervals[player_name]
-        sender.send_message("§ePrevious scan canceled, starting new one...")
+        sender.send_message("§cBlock scanning disabled")
+        return True
 
+    # Toggle ON
     interval_seconds = 0.5
 
     def get_direction(player: Player):
@@ -77,8 +74,8 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             cy = eye_y + dir_y * distance
             cz = eye_z + dir_z * distance
 
-            block = dim.get_block_at(cx, cy, cz)
-            if not block.is_air:
+            block = dim.get_block_at(int(cx), int(cy), int(cz))
+            if not block.type == "minecraft:air":
                 hit_block = block
                 break
 
@@ -106,7 +103,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
         self,
         lambda: scan_interval(player_name),
         delay=0,
-        period=int(interval_seconds * 20)
+        period=4
     )
 
     if task:

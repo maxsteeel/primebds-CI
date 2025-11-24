@@ -28,7 +28,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if player:
         if len(args) == 0:
             player.send_message(f"{player.location.block_x} {player.location.block_y} {player.location.block_z}")
-        elif args == "print":
+        else:
             show_cords_form(player)
 
     return True
