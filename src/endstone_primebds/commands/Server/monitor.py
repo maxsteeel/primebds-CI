@@ -168,7 +168,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 def get_ping_color(ping: int) -> str:
     return ColorFormat.GREEN if ping <= 80 else ColorFormat.YELLOW if ping <= 160 else ColorFormat.RED
 
-def clear_all_intervals(self: "PrimeBDS"):
+def clear_all_monitor_intervals(self: "PrimeBDS"):
     """Clear all active intervals."""
     for player_name, task_id in self.monitor_intervals.items():
         self.server.scheduler.cancel_task(task_id) 
