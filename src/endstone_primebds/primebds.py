@@ -13,7 +13,8 @@ from endstone_primebds.commands import (
     preloaded_handlers
 )
 
-from endstone_primebds.commands.Server.monitor import clear_all_intervals
+from endstone_primebds.commands.Server.monitor import clear_all_monitor_intervals
+from endstone_primebds.commands.Misc.blockscan import clear_all_blockscan_intervals
 from endstone_primebds.utils.config_util import load_config
 from endstone_primebds.utils.economy_utils import get_eco_link
 from endstone_primebds.utils.db_util import UserDB, sessionDB, ServerDB, User, ModLog, ServerData
@@ -66,6 +67,7 @@ class PrimeBDS(Plugin):
         super().__init__()
         # Command Controls
         self.monitor_intervals = {}
+        self.blockscan_intervals = {}
         self.packets_sent_count = defaultdict(int)
         self.gamerules = {}
         self.cached_players = set()
@@ -225,7 +227,8 @@ class PrimeBDS(Plugin):
 
     def on_disable(self):
         stop_intervals(self)
-        clear_all_intervals(self)
+        clear_all_blockscan_intervals(self)
+        clear_all_monitor_intervals(self)
         self.db.close_connection()
         self.sldb.close_connection()
 
