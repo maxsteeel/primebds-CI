@@ -23,8 +23,25 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     dim = player.dimension
 
     if len(args) >= 1:
-        pos = args[0]
-        block = dim.get_block_at(pos.block_x, pos.block_y, pos.block_z)
+        pos_str = args[0] 
+        x_arg, y_arg, z_arg = pos_str.split()
+        player = sender 
+        px, py, pz = player.location.x, player.location.y, player.location.z
+
+        def resolve_coord(arg: str, base: float) -> float:
+            arg = arg.strip()
+            if arg.startswith("~"):
+                if arg == "~":
+                    return base
+                else:
+                    return base + float(arg[1:])
+            return float(arg)
+
+        x = resolve_coord(x_arg, px)
+        y = resolve_coord(y_arg, py)
+        z = resolve_coord(z_arg, pz)
+
+        block = dim.get_block_at(int(x), int(y), int(z))
         b = block.location
 
         sender.send_message(f"""§bBlock Information:
@@ -39,7 +56,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     base = player.location
     eye_x = base.x
-    eye_y = base.y + 1
+    eye_y = base.y
     eye_z = base.z
 
     yaw = radians(base.yaw)
