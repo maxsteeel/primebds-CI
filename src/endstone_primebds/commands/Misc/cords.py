@@ -16,7 +16,7 @@ command, permission = create_command(
     ["/cords (print)[print_cords: print_cords]"],
     ["primebds.command.cords"],
     "op",
-    ["blockpos"]
+    ["blockpos", "pos"]
 )
 
 def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
