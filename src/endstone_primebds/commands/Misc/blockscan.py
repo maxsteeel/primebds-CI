@@ -82,13 +82,23 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
             block_states = hit_block.data.block_states
             runtime_id = hit_block.data.runtime_id
 
+            if isinstance(block_states, dict):
+                states_list = [f"{k} = {v}" for k, v in block_states.items()]
+            else:
+                states_list = []
+                for entry in block_states:
+                    for k, v in entry.items():
+                        states_list.append(f"{k} = {v}")
+
+            states_text = "\n".join(f"  §7- §f{s}" for s in states_list) if states_list else "  §7- (none)"
+
             player.send_tip(
                 f"§bBlock Information§r\n"
                 f"§7- §eX: §f{b.block_x}\n"
                 f"§7- §eY: §f{b.block_y}\n"
                 f"§7- §eZ: §f{b.block_z}\n"
                 f"§7- §eType: §f{block_type}\n"
-                f"§7- §eStates: §f{block_states}\n"
+                f"§7- §eStates:\n{states_text}\n"
                 f"§7- §eRuntime ID: §f{runtime_id}"
             )
         else:
