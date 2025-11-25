@@ -25,17 +25,12 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
     if not hasattr(self, "blockscan_intervals"):
         self.blockscan_intervals = {}
 
-    # ============================
-    # AUTO–TOGGLE LOGIC
-    # ============================
     if player_name in self.blockscan_intervals:
-        # Toggle OFF
         self.server.scheduler.cancel_task(self.blockscan_intervals[player_name])
         del self.blockscan_intervals[player_name]
         sender.send_message("§cBlock scanning disabled")
         return True
 
-    # Toggle ON
     interval_seconds = 0.5
 
     def get_direction(player: Player):
