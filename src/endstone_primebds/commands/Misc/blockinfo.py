@@ -56,7 +56,7 @@ def handler(self: "PrimeBDS", sender: CommandSender, args: list[str]) -> bool:
 
     base = player.location
     eye_x = base.x
-    eye_y = base.y + 1
+    eye_y = base.y
     eye_z = base.z
 
     yaw = radians(base.yaw)
